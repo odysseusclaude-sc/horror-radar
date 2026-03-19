@@ -1,0 +1,4 @@
+Tags: [[Édouard Manet]]
+
+From [[Impressionism by Natalia Brodskaya]],
+The boy is outlined in black, appears to be cut out from the shimmering grey-green background, which represents nothing more than the air. Manet was the first painter to use colour to render surrounding air. The painting has no concrete decoration, landscape, or interior. Only a small strip of shadow extends from the fifer’s feet to show he stands firmly on solid ground. Three flat patches of color – deep red, black, and white – form the painting’s palette with extreme concision. Only the little boy’s face is handled with delicate pink shades.

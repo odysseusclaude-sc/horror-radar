@@ -1,0 +1,14 @@
+Link: https://www.thecollector.com/colorito-disegno-art-historical-debate/
+Tags: [[Art History]], [[Vincent Van Gogh Curriculum]], [[colorito versus disegno]]
+
+# The Debate
+- The debate of _colorito_ versus _disegno_ emerged in the 16th century in Florence and Venice, with Florentine artists prioritizing the design, or *disegno*, and Venetian artists heralding colorito, or color.
+But why debate? The ultimate goal of Renaissance artists was to <mark style="background: #CEE3F3;">represent nature as closely as possible</mark>. 
+- Venetian artists theorised that the correct application of color, particularly the <mark style="background: #CEE3F3;">use of tones and shading</mark>, would allow the artist to imitate nature perfectly.
+- Florentine artists believed that the concept of design, was the <mark style="background: #CEE3F3;">embodiment of all art</mark>. No art form could be brought to life without the element of design being accomplished first.
+
+# Intellect vs Emotion
+- The distinction between disegno and colorito is important because it encompasses the two theoretical pillars of Renaissance art: intellect vs emotion.
+- In the case of colorito, art theorists associated the act of coloring with emotion and the artist’s capacity to represent it. The <mark style="background: #CEE3F3;">emotion</mark> of the scene would <mark style="background: #CEE3F3;">dictate the visual intensity of the colors</mark>. A tragic scene would have starker coloring with stronger contrast, while a happy scene would be radiant and lighthearted.
+- In the case of disegno, art theorists connected it to intellect and rationality because of its <mark style="background: #CEE3F3;">association with the many preparations required</mark> to create an artwork. Disegno was seen as directly associated with <mark style="background: #CEE3F3;">rationality</mark> because both design and drawing were calculations of the mind.
+- Those supporting *colorito* took [[Titian]] as their emblematic artist, while the supporters of *disegno* took [[Michelangelo]]. As an artist, Titian is known for his <mark style="background: #CEE3F3;">impressive vividness of color</mark>, his <mark style="background: #CEE3F3;">masterful use of pigments</mark>, and the <mark style="background: #CEE3F3;">emotion that his compositions transmit</mark> with their vibrancy. His paintings are testaments to how color can achieve the likeness of nature and give the feeling of spatiality. On the other hand, Michelangelo’s compositions thrive through their <mark style="background: #CEE3F3;">perfect use of lines and perspectives</mark>, achieving an almost <mark style="background: #CEE3F3;">mathematical perfection</mark>.
