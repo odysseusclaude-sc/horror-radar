@@ -1,0 +1,35 @@
+import type { PaginatedResponse } from "../types";
+
+const BASE_URL = "";
+
+export async function fetchPaginated<T>(
+  endpoint: string,
+  params: Record<string, string | number | boolean | undefined> = {}
+): Promise<PaginatedResponse<T>> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  }
+
+  const url = `${BASE_URL}${endpoint}?${searchParams.toString()}`;
+  const resp = await fetch(url);
+
+  if (!resp.ok) {
+    throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+  }
+
+  return resp.json();
+}
+
+export async function fetchOne<T>(endpoint: string): Promise<T> {
+  const resp = await fetch(`${BASE_URL}${endpoint}`);
+
+  if (!resp.ok) {
+    throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+  }
+
+  return resp.json();
+}
