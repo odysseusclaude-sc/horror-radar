@@ -29,6 +29,10 @@ export interface GameSnapshot {
   average_playtime_forever: number | null;
 }
 
+export interface GameListItem extends Game {
+  latest_snapshot: GameSnapshot | null;
+}
+
 export interface GameDetail extends Game {
   snapshots: GameSnapshot[];
   ops_history: OpsScore[];

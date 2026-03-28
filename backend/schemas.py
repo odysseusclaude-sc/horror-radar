@@ -65,6 +65,11 @@ class OpsScoreOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GameListOut(GameOut):
+    """Game with latest snapshot data for list views."""
+    latest_snapshot: GameSnapshotOut | None = None
+
+
 class GameDetailOut(GameOut):
     snapshots: list[GameSnapshotOut] = []
     ops_history: list[OpsScoreOut] = []

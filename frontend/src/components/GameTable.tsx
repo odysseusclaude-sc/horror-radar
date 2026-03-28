@@ -1,8 +1,8 @@
-import type { Game } from "../types";
+import type { GameListItem } from "../types";
 import GameRow from "./GameRow";
 
 interface GameTableProps {
-  games: Game[];
+  games: GameListItem[];
   loading: boolean;
 }
 
@@ -15,10 +15,10 @@ export default function GameTable({ games, loading }: GameTableProps) {
             <th className="px-6 py-4 w-[350px]">Game &amp; Developer</th>
             <th className="px-4 py-4 text-center">Days</th>
             <th className="px-4 py-4">Price</th>
-            <th className="px-4 py-4">Reviews (7d)</th>
+            <th className="px-4 py-4">Reviews</th>
             <th className="px-4 py-4">Score %</th>
-            <th className="px-4 py-4">Vel 7d</th>
             <th className="px-4 py-4">Peak CCU</th>
+            <th className="px-4 py-4">Owners</th>
             <th className="px-6 py-4">YouTube Visibility</th>
           </tr>
         </thead>

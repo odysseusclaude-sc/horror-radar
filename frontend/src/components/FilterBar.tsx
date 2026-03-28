@@ -33,7 +33,7 @@ export default function FilterBar({
               value={days}
               onChange={(e) => onDaysChange(Number(e.target.value))}
             />
-            <span className="text-xs font-mono text-primary font-bold">0-{days}d</span>
+            <span className="text-xs font-mono text-primary font-bold">&lt;{days}d</span>
           </div>
         </div>
 

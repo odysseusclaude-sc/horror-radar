@@ -20,7 +20,7 @@ class Game(Base):
     title = Column(String, nullable=False)
     developer = Column(String)
     publisher = Column(String)
-    release_date = Column(Date)
+    release_date = Column(Date, index=True)
     price_usd = Column(Float)
     genres = Column(Text)  # JSON string, e.g. '["Indie","Action"]'
     tags = Column(Text)    # JSON string with vote counts, e.g. '{"Horror":142,"Indie":98}'
@@ -50,7 +50,7 @@ class GameSnapshot(Base):
 
     id = Column(Integer, primary_key=True)
     appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
-    snapshot_date = Column(Date, nullable=False)
+    snapshot_date = Column(Date, nullable=False, index=True)
     review_count = Column(Integer)
     review_score_pct = Column(Float)
     total_positive = Column(Integer)
@@ -95,7 +95,7 @@ class YoutubeVideo(Base):
     channel_id = Column(String, ForeignKey("youtube_channels.channel_id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     description = Column(Text)
-    published_at = Column(DateTime)
+    published_at = Column(DateTime, index=True)
     view_count = Column(Integer)
     like_count = Column(Integer)
     comment_count = Column(Integer)
@@ -128,7 +128,7 @@ class OpsScore(Base):
 
     id = Column(Integer, primary_key=True)
     appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
-    score_date = Column(Date, nullable=False)
+    score_date = Column(Date, nullable=False, index=True)
     score = Column(Float)  # 0-100 normalized
     confidence = Column(String)  # "low", "medium", "high"
     review_component = Column(Float)
