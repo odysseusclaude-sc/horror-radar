@@ -1,8 +1,7 @@
-import type { Game, GameSnapshot } from "../types";
+import type { GameListItem } from "../types";
 
 interface GameRowProps {
-  game: Game;
-  snapshot?: GameSnapshot;
+  game: GameListItem;
   even: boolean;
 }
 
@@ -18,19 +17,18 @@ function daysBadgeColor(d: number): string {
   return "bg-red-950/40 text-red-500 border-red-900/40";
 }
 
-function velocityDisplay(current: number | null, _prev: number | null) {
-  // Placeholder: in production, velocity is computed from two snapshots
-  if (current === null || current === 0) return { text: "—", color: "text-text-dim" };
-  // Positive velocity placeholder
-  return { text: `+${((current / 100) * 7).toFixed(1)}%`, color: "text-primary font-bold" };
+function formatOwners(low: number | null, high: number | null): string {
+  if (low === null || high === null) return "—";
+  const fmt = (n: number) => n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+  return `${fmt(low)}-${fmt(high)}`;
 }
 
-export default function GameRow({ game, snapshot, even }: GameRowProps) {
+export default function GameRow({ game, even }: GameRowProps) {
   const days = daysSince(game.release_date);
-  const reviewCount = snapshot?.review_count ?? 0;
-  const scorePct = snapshot?.review_score_pct;
-  const peakCcu = snapshot?.peak_ccu;
-  const vel = velocityDisplay(reviewCount, null);
+  const snap = game.latest_snapshot;
+  const reviewCount = snap?.review_count ?? null;
+  const scorePct = snap?.review_score_pct ?? null;
+  const peakCcu = snap?.peak_ccu ?? null;
 
   return (
     <tr
@@ -88,11 +86,8 @@ export default function GameRow({ game, snapshot, even }: GameRowProps) {
       {/* Reviews */}
       <td className="px-4 py-2">
         <div className="flex items-center gap-1 font-bold text-sm">
-          {reviewCount > 0 ? (
-            <>
-              {reviewCount.toLocaleString()}
-              <span className="material-symbols-outlined text-green-500">trending_up</span>
-            </>
+          {reviewCount !== null && reviewCount > 0 ? (
+            reviewCount.toLocaleString()
           ) : (
             <span className="text-text-dim">—</span>
           )}
@@ -101,27 +96,58 @@ export default function GameRow({ game, snapshot, even }: GameRowProps) {
 
       {/* Score % */}
       <td className="px-4 py-2">
-        <div
-          className={`flex items-center gap-1 text-sm font-bold ${
-            scorePct !== null && scorePct !== undefined && scorePct < 50 ? "text-red-500" : ""
-          }`}
-        >
-          <span className="material-symbols-outlined text-primary">skull</span>
-          {scorePct !== null && scorePct !== undefined ? `${Math.round(scorePct)}%` : "—"}
-        </div>
+        {scorePct !== null ? (
+          <div
+            className={`flex items-center gap-1 text-sm font-bold ${
+              scorePct < 50 ? "text-red-500" : ""
+            }`}
+          >
+            <span className="material-symbols-outlined text-primary">skull</span>
+            {Math.round(scorePct)}%
+          </div>
+        ) : (
+          <span className="text-text-dim text-sm">—</span>
+        )}
       </td>
-
-      {/* Velocity */}
-      <td className={`px-4 py-2 font-mono text-sm ${vel.color}`}>{vel.text}</td>
 
       {/* Peak CCU */}
       <td className="px-4 py-2 font-mono text-sm">
-        {peakCcu !== null && peakCcu !== undefined ? peakCcu.toLocaleString() : "—"}
+        {peakCcu !== null && peakCcu > 0 ? peakCcu.toLocaleString() : "—"}
       </td>
 
-      {/* YouTube Visibility */}
+      {/* Owners */}
+      <td className="px-4 py-2 font-mono text-sm">
+        {snap?.low_confidence_owners ? (
+          <span className="text-text-dim italic">
+            {formatOwners(snap.estimated_owners_low, snap.estimated_owners_high)}
+          </span>
+        ) : (
+          formatOwners(snap?.estimated_owners_low ?? null, snap?.estimated_owners_high ?? null)
+        )}
+      </td>
+
+      {/* OPS Score */}
       <td className="px-6 py-2">
-        <span className="text-text-dim italic text-[10px]">—</span>
+        {game.latest_ops?.score !== null && game.latest_ops?.score !== undefined ? (
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-black border ${
+                game.latest_ops.score >= 60
+                  ? "bg-green-950/40 text-green-400 border-green-900/40"
+                  : game.latest_ops.score >= 30
+                  ? "bg-amber-950/40 text-amber-400 border-amber-900/40"
+                  : "bg-red-950/40 text-red-400 border-red-900/40"
+              }`}
+            >
+              {Math.round(game.latest_ops.score)}
+            </span>
+            {game.latest_ops.confidence === "low" && (
+              <span className="text-text-dim text-[9px]" title="Low confidence">?</span>
+            )}
+          </div>
+        ) : (
+          <span className="text-text-dim italic text-[10px]">—</span>
+        )}
       </td>
     </tr>
   );

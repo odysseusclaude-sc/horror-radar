@@ -29,6 +29,11 @@ export interface GameSnapshot {
   average_playtime_forever: number | null;
 }
 
+export interface GameListItem extends Game {
+  latest_snapshot: GameSnapshot | null;
+  latest_ops: OpsScore | null;
+}
+
 export interface GameDetail extends Game {
   snapshots: GameSnapshot[];
   ops_history: OpsScore[];
@@ -39,10 +44,14 @@ export interface OpsScore {
   score: number | null;
   confidence: string | null;
   review_component: number | null;
+  velocity_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
+  youtube_breadth: number | null;
   wishlist_bonus: number | null;
   raw_ops: number | null;
+  price_modifier: number | null;
+  formula_version: number | null;
 }
 
 export interface Channel {

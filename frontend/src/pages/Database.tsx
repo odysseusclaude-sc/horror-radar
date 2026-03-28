@@ -3,10 +3,10 @@ import { fetchPaginated } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import GameTable from "../components/GameTable";
 import Pagination from "../components/Pagination";
-import type { Game } from "../types";
+import type { GameListItem } from "../types";
 
 export default function Database() {
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<GameListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ export default function Database() {
   const loadGames = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await fetchPaginated<Game>("/games", {
+      const resp = await fetchPaginated<GameListItem>("/games", {
         page,
         page_size: pageSize,
         days: appliedDays,

@@ -48,6 +48,7 @@ class GameSnapshotOut(BaseModel):
     peak_ccu: int | None = None
     current_ccu: int | None = None
     average_playtime_forever: int | None = None
+    review_velocity_7d: float | None = None
 
     model_config = {"from_attributes": True}
 
@@ -57,12 +58,22 @@ class OpsScoreOut(BaseModel):
     score: float | None = None
     confidence: str | None = None
     review_component: float | None = None
+    velocity_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
+    youtube_breadth: float | None = None
     wishlist_bonus: float | None = None
     raw_ops: float | None = None
+    price_modifier: float | None = None
+    formula_version: int | None = None
 
     model_config = {"from_attributes": True}
+
+
+class GameListOut(GameOut):
+    """Game with latest snapshot data and OPS for list views."""
+    latest_snapshot: GameSnapshotOut | None = None
+    latest_ops: OpsScoreOut | None = None
 
 
 class GameDetailOut(GameOut):

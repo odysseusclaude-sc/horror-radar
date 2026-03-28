@@ -11,6 +11,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
+from sqlalchemy import func
 
 from collectors._http import fetch_with_retry, steam_limiter
 from database import SessionLocal
@@ -79,14 +80,12 @@ async def run_ccu_snapshots():
 
                     current_ccu = data["response"].get("player_count", 0)
 
-                    # Compute peak CCU across all snapshots
-                    max_historical = (
-                        db.query(GameSnapshot.peak_ccu)
-                        .filter(GameSnapshot.appid == game.appid, GameSnapshot.peak_ccu.isnot(None))
-                        .order_by(GameSnapshot.peak_ccu.desc())
-                        .first()
-                    )
-                    historical_peak = max_historical[0] if max_historical else 0
+                    # Compute peak CCU using aggregate
+                    historical_peak = (
+                        db.query(func.max(GameSnapshot.peak_ccu))
+                        .filter(GameSnapshot.appid == game.appid)
+                        .scalar()
+                    ) or 0
                     peak_ccu = max(current_ccu, historical_peak)
 
                     # Upsert today's snapshot

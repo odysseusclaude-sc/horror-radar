@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
-from config import CORE_HORROR_TAGS, MAJOR_PUBLISHERS
+from config import CORE_HORROR_TAGS, INDIE_PUBLISHERS, MAJOR_PUBLISHERS
 from database import SessionLocal
 from models import CollectionRun, DiscardedGame, Game
 
@@ -41,6 +41,8 @@ def _is_indie(genres: list[str], developer: str | None, publisher: str | None) -
     if "Indie" in genres:
         return True
     if developer and publisher and developer == publisher:
+        return True
+    if publisher and publisher in INDIE_PUBLISHERS:
         return True
     return False
 

@@ -20,7 +20,7 @@ class Game(Base):
     title = Column(String, nullable=False)
     developer = Column(String)
     publisher = Column(String)
-    release_date = Column(Date)
+    release_date = Column(Date, index=True)
     price_usd = Column(Float)
     genres = Column(Text)  # JSON string, e.g. '["Indie","Action"]'
     tags = Column(Text)    # JSON string with vote counts, e.g. '{"Horror":142,"Indie":98}'
@@ -50,7 +50,7 @@ class GameSnapshot(Base):
 
     id = Column(Integer, primary_key=True)
     appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
-    snapshot_date = Column(Date, nullable=False)
+    snapshot_date = Column(Date, nullable=False, index=True)
     review_count = Column(Integer)
     review_score_pct = Column(Float)
     total_positive = Column(Integer)
@@ -61,6 +61,7 @@ class GameSnapshot(Base):
     peak_ccu = Column(Integer)
     current_ccu = Column(Integer)
     average_playtime_forever = Column(Integer)
+    review_velocity_7d = Column(Float)  # avg reviews/day in first 7 days
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="snapshots")
@@ -95,7 +96,7 @@ class YoutubeVideo(Base):
     channel_id = Column(String, ForeignKey("youtube_channels.channel_id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     description = Column(Text)
-    published_at = Column(DateTime)
+    published_at = Column(DateTime, index=True)
     view_count = Column(Integer)
     like_count = Column(Integer)
     comment_count = Column(Integer)
@@ -128,7 +129,7 @@ class OpsScore(Base):
 
     id = Column(Integer, primary_key=True)
     appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
-    score_date = Column(Date, nullable=False)
+    score_date = Column(Date, nullable=False, index=True)
     score = Column(Float)  # 0-100 normalized
     confidence = Column(String)  # "low", "medium", "high"
     review_component = Column(Float)
@@ -136,6 +137,10 @@ class OpsScore(Base):
     youtube_component = Column(Float)
     wishlist_bonus = Column(Float, default=0.0)
     raw_ops = Column(Float)
+    velocity_component = Column(Float)
+    price_modifier = Column(Float)
+    youtube_breadth = Column(Float)
+    formula_version = Column(Integer, default=2)
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="ops_scores")

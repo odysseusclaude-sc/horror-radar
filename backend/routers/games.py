@@ -3,26 +3,58 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Game, GameSnapshot, OpsScore
-from schemas import GameDetailOut, GameOut, GameSnapshotOut, OpsScoreOut, PaginatedResponse
+from schemas import (
+    GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
+    PaginatedResponse,
+)
 
 router = APIRouter(tags=["games"])
 
 
-@router.get("/games", response_model=PaginatedResponse[GameOut])
+def _get_latest_snapshot(db: Session, appid: int) -> GameSnapshot | None:
+    return (
+        db.query(GameSnapshot)
+        .filter_by(appid=appid)
+        .order_by(GameSnapshot.snapshot_date.desc())
+        .first()
+    )
+
+
+@router.get("/games", response_model=PaginatedResponse[GameListOut])
 def list_games(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    days: int | None = Query(None, ge=1, le=365, description="Filter: released within N days"),
+    days: int | None = Query(None, ge=1, le=730, description="Filter: released within N days"),
     max_price: float | None = Query(None, ge=0, description="Filter: max price USD"),
-    sort_by: str = Query("newest", description="Sort: newest, reviews, velocity, ccu"),
+    sort_by: str = Query("newest", description="Sort: newest, reviews, ccu, ops"),
     search: str | None = Query(None, description="Search by title"),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Game)
+    # Subquery: latest snapshot date per game
+    latest_date_sq = (
+        db.query(
+            GameSnapshot.appid,
+            func.max(GameSnapshot.snapshot_date).label("max_date"),
+        )
+        .group_by(GameSnapshot.appid)
+        .subquery()
+    )
+
+    # Join game with its latest snapshot
+    query = (
+        db.query(Game, GameSnapshot)
+        .outerjoin(latest_date_sq, Game.appid == latest_date_sq.c.appid)
+        .outerjoin(
+            GameSnapshot,
+            (GameSnapshot.appid == Game.appid)
+            & (GameSnapshot.snapshot_date == latest_date_sq.c.max_date),
+        )
+    )
 
     if days:
         cutoff = date.today() - timedelta(days=days)
@@ -35,20 +67,34 @@ def list_games(
         query = query.filter(Game.title.ilike(f"%{search}%"))
 
     # Sorting
-    if sort_by == "newest":
-        query = query.order_by(Game.release_date.desc().nullslast())
-    elif sort_by == "reviews":
-        query = query.order_by(Game.created_at.desc())  # TODO: join snapshot for review_count
+    if sort_by == "reviews":
+        query = query.order_by(GameSnapshot.review_count.desc().nullslast())
     elif sort_by == "ccu":
-        query = query.order_by(Game.created_at.desc())  # TODO: join snapshot for peak_ccu
-    else:
+        query = query.order_by(GameSnapshot.peak_ccu.desc().nullslast())
+    else:  # "newest"
         query = query.order_by(Game.release_date.desc().nullslast())
 
     total = query.count()
-    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    rows = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    results = []
+    for game, snapshot in rows:
+        out = GameListOut.model_validate(game)
+        if snapshot:
+            out.latest_snapshot = GameSnapshotOut.model_validate(snapshot)
+        # Attach latest OPS score
+        latest_ops = (
+            db.query(OpsScore)
+            .filter_by(appid=game.appid)
+            .order_by(OpsScore.score_date.desc())
+            .first()
+        )
+        if latest_ops:
+            out.latest_ops = OpsScoreOut.model_validate(latest_ops)
+        results.append(out)
 
     return PaginatedResponse(
-        data=[GameOut.model_validate(g) for g in items],
+        data=results,
         total=total,
         page=page,
         page_size=page_size,

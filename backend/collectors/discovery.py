@@ -1,94 +1,59 @@
+from __future__ import annotations
+
 """Stage 1: Game Discovery
 
-Primary: Steam Store search with Horror tag (4659), sorted by release date.
-Secondary: SteamSpy tag endpoint as cross-check.
-Output: list of AppIDs not yet in the DB, queued for metadata fetch.
+Primary: SteamSpy tag endpoints for Horror, Psychological Horror, Survival Horror.
+Secondary: Curated seed list for games that fall through automated discovery.
+Output: list of AppIDs not yet in the DB, queued for metadata fetch (batched at 200/run).
 """
-import asyncio
-import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
+from collectors._http import fetch_with_retry, steamspy_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, DiscardedGame
 
 logger = logging.getLogger(__name__)
 
-STEAM_SEARCH_URL = "https://store.steampowered.com/search/results/"
 STEAMSPY_TAG_URL = "https://steamspy.com/api.php"
-HORROR_TAG_ID = "4659"
-DISCOVERY_WINDOW_DAYS = 90
+
+# Query multiple horror-related tag endpoints to catch games SteamSpy
+# categorizes under sub-tags but not the parent "Horror" tag
+HORROR_TAGS_TO_QUERY = ["Horror", "Psychological Horror", "Survival Horror"]
+
+# Curated seed AppIDs for games that fall through automated discovery
+# (too small for SteamSpy data, or tagged differently)
+CURATED_SEEDS: list[int] = [
+    # Add AppIDs here for games that aren't picked up by tag endpoints
+]
+
+# Max games to queue for metadata fetch per run (SteamSpy rate limit: 15s/call)
+BATCH_SIZE = 200
 
 
-async def _discover_from_steam_search(client: httpx.AsyncClient) -> set[int]:
-    """Paginate Steam search for Horror-tagged games sorted by release date."""
+async def _discover_from_steamspy_tags(client: httpx.AsyncClient) -> set[int]:
+    """Fetch AppIDs from multiple SteamSpy horror-related tag endpoints."""
     discovered: set[int] = set()
-    cutoff = datetime.now(timezone.utc) - timedelta(days=DISCOVERY_WINDOW_DAYS)
-    start = 0
-    page_size = 50
 
-    while True:
+    for tag in HORROR_TAGS_TO_QUERY:
         data = await fetch_with_retry(
             client,
-            STEAM_SEARCH_URL,
-            params={
-                "tags": HORROR_TAG_ID,
-                "sort_by": "Released_DESC",
-                "os": "win",
-                "json": "1",
-                "start": str(start),
-                "count": str(page_size),
-            },
-            limiter=steam_limiter,
+            STEAMSPY_TAG_URL,
+            params={"request": "tag", "tag": tag},
+            limiter=steamspy_limiter,
         )
 
-        if not data or "items" not in data:
-            break
+        if not data or isinstance(data, list):
+            logger.warning(f"SteamSpy tag '{tag}' returned unexpected format")
+            continue
 
-        items = data["items"]
-        if not items:
-            break
+        tag_ids = {int(appid) for appid in data.keys()}
+        logger.info(f"SteamSpy tag '{tag}': {len(tag_ids)} AppIDs")
+        discovered |= tag_ids
 
-        all_old = True
-        for item in items:
-            appid = item.get("id")
-            if not appid:
-                continue
-            discovered.add(int(appid))
-            # Check if we've gone past the cutoff
-            # Release dates in search results are unreliable, so we keep going
-            # and rely on metadata fetch (Stage 2) for accurate date filtering
-            all_old = False
-
-        start += page_size
-
-        total = data.get("total_count", 0)
-        if start >= total or start >= 500:
-            # Cap at 500 results to avoid excessive pagination
-            break
-
-    logger.info(f"Steam search discovered {len(discovered)} AppIDs")
-    return discovered
-
-
-async def _discover_from_steamspy(client: httpx.AsyncClient) -> set[int]:
-    """Cross-check via SteamSpy Horror tag endpoint."""
-    data = await fetch_with_retry(
-        client,
-        STEAMSPY_TAG_URL,
-        params={"request": "tag", "tag": "Horror"},
-        limiter=steamspy_limiter,
-    )
-
-    if not data or isinstance(data, list):
-        logger.warning("SteamSpy tag endpoint returned unexpected format")
-        return set()
-
-    discovered = {int(appid) for appid in data.keys()}
-    logger.info(f"SteamSpy discovered {len(discovered)} Horror-tagged AppIDs")
+    logger.info(f"SteamSpy total unique AppIDs across all horror tags: {len(discovered)}")
     return discovered
 
 
@@ -104,7 +69,11 @@ def _get_known_appids() -> set[int]:
 
 
 async def run_discovery() -> list[int]:
-    """Run game discovery and return list of new AppIDs for metadata fetch."""
+    """Run game discovery and return batched list of new AppIDs for metadata fetch.
+
+    Returns up to BATCH_SIZE AppIDs per run, sorted by highest AppID first
+    (newest games). The full catalog is seeded incrementally over multiple runs.
+    """
     db = SessionLocal()
     run = CollectionRun(job_name="discovery", status="running")
     db.add(run)
@@ -113,30 +82,29 @@ async def run_discovery() -> list[int]:
 
     try:
         async with httpx.AsyncClient() as client:
-            # Run both discovery methods
-            steam_ids, spy_ids = await asyncio.gather(
-                _discover_from_steam_search(client),
-                _discover_from_steamspy(client),
-            )
+            spy_ids = await _discover_from_steamspy_tags(client)
 
-        # Merge and deduplicate
-        all_discovered = steam_ids | spy_ids
+        # Merge with curated seeds
+        all_discovered = spy_ids | set(CURATED_SEEDS)
+
+        # Filter out already-known AppIDs
         known = _get_known_appids()
-        new_appids = sorted(all_discovered - known)
+        new_appids = sorted(all_discovered - known, reverse=True)  # newest first
 
-        # Log cross-check stats
-        only_steam = steam_ids - spy_ids
-        only_spy = spy_ids - steam_ids
-        if only_spy - known:
-            logger.info(f"SteamSpy found {len(only_spy - known)} AppIDs missed by Steam search")
+        # Batch: only return up to BATCH_SIZE per run
+        batch = new_appids[:BATCH_SIZE]
+
+        remaining = len(new_appids) - len(batch)
+        if remaining > 0:
+            logger.info(f"Batching: {len(batch)} this run, {remaining} remaining for future runs")
 
         run.status = "success"
-        run.items_processed = len(new_appids)
+        run.items_processed = len(batch)
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
 
-        logger.info(f"Discovery complete: {len(new_appids)} new AppIDs to fetch metadata for")
-        return new_appids
+        logger.info(f"Discovery complete: {len(batch)} AppIDs queued (of {len(new_appids)} new)")
+        return batch
 
     except Exception as e:
         run.status = "failed"
