@@ -28,6 +28,8 @@ class Game(Base):
     is_horror = Column(Boolean, default=False)
     header_image_url = Column(String)
     short_description = Column(Text)
+    has_demo = Column(Boolean, default=False)
+    next_fest = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
@@ -62,6 +64,12 @@ class GameSnapshot(Base):
     current_ccu = Column(Integer)
     average_playtime_forever = Column(Integer)
     review_velocity_7d = Column(Float)  # avg reviews/day in first 7 days
+    completion_rate = Column(Float)     # % of players with final achievement
+    median_achievement_pct = Column(Float)  # median across all achievements
+    patch_count_30d = Column(Integer)   # patches in last 30 days
+    days_since_last_update = Column(Integer)
+    twitch_peak_viewers = Column(Integer)
+    twitch_concurrent_streams = Column(Integer)
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="snapshots")
@@ -148,3 +156,54 @@ class OpsScore(Base):
     __table_args__ = (
         UniqueConstraint("appid", "score_date", name="uq_ops_score_date"),
     )
+
+
+class TwitchSnapshot(Base):
+    __tablename__ = "twitch_snapshots"
+
+    id = Column(Integer, primary_key=True)
+    appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
+    snapshot_date = Column(Date, nullable=False, index=True)
+    concurrent_streams = Column(Integer)
+    peak_viewers = Column(Integer)
+    total_viewers = Column(Integer)
+    unique_streamers = Column(Integer)
+    created_at = Column(DateTime, default=_utcnow)
+
+    game = relationship("Game")
+
+    __table_args__ = (
+        UniqueConstraint("appid", "snapshot_date", name="uq_twitch_snapshot_date"),
+    )
+
+
+class RedditMention(Base):
+    __tablename__ = "reddit_mentions"
+
+    id = Column(Integer, primary_key=True)
+    appid = Column(Integer, ForeignKey("games.appid"), nullable=False, index=True)
+    post_id = Column(String, unique=True, nullable=False, index=True)
+    subreddit = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    score = Column(Integer)
+    num_comments = Column(Integer)
+    upvote_ratio = Column(Float)
+    post_url = Column(String)
+    posted_at = Column(DateTime, index=True)
+    collected_at = Column(DateTime, default=_utcnow)
+
+    game = relationship("Game")
+
+
+class DeveloperProfile(Base):
+    __tablename__ = "developer_profiles"
+
+    id = Column(Integer, primary_key=True)
+    developer_name = Column(String, unique=True, nullable=False, index=True)
+    total_games = Column(Integer, default=0)
+    total_reviews = Column(Integer, default=0)
+    avg_review_score = Column(Float)
+    best_game_appid = Column(Integer)
+    best_game_reviews = Column(Integer)
+    scope = Column(String, default="db_only")  # "db_only" — future: "steam_full"
+    computed_at = Column(DateTime, default=_utcnow)

@@ -143,6 +143,23 @@ async def _fetch_and_classify(
     elif data.get("is_free"):
         price_usd = 0.0
 
+    # Demo flag: Steam appdetails includes a "demos" list when a demo exists
+    has_demo = bool(data.get("demos"))
+
+    # Next Fest flag: check if any package group name or category mentions "Next Fest"
+    # Steam sometimes includes this in categories or package group titles during events
+    next_fest = False
+    categories = data.get("categories", [])
+    for cat in categories:
+        if "next fest" in cat.get("description", "").lower():
+            next_fest = True
+            break
+    if not next_fest:
+        for pkg in data.get("package_groups", []):
+            if "next fest" in pkg.get("title", "").lower():
+                next_fest = True
+                break
+
     game_data = {
         "appid": appid,
         "title": data.get("name", ""),
@@ -156,6 +173,8 @@ async def _fetch_and_classify(
         "is_horror": True,
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),
+        "has_demo": has_demo,
+        "next_fest": next_fest,
     }
 
     return game_data, None

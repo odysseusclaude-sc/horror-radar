@@ -7,10 +7,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Game, GameSnapshot, OpsScore
+from models import DeveloperProfile, Game, GameSnapshot, OpsScore, RedditMention, TwitchSnapshot
 from schemas import (
-    GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
-    PaginatedResponse,
+    DeveloperProfileOut, GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
+    PaginatedResponse, RedditMentionOut, TwitchSnapshotOut,
 )
 
 router = APIRouter(tags=["games"])
@@ -123,7 +123,35 @@ def get_game(appid: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    twitch_snaps = (
+        db.query(TwitchSnapshot)
+        .filter_by(appid=appid)
+        .order_by(TwitchSnapshot.snapshot_date.desc())
+        .limit(30)
+        .all()
+    )
+
+    reddit_mentions = (
+        db.query(RedditMention)
+        .filter_by(appid=appid)
+        .order_by(RedditMention.posted_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    dev_profile = None
+    if game.developer:
+        dev_profile = (
+            db.query(DeveloperProfile)
+            .filter_by(developer_name=game.developer)
+            .first()
+        )
+
     result = GameDetailOut.model_validate(game)
     result.snapshots = [GameSnapshotOut.model_validate(s) for s in snapshots]
     result.ops_history = [OpsScoreOut.model_validate(o) for o in ops_history]
+    result.twitch_snapshots = [TwitchSnapshotOut.model_validate(t) for t in twitch_snaps]
+    result.reddit_mentions = [RedditMentionOut.model_validate(r) for r in reddit_mentions]
+    if dev_profile:
+        result.developer_profile = DeveloperProfileOut.model_validate(dev_profile)
     return result

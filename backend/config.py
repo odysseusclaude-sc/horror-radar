@@ -75,6 +75,24 @@ class Settings(BaseSettings):
     ops_yt_view_subweight: float = 0.6
     ops_yt_breadth_subweight: float = 0.4
 
+    # Twitch
+    twitch_client_id: str = ""
+    twitch_client_secret: str = ""
+    twitch_interval_hours: int = 6
+
+    # Reddit
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_user_agent: str = "HorrorRadar/1.0"
+    reddit_interval_hours: int = 24
+    reddit_subreddits: str = "HorrorGaming,IndieGaming"  # r/Steam etc. only for games with ≥100 reviews
+
+    # Steam extras (achievements + update tracking)
+    steam_extras_interval_hours: int = 24
+
+    # Developer profiles
+    dev_profile_interval_hours: int = 168  # weekly
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

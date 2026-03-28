@@ -30,6 +30,8 @@ class GameOut(BaseModel):
     is_horror: bool = False
     header_image_url: str | None = None
     short_description: str | None = None
+    has_demo: bool = False
+    next_fest: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -49,6 +51,12 @@ class GameSnapshotOut(BaseModel):
     current_ccu: int | None = None
     average_playtime_forever: int | None = None
     review_velocity_7d: float | None = None
+    completion_rate: float | None = None
+    median_achievement_pct: float | None = None
+    patch_count_30d: int | None = None
+    days_since_last_update: int | None = None
+    twitch_peak_viewers: int | None = None
+    twitch_concurrent_streams: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -76,9 +84,48 @@ class GameListOut(GameOut):
     latest_ops: OpsScoreOut | None = None
 
 
+class TwitchSnapshotOut(BaseModel):
+    snapshot_date: date
+    concurrent_streams: int | None = None
+    peak_viewers: int | None = None
+    total_viewers: int | None = None
+    unique_streamers: int | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class RedditMentionOut(BaseModel):
+    post_id: str
+    subreddit: str
+    title: str
+    score: int | None = None
+    num_comments: int | None = None
+    upvote_ratio: float | None = None
+    post_url: str | None = None
+    posted_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DeveloperProfileOut(BaseModel):
+    developer_name: str
+    total_games: int = 0
+    total_reviews: int = 0
+    avg_review_score: float | None = None
+    best_game_appid: int | None = None
+    best_game_reviews: int | None = None
+    scope: str = "db_only"
+    computed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class GameDetailOut(GameOut):
     snapshots: list[GameSnapshotOut] = []
     ops_history: list[OpsScoreOut] = []
+    twitch_snapshots: list[TwitchSnapshotOut] = []
+    reddit_mentions: list[RedditMentionOut] = []
+    developer_profile: DeveloperProfileOut | None = None
 
 
 # --- YouTube schemas ---
