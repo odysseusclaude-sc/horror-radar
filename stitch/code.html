@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c0392b",
+                        "background-dark": "#080809",
+                        "surface-dark": "#0f0f11",
+                        "border-dark": "#1e1e1e",
+                        "text-main": "#e2e2e2",
+                        "text-dim": "#888888",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #080809;
+            color: #e2e2e2;
+            font-family: 'Public Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 18px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #080809;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e1e1e;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #2a2a2a;
+        }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .table-row-dense {
+            height: 48px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            box-shadow: 0 0 10px rgba(192, 57, 43, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-text-main antialiased min-h-screen flex flex-col">
+<!-- Header -->
+<header class="sticky-header bg-background-dark border-b border-border-dark px-6 py-3 flex items-center justify-between shadow-lg">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="size-8 text-primary drop-shadow-[0_0_8px_rgba(192,57,43,0.5)]">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z" fill="currentColor"></path>
+</svg>
+</div>
+<h1 class="text-xl font-black tracking-tighter uppercase italic text-text-main">Horror Radar</h1>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-sm font-bold text-primary border-b-2 border-primary pb-1" href="#">Database</a>
+<a class="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">Insights</a>
+<a class="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">Trends</a>
+<a class="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">Submit Game</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" data-icon="search">search</span>
+<input class="bg-surface-dark border-border-dark rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search Steam ID or Title..." type="text"/>
+</div>
+<button class="p-2 hover:bg-surface-dark rounded-full text-text-dim hover:text-text-main transition-colors" data-icon="notifications">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-orange-900 border border-white/10 shadow-inner" data-alt="minimalist abstract profile avatar with deep red and orange gradients on dark background"></div>
+</div>
+</header>
+<!-- Sub-Header/Filter Bar -->
+<section class="bg-surface-dark border-b border-border-dark px-6 py-4">
+<div class="flex flex-wrap items-center gap-6">
+<div class="flex flex-col gap-1">
+<span class="text-[10px] uppercase font-bold text-text-dim tracking-widest">Days Since Launch</span>
+<div class="flex items-center gap-3">
+<input class="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer" max="365" min="0" type="range" value="30"/>
+<span class="text-xs font-mono text-primary font-bold">0-30d</span>
+</div>
+</div>
+<div class="h-8 w-[1px] bg-border-dark"></div>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] uppercase font-bold text-text-dim tracking-widest">Max Price</span>
+<div class="flex items-center gap-3">
+<input class="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer" max="60" min="0" type="range" value="20"/>
+<span class="text-xs font-mono text-primary font-bold">&lt;$20</span>
+</div>
+</div>
+<div class="h-8 w-[1px] bg-border-dark"></div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-text-dim">Sort by:</span>
+<select class="bg-background-dark border-border-dark text-xs font-semibold rounded px-2 py-1 focus:ring-primary outline-none text-text-main">
+<option>Velocity (7d)</option>
+<option>Peak CCU</option>
+<option>Review Growth</option>
+<option>Newest First</option>
+</select>
+</div>
+<div class="ml-auto flex gap-2">
+<button class="flex items-center gap-2 bg-primary hover:bg-red-800 text-white px-4 py-1.5 rounded text-xs font-bold transition-all shadow-lg hover:shadow-primary/20">
+<span class="material-symbols-outlined" style="font-size: 16px;">filter_alt</span>
+                Apply Filters
+            </button>
+<button class="flex items-center gap-2 bg-surface-dark border border-border-dark hover:bg-border-dark text-text-main px-4 py-1.5 rounded text-xs font-bold transition-colors">
+<span class="material-symbols-outlined" style="font-size: 16px;">download</span>
+                Export CSV
+            </button>
+</div>
+</div>
+</section>
+<!-- Main Table Container -->
+<main class="flex-1 overflow-auto custom-scrollbar bg-background-dark">
+<table class="w-full text-left border-collapse min-w-[1200px]">
+<thead class="sticky top-0 bg-background-dark/95 backdrop-blur-sm border-b-2 border-border-dark z-10">
+<tr class="text-[11px] uppercase tracking-wider text-text-dim font-black">
+<th class="px-6 py-4 w-[350px]">Game &amp; Developer</th>
+<th class="px-4 py-4 text-center">Days</th>
+<th class="px-4 py-4">Price</th>
+<th class="px-4 py-4">Reviews (7d)</th>
+<th class="px-4 py-4">Score %</th>
+<th class="px-4 py-4">Vel 7d</th>
+<th class="px-4 py-4">Peak CCU</th>
+<th class="px-6 py-4">YouTube Visibility</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-dark/50">
+<!-- Row 1 -->
+<tr class="table-row-dense hover:bg-primary/5 transition-colors group border-transparent">
+<td class="px-6 py-2 flex items-center gap-3">
+<img class="w-24 h-9 object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all" data-alt="cinematic horror game steam capsule art featuring a dark haunted corridor with red glowing eyes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVctd9VpzwrVR1imR467q0YQdq9bZvGJfYSMB5frXKkYVSxaVtTicCNuGjNBqjz38CrwB1DZ0kCQ37sEt-UCVXwD8GKGeYzBh81k8irRM6h7i5pfOHfaeJIvETuGYOsBCpMG7M1B_ig-wxa_TOrTav67DO8vXCzrT-kT987QoFpsuwoaK0vUAJvbsvgCGUIaZ03Gfb2BCgXtn8y1XVqu2aZ9limAG30cZSZSzJRXo18lh-BHN9vmsh92AywKDob3GioNFPQhRzY9NP"/>
+<div class="flex flex-col">
+<span class="font-bold text-sm leading-tight group-hover:text-primary transition-colors">Whispers in the Static</span>
+<span class="text-[10px] text-text-dim uppercase tracking-tight">Void Interactive</span>
+</div>
+</td>
+<td class="px-4 py-2 text-center">
+<span class="px-2 py-0.5 rounded bg-green-950/40 text-green-500 text-[10px] font-bold border border-green-900/40">4d</span>
+</td>
+<td class="px-4 py-2 font-mono text-sm">$14.99</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 font-bold text-sm">
+                        1,240
+                        <span class="material-symbols-outlined text-green-500" data-icon="trending_up">trending_up</span>
+</div>
+</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 text-sm font-bold">
+<span class="material-symbols-outlined text-primary" data-icon="skull">skull</span>
+                        92%
+                    </div>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-primary font-bold">+42.1%</td>
+<td class="px-4 py-2 font-mono text-sm">3,450</td>
+<td class="px-6 py-2">
+<div class="flex gap-1 flex-wrap">
+<span class="bg-primary/20 text-primary text-[9px] px-1.5 py-0.5 rounded font-black border border-primary/30 uppercase">Markiplier</span>
+<span class="bg-blue-900/30 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-black border border-blue-900/40 uppercase">High Reach</span>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="table-row-dense bg-surface-dark/40 hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-2 flex items-center gap-3">
+<img class="w-24 h-9 object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all" data-alt="stylized retro ps1-style horror game capsule showing a grainy low-poly monster face in a bathroom mirror" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHIV9uDXlujAoDPU8BBB8xlqN08Y9XwCEhTql7bczbWF3UYobRLfYcHYSUSnXn7ot7JU7VbzkRel8tKSILh-C1oUtyTdJ5YiChLqbTzuG9mnqTZJvzaaRmfV05i9yxOO7jRGF_A__qU26DoZTOaxPk2wLvz3CfL4lpApq1iUugJZyFUpo-by_nGDZBJx0df58Ndgh15EM6ducMOZevdDs4n5_Zc9hCEWyNRKcuDMvqxvDWdF_qtXOSoVmhGl4kKG-cSnY1dSU2Au7b"/>
+<div class="flex flex-col">
+<span class="font-bold text-sm leading-tight group-hover:text-primary transition-colors">The Mold Beneath</span>
+<span class="text-[10px] text-text-dim uppercase tracking-tight">Puppet Combo</span>
+</div>
+</td>
+<td class="px-4 py-2 text-center">
+<span class="px-2 py-0.5 rounded bg-amber-950/40 text-amber-500 text-[10px] font-bold border border-amber-900/40">12d</span>
+</td>
+<td class="px-4 py-2 font-mono text-sm">$9.99</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 font-bold text-sm text-text-dim">
+                        482
+                        <span class="material-symbols-outlined" data-icon="horizontal_rule">horizontal_rule</span>
+</div>
+</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 text-sm font-bold">
+<span class="material-symbols-outlined text-primary" data-icon="skull">skull</span>
+                        88%
+                    </div>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-text-dim">+2.4%</td>
+<td class="px-4 py-2 font-mono text-sm">820</td>
+<td class="px-6 py-2">
+<div class="flex gap-1 flex-wrap">
+<span class="bg-purple-950/40 text-purple-400 text-[9px] px-1.5 py-0.5 rounded font-black border border-purple-900/40 uppercase">IndieFocus</span>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="table-row-dense hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-2 flex items-center gap-3">
+<img class="w-24 h-9 object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all" data-alt="atmospheric cosmic horror game capsule" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFPjMsaSFC348Y1EcMLaU5hly57O3A2xoZQcOpLjBED25AWPI2Z5pBotndfQJQzCvloSi6pu9WMGyFkAjlspg2C6jeXoRpfM3aMUPqhzxc6IWL0OKWN4piP90Xc2-sTe3WQk4kxD6k5YQmVCUQ48gmOKMmSLxFhh9UYDjFpRbZnO0cjjCLcH2YReFLeWdxrUkVms301EAIXZd-s33akQTLkniyQmKAWi0qTnDOfCyTCAE4NHIDnqUu9UeWodrDaRXYtJOus1x_C8uj"/>
+<div class="flex flex-col">
+<span class="font-bold text-sm leading-tight group-hover:text-primary transition-colors">Event Horizon 0</span>
+<span class="text-[10px] text-text-dim uppercase tracking-tight">Nebula Devs</span>
+</div>
+</td>
+<td class="px-4 py-2 text-center">
+<span class="px-2 py-0.5 rounded bg-green-950/40 text-green-500 text-[10px] font-bold border border-green-900/40">2d</span>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-green-500 font-bold">Free</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 font-bold text-sm">
+                        2,930
+                        <span class="material-symbols-outlined text-green-500" data-icon="trending_up">trending_up</span>
+</div>
+</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 text-sm font-bold">
+<span class="material-symbols-outlined text-primary" data-icon="skull">skull</span>
+                        76%
+                    </div>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-primary font-bold">+118%</td>
+<td class="px-4 py-2 font-mono text-sm">12,400</td>
+<td class="px-6 py-2">
+<div class="flex gap-1 flex-wrap">
+<span class="bg-red-950/40 text-red-500 text-[9px] px-1.5 py-0.5 rounded font-black border border-red-900/40 uppercase">JackSepticEye</span>
+<span class="bg-orange-950/40 text-orange-500 text-[9px] px-1.5 py-0.5 rounded font-black border border-orange-900/40 uppercase">Viral</span>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="table-row-dense bg-surface-dark/40 hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-2 flex items-center gap-3">
+<img class="w-24 h-9 object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all" data-alt="survival horror game capsule" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQ-FXuOGVy0ts418ldnRAWfWLjHFUCgjvI8Z_sTBwQITZGCSC9sOeOM8_55Gz_PKQ_Otlo6SqyXdo19fs2EZ6Gdjv_MI8-geAyvIi-ImuiBhPt9DFMicGdgV718luJdfnWKh5tDrWH9WmDHaLjhNLriUK2xIrOH6ss7vtmVrbgRx-SADspsHMeDFOhv65055Vc9b_9ky2WQU8ng5QwJRt6J-La_HO0gJ2EGsMeVQY-pSjAuK_xsq708oO4xLiid7s0wuuUgi8JkF9R"/>
+<div class="flex flex-col">
+<span class="font-bold text-sm leading-tight group-hover:text-primary transition-colors">The Woods Have Ears</span>
+<span class="text-[10px] text-text-dim uppercase tracking-tight">Forest Dweller Studio</span>
+</div>
+</td>
+<td class="px-4 py-2 text-center">
+<span class="px-2 py-0.5 rounded bg-red-950/40 text-red-500 text-[10px] font-bold border border-red-900/40">24d</span>
+</td>
+<td class="px-4 py-2 font-mono text-sm">$19.99</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 font-bold text-sm text-red-500">
+                        115
+                        <span class="material-symbols-outlined" data-icon="trending_down">trending_down</span>
+</div>
+</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 text-sm font-bold text-red-500">
+<span class="material-symbols-outlined text-primary" data-icon="skull">skull</span>
+                        45%
+                    </div>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-red-500 font-bold">-15.4%</td>
+<td class="px-4 py-2 font-mono text-sm">45</td>
+<td class="px-6 py-2">
+<span class="text-text-dim italic text-[10px]">None tracked</span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="table-row-dense hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-2 flex items-center gap-3">
+<img class="w-24 h-9 object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all" data-alt="body horror game art capsule" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB09Kvd41XW45xIy2CfloYqtq9odoRoCcj3hpEcR_Oi_obsB1ocGHgFxlvYJXNcYAjzvB17mQeg_nANU8aoljSqIrkgNmLaPto6ukvGvLWb4em_tKuQQbKK4bjuygmq1Cp9A71ibmbi8RBb4dw0XnesJx9068eGgk5tBwtUoOgTy1tq49hOBm0RvbSITvNPO0YOcqpEqV6uzgWNJ8kpHyukRqvL4itzs8CDVBMOhf0uZRhBDYcHor_6aTYd19NtjeTSnm9BZWtiTrIL"/>
+<div class="flex flex-col">
+<span class="font-bold text-sm leading-tight group-hover:text-primary transition-colors">Surgery Simulator 1984</span>
+<span class="text-[10px] text-text-dim uppercase tracking-tight">MedEvil Games</span>
+</div>
+</td>
+<td class="px-4 py-2 text-center">
+<span class="px-2 py-0.5 rounded bg-green-950/40 text-green-500 text-[10px] font-bold border border-green-900/40">7d</span>
+</td>
+<td class="px-4 py-2 font-mono text-sm">$4.99</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 font-bold text-sm">
+                        750
+                        <span class="material-symbols-outlined text-green-500" data-icon="trending_up">trending_up</span>
+</div>
+</td>
+<td class="px-4 py-2">
+<div class="flex items-center gap-1 text-sm font-bold">
+<span class="material-symbols-outlined text-primary" data-icon="skull">skull</span>
+                        94%
+                    </div>
+</td>
+<td class="px-4 py-2 font-mono text-sm text-primary font-bold">+18.2%</td>
+<td class="px-4 py-2 font-mono text-sm">1,120</td>
+<td class="px-6 py-2">
+<div class="flex gap-1 flex-wrap">
+<span class="bg-blue-950/40 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-black border border-blue-900/40 uppercase">8-BitRyan</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</main>
+<!-- Footer Stats -->
+<footer class="bg-surface-dark border-t border-border-dark px-6 py-4 flex items-center justify-between text-[11px] font-bold text-text-dim uppercase tracking-widest shadow-2xl">
+<div class="flex items-center gap-8">
+<p>Showing <span class="text-text-main">1-8</span> of <span class="text-text-main">452</span> Games</p>
+<p>Active Scrapers: <span class="text-green-500">12/12</span></p>
+<div class="h-4 w-[1px] bg-border-dark"></div>
+<p>Last Sync: <span class="text-primary font-mono">2 mins ago</span></p>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<div class="flex gap-1.5">
+<button class="px-3 py-1 bg-primary text-white rounded font-black shadow-lg shadow-primary/20">1</button>
+<button class="px-3 py-1 hover:bg-background-dark border border-transparent hover:border-border-dark rounded transition-colors">2</button>
+<button class="px-3 py-1 hover:bg-background-dark border border-transparent hover:border-border-dark rounded transition-colors">3</button>
+<span class="px-1 text-border-dark">...</span>
+<button class="px-3 py-1 hover:bg-background-dark border border-transparent hover:border-border-dark rounded transition-colors">56</button>
+</div>
+<button class="p-1.5 hover:bg-background-dark border border-border-dark rounded transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</footer>
+</body></html>
