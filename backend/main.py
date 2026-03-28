@@ -30,7 +30,7 @@ async def steam_pipeline_job():
     logger.info("Starting Steam discovery + metadata pipeline")
     new_appids = await run_discovery()
     if new_appids:
-        await run_metadata_fetch(new_appids)
+        await run_metadata_fetch(new_appids, trust_horror=True)
 
 
 async def daily_snapshots_job():
