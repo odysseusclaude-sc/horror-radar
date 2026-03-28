@@ -126,9 +126,28 @@ export default function GameRow({ game, even }: GameRowProps) {
         )}
       </td>
 
-      {/* YouTube Visibility */}
+      {/* OPS Score */}
       <td className="px-6 py-2">
-        <span className="text-text-dim italic text-[10px]">—</span>
+        {game.latest_ops?.score !== null && game.latest_ops?.score !== undefined ? (
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-black border ${
+                game.latest_ops.score >= 60
+                  ? "bg-green-950/40 text-green-400 border-green-900/40"
+                  : game.latest_ops.score >= 30
+                  ? "bg-amber-950/40 text-amber-400 border-amber-900/40"
+                  : "bg-red-950/40 text-red-400 border-red-900/40"
+              }`}
+            >
+              {Math.round(game.latest_ops.score)}
+            </span>
+            {game.latest_ops.confidence === "low" && (
+              <span className="text-text-dim text-[9px]" title="Low confidence">?</span>
+            )}
+          </div>
+        ) : (
+          <span className="text-text-dim italic text-[10px]">—</span>
+        )}
       </td>
     </tr>
   );

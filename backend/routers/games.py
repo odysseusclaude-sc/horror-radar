@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Game, GameSnapshot, OpsScore
 from schemas import (
-    GameDetailOut, GameListOut, GameOut, GameSnapshotOut, OpsScoreOut,
+    GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
     PaginatedResponse,
 )
 
@@ -31,7 +31,7 @@ def list_games(
     page_size: int = Query(20, ge=1, le=100),
     days: int | None = Query(None, ge=1, le=730, description="Filter: released within N days"),
     max_price: float | None = Query(None, ge=0, description="Filter: max price USD"),
-    sort_by: str = Query("newest", description="Sort: newest, reviews, ccu"),
+    sort_by: str = Query("newest", description="Sort: newest, reviews, ccu, ops"),
     search: str | None = Query(None, description="Search by title"),
     db: Session = Depends(get_db),
 ):
@@ -82,6 +82,15 @@ def list_games(
         out = GameListOut.model_validate(game)
         if snapshot:
             out.latest_snapshot = GameSnapshotOut.model_validate(snapshot)
+        # Attach latest OPS score
+        latest_ops = (
+            db.query(OpsScore)
+            .filter_by(appid=game.appid)
+            .order_by(OpsScore.score_date.desc())
+            .first()
+        )
+        if latest_ops:
+            out.latest_ops = OpsScoreOut.model_validate(latest_ops)
         results.append(out)
 
     return PaginatedResponse(

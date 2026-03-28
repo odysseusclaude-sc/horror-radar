@@ -88,7 +88,7 @@ async def run_youtube_stats_refresh():
                         if (
                             video.view_48h is None
                             and video.published_at
-                            and (now - video.published_at).total_seconds() <= 48 * 3600
+                            and (now - video.published_at).total_seconds() <= 72 * 3600
                         ):
                             video.view_48h = video.view_count
 

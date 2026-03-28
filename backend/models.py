@@ -61,6 +61,7 @@ class GameSnapshot(Base):
     peak_ccu = Column(Integer)
     current_ccu = Column(Integer)
     average_playtime_forever = Column(Integer)
+    review_velocity_7d = Column(Float)  # avg reviews/day in first 7 days
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="snapshots")
@@ -136,6 +137,10 @@ class OpsScore(Base):
     youtube_component = Column(Float)
     wishlist_bonus = Column(Float, default=0.0)
     raw_ops = Column(Float)
+    velocity_component = Column(Float)
+    price_modifier = Column(Float)
+    youtube_breadth = Column(Float)
+    formula_version = Column(Integer, default=2)
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="ops_scores")

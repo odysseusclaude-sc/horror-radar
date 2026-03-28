@@ -68,7 +68,8 @@ export default function FilterBar({
             onChange={(e) => onSortChange(e.target.value)}
           >
             <option value="newest">Newest First</option>
-            <option value="reviews">Review Growth</option>
+            <option value="ops">OPS Score</option>
+            <option value="reviews">Most Reviews</option>
             <option value="ccu">Peak CCU</option>
           </select>
         </div>

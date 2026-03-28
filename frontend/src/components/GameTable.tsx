@@ -19,7 +19,7 @@ export default function GameTable({ games, loading }: GameTableProps) {
             <th className="px-4 py-4">Score %</th>
             <th className="px-4 py-4">Peak CCU</th>
             <th className="px-4 py-4">Owners</th>
-            <th className="px-6 py-4">YouTube Visibility</th>
+            <th className="px-6 py-4">OPS</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border-dark/50">

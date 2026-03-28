@@ -22,6 +22,16 @@ MAJOR_PUBLISHERS = frozenset({
     "Activision", "Square Enix", "Sega",
 })
 
+INDIE_PUBLISHERS = frozenset({
+    "Critical Reflex", "Armor Games Studios", "tinyBuild",
+    "DreadXP", "Feardemic", "Perp Games",
+    "Fellow Traveller", "Raw Fury", "Devolver Digital",
+    "New Blood Interactive", "Akupara Games", "Serenity Forge",
+    "Chorus Worldwide", "Nightdive Studios", "Team17",
+    "Dangen Entertainment", "Playism", "HOOK",
+    "Annapurna Interactive", "Humble Games",
+})
+
 CORE_HORROR_TAGS = frozenset({
     "Horror", "Psychological Horror", "Survival Horror",
     "Supernatural", "Creature Feature", "Zombies",
@@ -41,7 +51,29 @@ class Settings(BaseSettings):
     ops_interval_hours: int = 24
 
     fuzzy_match_threshold: int = 85
+    fuzzy_min_title_length: int = 4
+    fuzzy_generic_terms: str = "content warning,the game,horror game,scary game,indie game,new game,this game"
+
     log_level: str = "INFO"
+
+    # OPS formula weights (active components, redistribute on NULL)
+    ops_review_weight: float = 0.30
+    ops_velocity_weight: float = 0.25
+    ops_youtube_weight: float = 0.25
+    ops_ccu_weight: float = 0.20
+    ops_ccu_decay_days: int = 14
+    ops_score_multiplier: float = 40.0
+
+    # Price modifier brackets
+    ops_price_free: float = 0.6
+    ops_price_under5: float = 0.85
+    ops_price_5to10: float = 1.0
+    ops_price_10to20: float = 1.15
+    ops_price_over20: float = 1.3
+
+    # YouTube sub-weights
+    ops_yt_view_subweight: float = 0.6
+    ops_yt_breadth_subweight: float = 0.4
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

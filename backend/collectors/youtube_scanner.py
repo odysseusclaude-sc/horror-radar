@@ -163,21 +163,35 @@ async def _fetch_video_stats(
 def _match_to_games(
     text: str, game_names: list[str], threshold: int
 ) -> tuple[str | None, float]:
-    """Fuzzy match text against game names. Returns (best_match, score) or (None, 0)."""
+    """Fuzzy match text against game names with two-pass approach.
+
+    Pass 1: Fuzzy match for titles >= min length and not generic.
+    Pass 2: Exact word-boundary match for short/generic titles.
+    This prevents false positives like "Content Warning" matching every video.
+    """
     if not game_names:
         return None, 0.0
 
-    results = process.extract(
-        text,
-        game_names,
-        scorer=fuzz.token_set_ratio,
-        score_cutoff=threshold,
-        limit=1,
-    )
+    min_len = settings.fuzzy_min_title_length
+    generic = {t.strip().lower() for t in settings.fuzzy_generic_terms.split(",")}
 
-    if results:
-        name, score, _ = results[0]
-        return name, score
+    # Pass 1: fuzzy match for long/unique titles
+    eligible = [n for n in game_names if len(n) >= min_len and n.lower() not in generic]
+    if eligible:
+        results = process.extract(
+            text, eligible, scorer=fuzz.token_set_ratio,
+            score_cutoff=threshold, limit=1,
+        )
+        if results:
+            name, score, _ = results[0]
+            return name, score
+
+    # Pass 2: exact word-boundary match for short/generic titles
+    short_names = [n for n in game_names if len(n) < min_len or n.lower() in generic]
+    for name in short_names:
+        pattern = r"(?<![a-zA-Z])" + re.escape(name) + r"(?![a-zA-Z])"
+        if re.search(pattern, text, re.IGNORECASE):
+            return name, 100.0
 
     return None, 0.0
 
@@ -256,7 +270,7 @@ async def run_youtube_scan():
                         # Check if within 48h for view_48h capture
                         now = datetime.now(timezone.utc)
                         view_48h = None
-                        if upload["published_at"] and (now - upload["published_at"]).total_seconds() <= 48 * 3600:
+                        if upload["published_at"] and (now - upload["published_at"]).total_seconds() <= 72 * 3600:
                             view_48h = vid_stats.get("view_count")
 
                         db.add(YoutubeVideo(
