@@ -47,7 +47,11 @@ def _is_indie(genres: list[str], developer: str | None, publisher: str | None) -
     return False
 
 
-def _is_horror(tags: dict[str, int], genres: list[str] | None = None) -> bool:
+def _is_horror(
+    tags: dict[str, int],
+    genres: list[str] | None = None,
+    description: str | None = None,
+) -> bool:
     # Check SteamSpy user-voted tags first
     if CORE_HORROR_TAGS & set(tags.keys()):
         return True
@@ -56,6 +60,9 @@ def _is_horror(tags: dict[str, int], genres: list[str] | None = None) -> bool:
         genre_horror = {"Horror", "Psychological Horror", "Survival Horror"}
         if genre_horror & set(genres):
             return True
+    # Fallback: check short description for the word "horror"
+    if description and "horror" in description.lower():
+        return True
     return False
 
 
@@ -114,9 +121,11 @@ async def _fetch_and_classify(
         limiter=steamspy_limiter,
     )
     raw_tags = spy_data.get("tags", {}) if spy_data else {}
-    # SteamSpy returns tags as dict {"Horror": 142} or sometimes as list []
+    # SteamSpy returns tags as dict {"Horror": 142} or sometimes as list ["Horror", "Adventure"]
     if isinstance(raw_tags, dict):
         tags = raw_tags
+    elif isinstance(raw_tags, list):
+        tags = {tag: 0 for tag in raw_tags}
     else:
         tags = {}
 
@@ -128,7 +137,7 @@ async def _fetch_and_classify(
     if _is_major_publisher(publisher):
         return None, "major_publisher"
 
-    if not trust_horror and not _is_horror(tags, genres):
+    if not trust_horror and not _is_horror(tags, genres, data.get("short_description")):
         return None, "not_horror"
 
     indie = _is_indie(genres, developer, publisher)
