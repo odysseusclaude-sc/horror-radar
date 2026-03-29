@@ -31,8 +31,10 @@ HORROR_TAGS_TO_QUERY = ["Horror", "Psychological Horror", "Survival Horror"]
 # 1667=Horror, 1490=Psychological Horror, 4026=Survival Horror
 STEAM_HORROR_TAG_IDS = ["1667", "1490", "4026"]
 
-# How many pages of Steam store search results to fetch per tag (100 per page)
-STEAM_SEARCH_PAGES = 3
+# How many pages of Steam store search results to fetch per tag (100 per page).
+# 30 pages × 100 = 3,000 results, covering ~12 months of horror releases.
+# Already-known AppIDs are filtered each run so this stays fast after initial backfill.
+STEAM_SEARCH_PAGES = 30
 
 # Curated seed AppIDs for games that fall through automated discovery.
 # Primary use case: old AppID + recent full release (long-running EA titles).
