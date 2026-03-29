@@ -45,14 +45,30 @@ def list_games(
         .subquery()
     )
 
-    # Join game with its latest snapshot
+    # Subquery: latest OPS score per game
+    latest_ops_sq = (
+        db.query(
+            OpsScore.appid,
+            func.max(OpsScore.score_date).label("max_ops_date"),
+        )
+        .group_by(OpsScore.appid)
+        .subquery()
+    )
+
+    # Join game with its latest snapshot and latest OPS score
     query = (
-        db.query(Game, GameSnapshot)
+        db.query(Game, GameSnapshot, OpsScore)
         .outerjoin(latest_date_sq, Game.appid == latest_date_sq.c.appid)
         .outerjoin(
             GameSnapshot,
             (GameSnapshot.appid == Game.appid)
             & (GameSnapshot.snapshot_date == latest_date_sq.c.max_date),
+        )
+        .outerjoin(latest_ops_sq, Game.appid == latest_ops_sq.c.appid)
+        .outerjoin(
+            OpsScore,
+            (OpsScore.appid == Game.appid)
+            & (OpsScore.score_date == latest_ops_sq.c.max_ops_date),
         )
     )
 
@@ -71,6 +87,8 @@ def list_games(
         query = query.order_by(GameSnapshot.review_count.desc().nullslast())
     elif sort_by == "ccu":
         query = query.order_by(GameSnapshot.peak_ccu.desc().nullslast())
+    elif sort_by == "ops":
+        query = query.order_by(OpsScore.score.desc().nullslast())
     else:  # "newest"
         query = query.order_by(Game.release_date.desc().nullslast())
 
@@ -78,19 +96,12 @@ def list_games(
     rows = query.offset((page - 1) * page_size).limit(page_size).all()
 
     results = []
-    for game, snapshot in rows:
+    for game, snapshot, ops_score in rows:
         out = GameListOut.model_validate(game)
         if snapshot:
             out.latest_snapshot = GameSnapshotOut.model_validate(snapshot)
-        # Attach latest OPS score
-        latest_ops = (
-            db.query(OpsScore)
-            .filter_by(appid=game.appid)
-            .order_by(OpsScore.score_date.desc())
-            .first()
-        )
-        if latest_ops:
-            out.latest_ops = OpsScoreOut.model_validate(latest_ops)
+        if ops_score:
+            out.latest_ops = OpsScoreOut.model_validate(ops_score)
         results.append(out)
 
     return PaginatedResponse(

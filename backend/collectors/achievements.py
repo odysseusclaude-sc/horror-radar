@@ -36,7 +36,7 @@ def _compute_achievement_stats(achievements: list[dict]) -> tuple[float | None, 
     if not achievements:
         return None, None
 
-    percentages = [a.get("percent", 0.0) for a in achievements if a.get("percent") is not None]
+    percentages = [float(a["percent"]) for a in achievements if a.get("percent") is not None]
     if not percentages:
         return None, None
 
