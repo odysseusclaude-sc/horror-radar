@@ -34,10 +34,10 @@ STEAM_HORROR_TAG_IDS = ["1667", "1490", "4026"]
 # How many pages of Steam store search results to fetch per tag (100 per page)
 STEAM_SEARCH_PAGES = 3
 
-# Curated seed AppIDs for games that fall through automated discovery
-# (too small for SteamSpy data, or tagged differently)
+# Curated seed AppIDs for games that fall through automated discovery.
+# Primary use case: old AppID + recent full release (long-running EA titles).
 CURATED_SEEDS: list[int] = [
-    # Add AppIDs here for games that aren't picked up by tag endpoints
+    696220,   # Folklore Hunter — EA since ~2018, full release Jan 30 2026
 ]
 
 # Max games to queue for metadata fetch per run (SteamSpy rate limit: 15s/call)
@@ -121,8 +121,12 @@ def _get_known_appids() -> set[int]:
 async def run_discovery() -> list[int]:
     """Run game discovery and return batched list of new AppIDs for metadata fetch.
 
-    Returns up to BATCH_SIZE AppIDs per run, sorted by highest AppID first
-    (newest games). The full catalog is seeded incrementally over multiple runs.
+    Batch ordering:
+    1. Steam search AppIDs first (ordered by actual release date, newest first) —
+       catches recent full releases including long-running EA titles with low AppIDs.
+    2. SteamSpy-only AppIDs after (sorted by AppID desc as a release-date proxy).
+    This ensures a game like Folklore Hunter (AppID 696220, released Jan 2026 after
+    years of EA) is processed within days rather than after 13,000+ higher AppIDs.
     """
     db = SessionLocal()
     run = CollectionRun(job_name="discovery", status="running")
@@ -142,7 +146,13 @@ async def run_discovery() -> list[int]:
 
         # Filter out already-known AppIDs
         known = _get_known_appids()
-        new_appids = sorted(all_discovered - known, reverse=True)  # newest first
+        new_steam_ids = [a for a in steam_ids if a not in known]  # already release-date ordered
+        new_spy_only = sorted(
+            (spy_ids | set(CURATED_SEEDS)) - steam_ids - known, reverse=True
+        )  # AppID desc as release-date proxy for older catalog
+
+        # Prioritise Steam search results (recent releases) over SteamSpy backlog
+        new_appids = new_steam_ids + new_spy_only
 
         # Batch: only return up to BATCH_SIZE per run
         batch = new_appids[:BATCH_SIZE]
