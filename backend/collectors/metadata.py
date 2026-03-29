@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 STEAM_APPDETAILS_URL = "https://store.steampowered.com/api/appdetails"
 STEAM_STORE_PAGE_URL = "https://store.steampowered.com/app/{appid}/"
 STEAMSPY_APPDETAILS_URL = "https://steamspy.com/api.php"
-MAX_AGE_DAYS = 365  # ~12 months — focus on recent breakout candidates
+MAX_AGE_DAYS = 90  # ~3 months — focus on active breakout window
 
 _STORE_PAGE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
