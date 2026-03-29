@@ -10,10 +10,18 @@ class ChannelConfig:
 
 
 SEED_CHANNELS = [
+    # Original channels (verified)
     ChannelConfig(handle="@IGP", name="IGP"),
-    ChannelConfig(handle="@Fooster", name="Fooster"),
+    ChannelConfig(handle="@thefoosterchannel", name="Fooster"),
     ChannelConfig(handle="@Insym", name="Insym", match_mode="title"),
     ChannelConfig(handle="@ManlyBadassHero", name="ManlyBadassHero", match_mode="description"),
+    # Expanded network — verified indie/horror gaming focus
+    ChannelConfig(handle="@cjugames", name="CJUGames"),           # 163K — "obscene amount of indie horror games"
+    ChannelConfig(handle="@mrkravin", name="MrKravin"),           # 144K — 11 years of horror games, indie focus
+    ChannelConfig(handle="@gamersault", name="GamerSault"),       # 528K — horror game stories & theories
+    ChannelConfig(handle="@hghhorrorgameshouse", name="HGH Horror Games House"),  # 93K — indie gems to cult classics
+    ChannelConfig(handle="@twoonto", name="Twoonto"),             # 171K — horror gaming + story games
+    ChannelConfig(handle="@indiefuel", name="Indie Fuel"),        # 86K — FNaF fan-games + indie horror
 ]
 
 MAJOR_PUBLISHERS = frozenset({
@@ -74,6 +82,24 @@ class Settings(BaseSettings):
     # YouTube sub-weights
     ops_yt_view_subweight: float = 0.6
     ops_yt_breadth_subweight: float = 0.4
+
+    # Twitch
+    twitch_client_id: str = ""
+    twitch_client_secret: str = ""
+    twitch_interval_hours: int = 6
+
+    # Reddit
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_user_agent: str = "HorrorRadar/1.0"
+    reddit_interval_hours: int = 24
+    reddit_subreddits: str = "HorrorGaming,IndieGaming"  # r/Steam etc. only for games with ≥100 reviews
+
+    # Steam extras (achievements + update tracking)
+    steam_extras_interval_hours: int = 24
+
+    # Developer profiles
+    dev_profile_interval_hours: int = 168  # weekly
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

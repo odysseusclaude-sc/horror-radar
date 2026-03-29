@@ -10,6 +10,7 @@ For each discovered AppID:
 """
 import json
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -22,8 +23,15 @@ from models import CollectionRun, DiscardedGame, Game
 logger = logging.getLogger(__name__)
 
 STEAM_APPDETAILS_URL = "https://store.steampowered.com/api/appdetails"
+STEAM_STORE_PAGE_URL = "https://store.steampowered.com/app/{appid}/"
 STEAMSPY_APPDETAILS_URL = "https://steamspy.com/api.php"
-MAX_AGE_DAYS = 730  # ~24 months per original spec
+MAX_AGE_DAYS = 90  # ~3 months — focus on active breakout window
+
+_STORE_PAGE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+_STORE_PAGE_COOKIES = {"birthtime": "0", "mature_content": "1", "lastagecheckage": "1-0-2000"}
 
 
 def _parse_release_date(date_str: str) -> date | None:
@@ -47,7 +55,11 @@ def _is_indie(genres: list[str], developer: str | None, publisher: str | None) -
     return False
 
 
-def _is_horror(tags: dict[str, int], genres: list[str] | None = None) -> bool:
+def _is_horror(
+    tags: dict[str, int],
+    genres: list[str] | None = None,
+    description: str | None = None,
+) -> bool:
     # Check SteamSpy user-voted tags first
     if CORE_HORROR_TAGS & set(tags.keys()):
         return True
@@ -56,6 +68,9 @@ def _is_horror(tags: dict[str, int], genres: list[str] | None = None) -> bool:
         genre_horror = {"Horror", "Psychological Horror", "Survival Horror"}
         if genre_horror & set(genres):
             return True
+    # Fallback: check short description for the word "horror"
+    if description and "horror" in description.lower():
+        return True
     return False
 
 
@@ -114,11 +129,32 @@ async def _fetch_and_classify(
         limiter=steamspy_limiter,
     )
     raw_tags = spy_data.get("tags", {}) if spy_data else {}
-    # SteamSpy returns tags as dict {"Horror": 142} or sometimes as list []
+    # SteamSpy returns tags as dict {"Horror": 142} or sometimes as list ["Horror", "Adventure"]
     if isinstance(raw_tags, dict):
         tags = raw_tags
+    elif isinstance(raw_tags, list):
+        tags = {tag: 0 for tag in raw_tags}
     else:
         tags = {}
+
+    # If SteamSpy has no tags yet (game too new), scrape them from the Steam store page.
+    # Steam embeds user-voted tags as JSON in InitAppTagModal() on every store page.
+    if not tags:
+        try:
+            r = await client.get(
+                STEAM_STORE_PAGE_URL.format(appid=appid),
+                headers=_STORE_PAGE_HEADERS,
+                cookies=_STORE_PAGE_COOKIES,
+                follow_redirects=True,
+                timeout=15,
+            )
+            match = re.search(r"InitAppTagModal\(\s*\d+\s*,\s*(\[.*?\])\s*,", r.text, re.DOTALL)
+            if match:
+                store_tags = json.loads(match.group(1))
+                tags = {t["name"]: 0 for t in store_tags if "name" in t}
+                logger.debug(f"AppID {appid}: used store page tags (SteamSpy empty): {list(tags.keys())[:5]}")
+        except Exception as e:
+            logger.debug(f"AppID {appid}: store page tag scrape failed: {e}")
 
     # Extract metadata
     developer = data.get("developers", [None])[0] if data.get("developers") else None
@@ -128,7 +164,13 @@ async def _fetch_and_classify(
     if _is_major_publisher(publisher):
         return None, "major_publisher"
 
-    if not trust_horror and not _is_horror(tags, genres):
+    # Build combined description: short_description + about_the_game (HTML stripped)
+    short_desc = data.get("short_description") or ""
+    about_raw = data.get("about_the_game") or ""
+    about_clean = re.sub(r"<[^>]+>", " ", about_raw)
+    combined_desc = f"{short_desc} {about_clean}".strip() or None
+
+    if not trust_horror and not _is_horror(tags, genres, combined_desc):
         return None, "not_horror"
 
     indie = _is_indie(genres, developer, publisher)
@@ -143,6 +185,23 @@ async def _fetch_and_classify(
     elif data.get("is_free"):
         price_usd = 0.0
 
+    # Demo flag: Steam appdetails includes a "demos" list when a demo exists
+    has_demo = bool(data.get("demos"))
+
+    # Next Fest flag: check if any package group name or category mentions "Next Fest"
+    # Steam sometimes includes this in categories or package group titles during events
+    next_fest = False
+    categories = data.get("categories", [])
+    for cat in categories:
+        if "next fest" in cat.get("description", "").lower():
+            next_fest = True
+            break
+    if not next_fest:
+        for pkg in data.get("package_groups", []):
+            if "next fest" in pkg.get("title", "").lower():
+                next_fest = True
+                break
+
     game_data = {
         "appid": appid,
         "title": data.get("name", ""),
@@ -156,6 +215,8 @@ async def _fetch_and_classify(
         "is_horror": True,
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),
+        "has_demo": has_demo,
+        "next_fest": next_fest,
     }
 
     return game_data, None

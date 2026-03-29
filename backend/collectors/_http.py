@@ -25,8 +25,10 @@ class RateLimiter:
 
 
 # Pre-configured rate limiters
-steam_limiter = RateLimiter(min_interval=1.5)      # ~200 req/5min
+steam_limiter = RateLimiter(min_interval=1.5)       # ~200 req/5min
 steamspy_limiter = RateLimiter(min_interval=15.0)   # ~4 req/min
+twitch_limiter = RateLimiter(min_interval=0.08)     # 800 req/min → use ~12/sec to be safe
+reddit_limiter = RateLimiter(min_interval=0.8)      # ~75 req/min (conservative; Reddit headers unreliable)
 
 
 async def fetch_with_retry(

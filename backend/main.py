@@ -16,6 +16,10 @@ from collectors.owners import run_owner_estimates
 from collectors.youtube_scanner import run_youtube_scan
 from collectors.youtube_stats import run_youtube_stats_refresh
 from collectors.ops import run_ops_calculation
+from collectors.twitch import run_twitch_snapshots
+from collectors.reddit import run_reddit_scan
+from collectors.dev_profile import run_dev_profiles
+from collectors import run_steam_extras
 from routers import games, channels, videos, runs
 
 logging.basicConfig(
@@ -78,6 +82,46 @@ async def lifespan(app: FastAPI):
         "interval",
         hours=settings.youtube_scan_interval_hours,
         id="youtube_pipeline",
+        replace_existing=True,
+    )
+
+    # Twitch: every 6h at :00 (live engagement, matches CCU cadence)
+    scheduler.add_job(
+        run_twitch_snapshots,
+        "interval",
+        hours=settings.twitch_interval_hours,
+        id="twitch_pipeline",
+        replace_existing=True,
+    )
+
+    # Reddit: daily at 02:00 (staggered to avoid SQLite lock with other daily jobs)
+    scheduler.add_job(
+        run_reddit_scan,
+        "cron",
+        hour=2,
+        minute=0,
+        id="reddit_pipeline",
+        replace_existing=True,
+    )
+
+    # Steam extras (update tracking → achievement stats sequentially): daily at 03:00
+    scheduler.add_job(
+        run_steam_extras,
+        "cron",
+        hour=3,
+        minute=0,
+        id="steam_extras_job",
+        replace_existing=True,
+    )
+
+    # Developer profiles: weekly on Monday at 05:00
+    scheduler.add_job(
+        run_dev_profiles,
+        "cron",
+        day_of_week="mon",
+        hour=5,
+        minute=0,
+        id="dev_profiles_job",
         replace_existing=True,
     )
 
