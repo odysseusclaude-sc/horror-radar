@@ -1,6 +1,6 @@
 import type { PaginatedResponse } from "../types";
 
-const BASE_URL = "";
+const BASE_URL = "/api";
 
 export async function fetchPaginated<T>(
   endpoint: string,
@@ -32,4 +32,14 @@ export async function fetchOne<T>(endpoint: string): Promise<T> {
   }
 
   return resp.json();
+}
+
+export async function fetchStatus(): Promise<{
+  active_scrapers: number;
+  total_scrapers: number;
+  last_sync: string | null;
+}> {
+  const res = await fetch(`${BASE_URL}/status`);
+  if (!res.ok) throw new Error("Status fetch failed");
+  return res.json();
 }

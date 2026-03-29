@@ -18,8 +18,8 @@ export default function FilterBar({
   onApply,
 }: FilterBarProps) {
   return (
-    <section className="bg-surface-dark border-b border-border-dark px-6 py-4">
-      <div className="flex flex-wrap items-center gap-6">
+    <section className="bg-surface-dark border-b border-border-dark px-6 py-3">
+      <div className="flex flex-wrap items-center gap-5">
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
             Days Since Launch
@@ -27,13 +27,13 @@ export default function FilterBar({
           <div className="flex items-center gap-3">
             <input
               className="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer"
-              max={365}
+              max={90}
               min={1}
               type="range"
               value={days}
               onChange={(e) => onDaysChange(Number(e.target.value))}
             />
-            <span className="text-xs font-mono text-primary font-bold">&lt;{days}d</span>
+            <span className="text-xs font-mono text-primary font-bold">0–{days}d</span>
           </div>
         </div>
 
@@ -68,6 +68,7 @@ export default function FilterBar({
             onChange={(e) => onSortChange(e.target.value)}
           >
             <option value="newest">Newest First</option>
+            <option value="velocity">Velocity (7d)</option>
             <option value="ops">OPS Score</option>
             <option value="reviews">Most Reviews</option>
             <option value="ccu">Peak CCU</option>

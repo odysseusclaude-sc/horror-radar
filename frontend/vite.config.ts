@@ -5,11 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/games": "http://localhost:8000",
-      "/channels": "http://localhost:8000",
-      "/videos": "http://localhost:8000",
-      "/runs": "http://localhost:8000",
-      "/health": "http://localhost:8000",
+      "/api": {
+        target: "http://localhost:8000",
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
     },
   },
 });

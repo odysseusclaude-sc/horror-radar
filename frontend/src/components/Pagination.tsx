@@ -3,9 +3,29 @@ interface PaginationProps {
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+  activeScrapers?: number;
+  totalScrapers?: number;
+  lastSync?: string | null;
 }
 
-export default function Pagination({ page, pageSize, total, onPageChange }: PaginationProps) {
+function timeAgo(isoStr: string | null | undefined): string {
+  if (!isoStr) return "—";
+  const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+  if (diff < 60) return `${Math.round(diff)}s ago`;
+  if (diff < 3600) return `${Math.round(diff / 60)} mins ago`;
+  if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+  return `${Math.round(diff / 86400)}d ago`;
+}
+
+export default function Pagination({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  activeScrapers = 0,
+  totalScrapers = 12,
+  lastSync,
+}: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -24,15 +44,24 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   }
 
   return (
-    <footer className="bg-surface-dark border-t border-border-dark px-6 py-4 flex items-center justify-between text-[11px] font-bold text-text-dim uppercase tracking-widest shadow-2xl">
-      <div className="flex items-center gap-8">
+    <footer className="bg-surface-dark border-t border-border-dark px-6 py-3 flex items-center justify-between text-[11px] font-bold text-text-dim uppercase tracking-widest shadow-2xl">
+      <div className="flex items-center gap-6">
         <p>
-          Showing <span className="text-text-main">{total > 0 ? start : 0}-{end}</span> of{" "}
+          Showing{" "}
+          <span className="text-text-main">{total > 0 ? start : 0}–{end}</span> of{" "}
           <span className="text-text-main">{total}</span> Games
         </p>
         <div className="h-4 w-[1px] bg-border-dark" />
         <p>
-          Last Sync: <span className="text-primary font-mono">—</span>
+          Active Scrapers:{" "}
+          <span className={activeScrapers > 0 ? "text-green-400 font-mono" : "text-green-400 font-mono"}>
+            {activeScrapers}/{totalScrapers}
+          </span>
+        </p>
+        <div className="h-4 w-[1px] bg-border-dark" />
+        <p>
+          Last Sync:{" "}
+          <span className="text-primary font-mono">{timeAgo(lastSync)}</span>
         </p>
       </div>
 
