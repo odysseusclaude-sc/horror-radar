@@ -164,7 +164,13 @@ async def _fetch_and_classify(
     if _is_major_publisher(publisher):
         return None, "major_publisher"
 
-    if not trust_horror and not _is_horror(tags, genres, data.get("short_description")):
+    # Build combined description: short_description + about_the_game (HTML stripped)
+    short_desc = data.get("short_description") or ""
+    about_raw = data.get("about_the_game") or ""
+    about_clean = re.sub(r"<[^>]+>", " ", about_raw)
+    combined_desc = f"{short_desc} {about_clean}".strip() or None
+
+    if not trust_horror and not _is_horror(tags, genres, combined_desc):
         return None, "not_horror"
 
     indie = _is_indie(genres, developer, publisher)
