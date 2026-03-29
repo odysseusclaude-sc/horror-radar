@@ -10,6 +10,7 @@ For each discovered AppID:
 """
 import json
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -22,8 +23,15 @@ from models import CollectionRun, DiscardedGame, Game
 logger = logging.getLogger(__name__)
 
 STEAM_APPDETAILS_URL = "https://store.steampowered.com/api/appdetails"
+STEAM_STORE_PAGE_URL = "https://store.steampowered.com/app/{appid}/"
 STEAMSPY_APPDETAILS_URL = "https://steamspy.com/api.php"
 MAX_AGE_DAYS = 730  # ~24 months per original spec
+
+_STORE_PAGE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+_STORE_PAGE_COOKIES = {"birthtime": "0", "mature_content": "1", "lastagecheckage": "1-0-2000"}
 
 
 def _parse_release_date(date_str: str) -> date | None:
@@ -128,6 +136,25 @@ async def _fetch_and_classify(
         tags = {tag: 0 for tag in raw_tags}
     else:
         tags = {}
+
+    # If SteamSpy has no tags yet (game too new), scrape them from the Steam store page.
+    # Steam embeds user-voted tags as JSON in InitAppTagModal() on every store page.
+    if not tags:
+        try:
+            r = await client.get(
+                STEAM_STORE_PAGE_URL.format(appid=appid),
+                headers=_STORE_PAGE_HEADERS,
+                cookies=_STORE_PAGE_COOKIES,
+                follow_redirects=True,
+                timeout=15,
+            )
+            match = re.search(r"InitAppTagModal\(\s*\d+\s*,\s*(\[.*?\])\s*,", r.text, re.DOTALL)
+            if match:
+                store_tags = json.loads(match.group(1))
+                tags = {t["name"]: 0 for t in store_tags if "name" in t}
+                logger.debug(f"AppID {appid}: used store page tags (SteamSpy empty): {list(tags.keys())[:5]}")
+        except Exception as e:
+            logger.debug(f"AppID {appid}: store page tag scrape failed: {e}")
 
     # Extract metadata
     developer = data.get("developers", [None])[0] if data.get("developers") else None
