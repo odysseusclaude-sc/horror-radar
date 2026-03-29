@@ -27,7 +27,7 @@ export default function FilterBar({
           <div className="flex items-center gap-3">
             <input
               className="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer"
-              max={365}
+              max={90}
               min={1}
               type="range"
               value={days}

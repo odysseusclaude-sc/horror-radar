@@ -12,12 +12,12 @@ export default function Database() {
   const [loading, setLoading] = useState(true);
 
   // Filter state
-  const [days, setDays] = useState(365);
+  const [days, setDays] = useState(90);
   const [maxPrice, setMaxPrice] = useState(60);
   const [sortBy, setSortBy] = useState("newest");
 
   // Applied filters (only sent to API on "Apply")
-  const [appliedDays, setAppliedDays] = useState(365);
+  const [appliedDays, setAppliedDays] = useState(90);
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(60);
   const [appliedSortBy, setAppliedSortBy] = useState("newest");
 
