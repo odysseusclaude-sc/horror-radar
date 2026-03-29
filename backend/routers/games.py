@@ -7,10 +7,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import DeveloperProfile, Game, GameSnapshot, OpsScore, RedditMention, TwitchSnapshot
+from collections import defaultdict
+
+from models import (
+    CollectionRun, DeveloperProfile, Game, GameSnapshot, OpsScore,
+    RedditMention, TwitchSnapshot, YoutubeChannel, YoutubeVideo,
+)
 from schemas import (
     DeveloperProfileOut, GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
-    PaginatedResponse, RedditMentionOut, TwitchSnapshotOut,
+    PaginatedResponse, RedditMentionOut, StatusOut, TwitchSnapshotOut, YoutubeChannelBrief,
 )
 
 router = APIRouter(tags=["games"])
@@ -89,6 +94,8 @@ def list_games(
         query = query.order_by(GameSnapshot.peak_ccu.desc().nullslast())
     elif sort_by == "ops":
         query = query.order_by(OpsScore.score.desc().nullslast())
+    elif sort_by == "velocity":
+        query = query.order_by(GameSnapshot.review_velocity_7d.desc().nullslast())
     else:  # "newest"
         query = query.order_by(Game.release_date.desc().nullslast())
 
@@ -103,6 +110,70 @@ def list_games(
         if ops_score:
             out.latest_ops = OpsScoreOut.model_validate(ops_score)
         results.append(out)
+
+    # Batch-load YouTube channels for all returned games
+    appids = [out.appid for out in results]
+    if appids:
+        yt_rows = (
+            db.query(
+                YoutubeVideo.matched_appid,
+                YoutubeChannel.channel_id,
+                YoutubeChannel.name,
+                YoutubeChannel.handle,
+                YoutubeChannel.subscriber_count,
+                func.max(YoutubeVideo.view_count).label("top_views"),
+            )
+            .join(YoutubeChannel, YoutubeVideo.channel_id == YoutubeChannel.channel_id)
+            .filter(YoutubeVideo.matched_appid.in_(appids))
+            .group_by(YoutubeVideo.matched_appid, YoutubeChannel.channel_id)
+            .order_by(YoutubeChannel.subscriber_count.desc().nullslast())
+            .all()
+        )
+        yt_by_appid: dict[int, list] = defaultdict(list)
+        for row in yt_rows:
+            if len(yt_by_appid[row.matched_appid]) < 2:
+                yt_by_appid[row.matched_appid].append(
+                    YoutubeChannelBrief(
+                        channel_id=row.channel_id,
+                        name=row.name,
+                        handle=row.handle,
+                        subscriber_count=row.subscriber_count,
+                        top_video_views=row.top_views,
+                    )
+                )
+        for out in results:
+            out.youtube_channels = yt_by_appid.get(out.appid, [])
+
+    # Batch-compute rolling 7-day review delta per game
+    if appids:
+        seven_days_ago = date.today() - timedelta(days=7)
+        old_date_sq = (
+            db.query(
+                GameSnapshot.appid,
+                func.max(GameSnapshot.snapshot_date).label("old_date"),
+            )
+            .filter(
+                GameSnapshot.appid.in_(appids),
+                GameSnapshot.snapshot_date <= seven_days_ago,
+            )
+            .group_by(GameSnapshot.appid)
+            .subquery()
+        )
+        old_snap_rows = (
+            db.query(GameSnapshot.appid, GameSnapshot.review_count)
+            .join(
+                old_date_sq,
+                (GameSnapshot.appid == old_date_sq.c.appid)
+                & (GameSnapshot.snapshot_date == old_date_sq.c.old_date),
+            )
+            .all()
+        )
+        old_reviews = {row.appid: row.review_count for row in old_snap_rows}
+        for out in results:
+            if out.latest_snapshot and out.latest_snapshot.review_count is not None:
+                old = old_reviews.get(out.appid)
+                if old is not None:
+                    out.review_delta_7d = out.latest_snapshot.review_count - old
 
     return PaginatedResponse(
         data=results,
@@ -166,3 +237,15 @@ def get_game(appid: int, db: Session = Depends(get_db)):
     if dev_profile:
         result.developer_profile = DeveloperProfileOut.model_validate(dev_profile)
     return result
+
+
+@router.get("/status", response_model=StatusOut)
+def get_status(db: Session = Depends(get_db)):
+    """Return active scraper count and last sync time."""
+    active = db.query(func.count(CollectionRun.id)).filter_by(status="running").scalar() or 0
+    last_run = (
+        db.query(func.max(CollectionRun.finished_at))
+        .filter(CollectionRun.finished_at.isnot(None))
+        .scalar()
+    )
+    return StatusOut(active_scrapers=active, last_sync=last_run)

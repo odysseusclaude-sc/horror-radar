@@ -78,10 +78,20 @@ class OpsScoreOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class YoutubeChannelBrief(BaseModel):
+    channel_id: str
+    name: str
+    handle: str | None = None
+    subscriber_count: int | None = None
+    top_video_views: int | None = None
+
+
 class GameListOut(GameOut):
     """Game with latest snapshot data and OPS for list views."""
     latest_snapshot: GameSnapshotOut | None = None
     latest_ops: OpsScoreOut | None = None
+    youtube_channels: list[YoutubeChannelBrief] = []
+    review_delta_7d: int | None = None
 
 
 class TwitchSnapshotOut(BaseModel):
@@ -178,8 +188,63 @@ class CollectionRunOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Insights schemas ---
+
+class InsightSignal(BaseModel):
+    label: str
+    value: str
+    detail: str
+
+class InsightGame(BaseModel):
+    appid: int
+    title: str
+    developer: str | None = None
+    header_image_url: str | None = None
+    gem_score: float = 0
+    review_count: int = 0
+    review_score: float = 0
+    price: float | None = None
+    days_out: int = 0
+    genre: str = ""
+    visibility: float = 0
+    quality: float = 0
+    yt_channels: int = 0
+    ops_score: float | None = None
+    signals: list[InsightSignal] = []
+    sparkline: list[float] = []
+    dominant_signal: str = ""
+
+class InsightSubGenre(BaseModel):
+    name: str
+    momentum: float = 0
+    game_count: int = 0
+    avg_score: float = 0
+    top_game: str = ""
+
+class InsightPastGem(BaseModel):
+    title: str
+    week: str = ""
+    score_at_discovery: float = 0
+    current_reviews: int = 0
+    outcome: str = "steady"
+
+class InsightsResponse(BaseModel):
+    hero_gem: InsightGame | None = None
+    scatter_games: list[InsightGame] = []
+    rising_games: list[InsightGame] = []
+    blindspot_games: list[InsightGame] = []
+    sub_genres: list[InsightSubGenre] = []
+    gem_history: list[InsightPastGem] = []
+
+
 # --- Health check ---
 
 class HealthOut(BaseModel):
     status: str
     version: str = "0.1.0"
+
+
+class StatusOut(BaseModel):
+    active_scrapers: int = 0
+    total_scrapers: int = 12
+    last_sync: datetime | None = None

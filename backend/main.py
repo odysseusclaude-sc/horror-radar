@@ -20,7 +20,7 @@ from collectors.twitch import run_twitch_snapshots
 from collectors.reddit import run_reddit_scan
 from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
-from routers import games, channels, videos, runs
+from routers import games, channels, videos, runs, insights
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -154,3 +154,4 @@ app.include_router(games.router)
 app.include_router(channels.router)
 app.include_router(videos.router)
 app.include_router(runs.router)
+app.include_router(insights.router)

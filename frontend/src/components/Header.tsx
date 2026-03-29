@@ -1,8 +1,19 @@
+import { Link, useLocation } from "react-router-dom";
+
+const NAV_ITEMS = [
+  { label: "Database", path: "/" },
+  { label: "Insights", path: "/insights" },
+  { label: "Trends", path: "#" },
+  { label: "Submit Game", path: "#" },
+];
+
 export default function Header() {
+  const location = useLocation();
+
   return (
     <header className="sticky top-0 z-50 bg-background-dark border-b border-border-dark px-6 py-3 flex items-center justify-between shadow-lg">
       <div className="flex items-center gap-8">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3">
           <div className="size-8 text-primary drop-shadow-[0_0_8px_rgba(192,57,43,0.5)]">
             <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -14,20 +25,27 @@ export default function Header() {
           <h1 className="text-xl font-black tracking-tighter uppercase italic text-text-main">
             Horror Radar
           </h1>
-        </div>
+        </Link>
         <nav className="hidden md:flex items-center gap-6">
-          <a className="text-sm font-bold text-primary border-b-2 border-primary pb-1" href="#">
-            Database
-          </a>
-          <a className="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">
-            Insights
-          </a>
-          <a className="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">
-            Trends
-          </a>
-          <a className="text-sm font-semibold text-text-dim hover:text-primary transition-colors" href="#">
-            Submit Game
-          </a>
+          {NAV_ITEMS.map((item) => {
+            const active =
+              item.path === "/"
+                ? location.pathname === "/"
+                : location.pathname.startsWith(item.path);
+            return (
+              <Link
+                key={item.label}
+                to={item.path}
+                className={
+                  active
+                    ? "text-sm font-bold text-primary border-b-2 border-primary pb-1"
+                    : "text-sm font-semibold text-text-dim hover:text-primary transition-colors"
+                }
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
       <div className="flex items-center gap-4">

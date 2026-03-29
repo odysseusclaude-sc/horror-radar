@@ -27,11 +27,22 @@ export interface GameSnapshot {
   peak_ccu: number | null;
   current_ccu: number | null;
   average_playtime_forever: number | null;
+  review_velocity_7d: number | null;
+}
+
+export interface YoutubeChannelBrief {
+  channel_id: string;
+  name: string;
+  handle: string | null;
+  subscriber_count: number | null;
+  top_video_views: number | null;
 }
 
 export interface GameListItem extends Game {
   latest_snapshot: GameSnapshot | null;
   latest_ops: OpsScore | null;
+  youtube_channels: YoutubeChannelBrief[];
+  review_delta_7d: number | null;
 }
 
 export interface GameDetail extends Game {
@@ -94,4 +105,57 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   page_size: number;
+}
+
+// ── Insights types ──
+
+export interface InsightSignal {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface InsightGame {
+  appid: number;
+  title: string;
+  developer: string | null;
+  header_image_url: string | null;
+  gem_score: number;
+  review_count: number;
+  review_score: number;
+  price: number | null;
+  days_out: number;
+  genre: string;
+  visibility: number;
+  quality: number;
+  yt_channels: number;
+  ops_score: number | null;
+  signals: InsightSignal[];
+  sparkline: number[];
+  dominant_signal: string;
+}
+
+export interface InsightSubGenre {
+  name: string;
+  momentum: number;
+  game_count: number;
+  avg_score: number;
+  top_game: string;
+}
+
+export interface InsightPastGem {
+  title: string;
+  week: string;
+  score_at_discovery: number;
+  current_reviews: number;
+  outcome: string;
+}
+
+export interface InsightsResponse {
+  hero_gem: InsightGame | null;
+  scatter_games: InsightGame[];
+  rising_games: InsightGame[];
+  blindspot_games: InsightGame[];
+  sub_genres: InsightSubGenre[];
+  gem_history: InsightPastGem[];
 }

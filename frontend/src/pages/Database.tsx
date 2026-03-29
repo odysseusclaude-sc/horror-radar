@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchPaginated } from "../api/client";
+import { fetchPaginated, fetchStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import GameTable from "../components/GameTable";
 import Pagination from "../components/Pagination";
@@ -20,6 +20,11 @@ export default function Database() {
   const [appliedDays, setAppliedDays] = useState(90);
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(60);
   const [appliedSortBy, setAppliedSortBy] = useState("newest");
+
+  // Status
+  const [activeScrapers, setActiveScrapers] = useState(0);
+  const [totalScrapers, setTotalScrapers] = useState(12);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   const pageSize = 20;
 
@@ -44,9 +49,27 @@ export default function Database() {
     }
   }, [page, appliedDays, appliedMaxPrice, appliedSortBy]);
 
+  const loadStatus = useCallback(async () => {
+    try {
+      const s = await fetchStatus();
+      setActiveScrapers(s.active_scrapers);
+      setTotalScrapers(s.total_scrapers);
+      setLastSync(s.last_sync);
+    } catch {
+      // Status is non-critical, ignore errors
+    }
+  }, []);
+
   useEffect(() => {
     loadGames();
   }, [loadGames]);
+
+  // Poll status every 30 seconds
+  useEffect(() => {
+    loadStatus();
+    const interval = setInterval(loadStatus, 30_000);
+    return () => clearInterval(interval);
+  }, [loadStatus]);
 
   const handleApply = () => {
     setAppliedDays(days);
@@ -77,6 +100,9 @@ export default function Database() {
         pageSize={pageSize}
         total={total}
         onPageChange={handlePageChange}
+        activeScrapers={activeScrapers}
+        totalScrapers={totalScrapers}
+        lastSync={lastSync}
       />
     </>
   );
