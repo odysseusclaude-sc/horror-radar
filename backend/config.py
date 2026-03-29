@@ -10,10 +10,18 @@ class ChannelConfig:
 
 
 SEED_CHANNELS = [
+    # Original channels (verified)
     ChannelConfig(handle="@IGP", name="IGP"),
     ChannelConfig(handle="@thefoosterchannel", name="Fooster"),
     ChannelConfig(handle="@Insym", name="Insym", match_mode="title"),
     ChannelConfig(handle="@ManlyBadassHero", name="ManlyBadassHero", match_mode="description"),
+    # Expanded network — verified indie/horror gaming focus
+    ChannelConfig(handle="@cjugames", name="CJUGames"),           # 163K — "obscene amount of indie horror games"
+    ChannelConfig(handle="@mrkravin", name="MrKravin"),           # 144K — 11 years of horror games, indie focus
+    ChannelConfig(handle="@gamersault", name="GamerSault"),       # 528K — horror game stories & theories
+    ChannelConfig(handle="@hghhorrorgameshouse", name="HGH Horror Games House"),  # 93K — indie gems to cult classics
+    ChannelConfig(handle="@twoonto", name="Twoonto"),             # 171K — horror gaming + story games
+    ChannelConfig(handle="@indiefuel", name="Indie Fuel"),        # 86K — FNaF fan-games + indie horror
 ]
 
 MAJOR_PUBLISHERS = frozenset({
