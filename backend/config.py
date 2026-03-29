@@ -11,7 +11,7 @@ class ChannelConfig:
 
 SEED_CHANNELS = [
     ChannelConfig(handle="@IGP", name="IGP"),
-    ChannelConfig(handle="@Fooster", name="Fooster"),
+    ChannelConfig(handle="@thefoosterchannel", name="Fooster"),
     ChannelConfig(handle="@Insym", name="Insym", match_mode="title"),
     ChannelConfig(handle="@ManlyBadassHero", name="ManlyBadassHero", match_mode="description"),
 ]
