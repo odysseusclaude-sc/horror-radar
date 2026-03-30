@@ -83,14 +83,24 @@ function RadarTooltip({ active, payload }: any) {
         color: C.white,
         fontSize: 12,
         lineHeight: 1.6,
-        maxWidth: 220,
+        maxWidth: 240,
       }}
     >
-      <div style={{ color: C.primary, fontWeight: 700, marginBottom: 4 }}>
+      <div style={{ color: C.primary, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
         {d.title}
+        {d.has_demo && (
+          <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(34,211,238,0.15)", color: "#22d3ee", fontWeight: 800, letterSpacing: 1 }}>
+            DEMO
+          </span>
+        )}
       </div>
       <div>VIS: {d.visibility} &nbsp; QUA: {d.quality}</div>
       <div>GEM: {d.gem_score} &nbsp; REV: {d.review_count}</div>
+      {d.demo_review_count != null && d.demo_review_count > 0 && (
+        <div style={{ color: "#22d3ee" }}>
+          DEMO: {d.demo_review_count} reviews ({d.demo_review_score_pct?.toFixed(0)}%)
+        </div>
+      )}
       <div style={{ color: C.dim }}>{d.genre}</div>
     </div>
   );
@@ -209,12 +219,23 @@ export default function ConceptB() {
               </span>
             </div>
             <div>
-              <h1
-                style={{ ...heading, fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}
-                className="text-white"
-              >
-                {heroGem.title}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1
+                  style={{ ...heading, fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}
+                  className="text-white"
+                >
+                  {heroGem.title}
+                </h1>
+                {heroGem.has_demo && (
+                  <span style={{
+                    ...mono, fontSize: 9, padding: "2px 8px", borderRadius: 4,
+                    background: "rgba(34,211,238,0.12)", color: "#22d3ee",
+                    fontWeight: 800, letterSpacing: 1.5, border: "1px solid rgba(34,211,238,0.25)",
+                  }}>
+                    DEMO
+                  </span>
+                )}
+              </div>
               <p style={{ ...mono, fontSize: 13, color: C.dim }}>
                 {heroGem.developer} &mdash; {heroGem.genre}
               </p>
@@ -253,6 +274,11 @@ export default function ConceptB() {
           <p style={{ ...mono, fontSize: 11, color: C.dim }}>
             INTERCEPTED 6H AGO &nbsp;&bull;&nbsp; {heroGem.review_count} REVIEWS
             &nbsp;&bull;&nbsp; ${heroGem.price}
+            {heroGem.demo_review_count != null && heroGem.demo_review_count > 0 && (
+              <span style={{ color: "#22d3ee" }}>
+                &nbsp;&bull;&nbsp; {heroGem.demo_review_count} DEMO REVIEWS ({heroGem.demo_review_score_pct?.toFixed(0)}%)
+              </span>
+            )}
           </p>
         </section>
         )}
@@ -326,18 +352,22 @@ export default function ConceptB() {
                 <ReferenceLine y={50} stroke={C.line} strokeDasharray="6 4" />
 
                 {/* non-hero dots */}
-                <Scatter data={allScatter.filter((g) => !g._hero)} shape="circle">
-                  {allScatter
-                    .filter((g) => !g._hero)
-                    .map((g, i) => (
-                      <Cell
-                        key={i}
-                        fill={dotColor(g.gem_score)}
-                        r={Math.max(4, g.gem_score / 12)}
-                        fillOpacity={0.85}
-                      />
-                    ))}
-                </Scatter>
+                <Scatter
+                  data={allScatter.filter((g) => !g._hero)}
+                  shape={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    const r = Math.max(4, payload.gem_score / 12);
+                    const fill = dotColor(payload.gem_score);
+                    return (
+                      <g>
+                        <circle cx={cx} cy={cy} r={r} fill={fill} fillOpacity={0.85} />
+                        {payload.has_demo && (
+                          <circle cx={cx} cy={cy} r={r + 3} fill="none" stroke="#22d3ee" strokeWidth={1.5} strokeOpacity={0.6} />
+                        )}
+                      </g>
+                    );
+                  }}
+                />
 
                 {/* hero dot — pulsing */}
                 <Scatter
@@ -413,14 +443,30 @@ export default function ConceptB() {
 
                 {/* title + dev */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    style={{ ...heading, fontWeight: 600, fontSize: 14 }}
-                    className="truncate"
-                  >
-                    {g.title}
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{ ...heading, fontWeight: 600, fontSize: 14 }}
+                      className="truncate"
+                    >
+                      {g.title}
+                    </span>
+                    {g.has_demo && (
+                      <span style={{
+                        ...mono, fontSize: 8, padding: "1px 5px", borderRadius: 3, flexShrink: 0,
+                        background: "rgba(34,211,238,0.12)", color: "#22d3ee",
+                        fontWeight: 800, letterSpacing: 1,
+                      }}>
+                        DEMO
+                      </span>
+                    )}
                   </div>
                   <div style={{ ...mono, fontSize: 10, color: C.dim }}>
                     {g.dominant_signal || g.genre}
+                    {g.demo_review_count != null && g.demo_review_count > 0 && (
+                      <span style={{ color: "#22d3ee", marginLeft: 8 }}>
+                        {g.demo_review_count} demo reviews
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -525,11 +571,25 @@ export default function ConceptB() {
                   animationDelay: `${0.36 + i * 0.08}s`,
                 }}
               >
-                <div style={{ ...heading, fontWeight: 600, fontSize: 14 }}>
-                  {g.title}
+                <div className="flex items-center gap-2">
+                  <span style={{ ...heading, fontWeight: 600, fontSize: 14 }}>
+                    {g.title}
+                  </span>
+                  {g.has_demo && (
+                    <span style={{
+                      ...mono, fontSize: 8, padding: "1px 4px", borderRadius: 3, flexShrink: 0,
+                      background: "rgba(34,211,238,0.12)", color: "#22d3ee",
+                      fontWeight: 800, letterSpacing: 1,
+                    }}>
+                      DEMO
+                    </span>
+                  )}
                 </div>
                 <div style={{ ...mono, fontSize: 11, color: "#667788" }}>
                   {g.genre} &bull; {g.days_out}d active
+                  {g.demo_review_count != null && g.demo_review_count > 0 && (
+                    <span style={{ color: "#22d3ee" }}> &bull; {g.demo_review_count} demo rev</span>
+                  )}
                 </div>
                 <div
                   style={{ ...mono, fontSize: 22, fontWeight: 700, color: C.primary }}

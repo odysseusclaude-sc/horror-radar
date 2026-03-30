@@ -50,6 +50,10 @@ def _run_migrations():
         "ALTER TABLE game_snapshots ADD COLUMN days_since_last_update INTEGER",
         "ALTER TABLE game_snapshots ADD COLUMN twitch_peak_viewers INTEGER",
         "ALTER TABLE game_snapshots ADD COLUMN twitch_concurrent_streams INTEGER",
+        # Demo review tracking
+        "ALTER TABLE games ADD COLUMN demo_appid INTEGER",
+        "ALTER TABLE game_snapshots ADD COLUMN demo_review_count INTEGER",
+        "ALTER TABLE game_snapshots ADD COLUMN demo_review_score_pct REAL",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:

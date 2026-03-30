@@ -1,10 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { label: "Database", path: "/" },
-  { label: "Insights", path: "/insights" },
-  { label: "Trends", path: "#" },
-  { label: "Submit Game", path: "#" },
+  { label: "Database", path: "/", disabled: false },
+  { label: "Insights", path: "/insights", disabled: false },
+  { label: "Trends", path: "#", disabled: true },
+  { label: "Submit Game", path: "#", disabled: true },
 ];
 
 export default function Header() {
@@ -28,6 +28,17 @@ export default function Header() {
         </Link>
         <nav className="hidden md:flex items-center gap-6">
           {NAV_ITEMS.map((item) => {
+            if (item.disabled) {
+              return (
+                <span
+                  key={item.label}
+                  className="text-sm font-semibold text-text-dim/40 cursor-not-allowed select-none"
+                  title="Coming soon"
+                >
+                  {item.label}
+                </span>
+              );
+            }
             const active =
               item.path === "/"
                 ? location.pathname === "/"
@@ -49,19 +60,6 @@ export default function Header() {
         </nav>
       </div>
       <div className="flex items-center gap-4">
-        <div className="relative hidden sm:block">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-dim">
-            search
-          </span>
-          <input
-            className="bg-surface-dark border border-border-dark rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-text-main"
-            placeholder="Search Steam ID or Title..."
-            type="text"
-          />
-        </div>
-        <button className="p-2 hover:bg-surface-dark rounded-full text-text-dim hover:text-text-main transition-colors">
-          <span className="material-symbols-outlined">notifications</span>
-        </button>
         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-orange-900 border border-white/10 shadow-inner" />
       </div>
     </header>

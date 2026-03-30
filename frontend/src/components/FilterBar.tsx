@@ -2,9 +2,11 @@ interface FilterBarProps {
   days: number;
   maxPrice: number;
   sortBy: string;
+  search: string;
   onDaysChange: (v: number) => void;
   onMaxPriceChange: (v: number) => void;
   onSortChange: (v: string) => void;
+  onSearchChange: (v: string) => void;
   onApply: () => void;
 }
 
@@ -12,14 +14,41 @@ export default function FilterBar({
   days,
   maxPrice,
   sortBy,
+  search,
   onDaysChange,
   onMaxPriceChange,
   onSortChange,
+  onSearchChange,
   onApply,
 }: FilterBarProps) {
   return (
     <section className="bg-surface-dark border-b border-border-dark px-6 py-3">
       <div className="flex flex-wrap items-center gap-5">
+        {/* Search */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
+            Search
+          </span>
+          <div className="relative">
+            <span
+              className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-text-dim"
+              style={{ fontSize: 14 }}
+            >
+              search
+            </span>
+            <input
+              className="bg-background-dark border border-border-dark text-xs text-text-main rounded pl-7 pr-2 py-1.5 w-44 focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none placeholder:text-text-dim/50 font-mono"
+              type="text"
+              placeholder="Game or developer..."
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onApply(); }}
+            />
+          </div>
+        </div>
+
+        <div className="h-8 w-[1px] bg-border-dark" />
+
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
             Days Since Launch

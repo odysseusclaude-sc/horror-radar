@@ -3,8 +3,8 @@ from __future__ import annotations
 """Stage 7: YouTube Video Scanner
 
 Uses playlistItems.list (1 unit/page) to discover recent uploads.
-Fuzzy matches video titles (and descriptions for desc-mode channels)
-against known games using rapidfuzz token_set_ratio.
+Fuzzy matches video titles and descriptions against known games
+using rapidfuzz token_set_ratio.
 
 Quota-efficient: ~27 units/day for 3 channels vs 6,000 with search.list.
 """
@@ -23,7 +23,7 @@ from models import CollectionRun, Game, YoutubeChannel, YoutubeVideo
 logger = logging.getLogger(__name__)
 
 YT_BASE = "https://www.googleapis.com/youtube/v3"
-SCAN_WINDOW_DAYS = 90
+SCAN_WINDOW_DAYS = 180  # 6 months — covers demo-period YouTube coverage
 
 
 def _parse_iso8601_duration(duration: str) -> int:
@@ -163,11 +163,15 @@ async def _fetch_video_stats(
 def _match_to_games(
     text: str, game_names: list[str], threshold: int
 ) -> tuple[str | None, float]:
-    """Fuzzy match text against game names with two-pass approach.
+    """Match video text against game names with three-pass approach.
 
-    Pass 1: Fuzzy match for titles >= min length and not generic.
-    Pass 2: Exact word-boundary match for short/generic titles.
-    This prevents false positives like "Content Warning" matching every video.
+    Pass 1: Exact word-boundary match for ALL non-generic titles (catches
+            exact substrings like "SHE WAS 98" inside long video titles).
+    Pass 2: Fuzzy match for titles >= min length and not generic (catches
+            minor spelling variations and reworded titles).
+    Pass 3: Exact word-boundary match for short/generic titles only
+            (e.g., "FEAR", "Content Warning" — restricted to avoid
+            false positives on common words).
     """
     if not game_names:
         return None, 0.0
@@ -175,7 +179,15 @@ def _match_to_games(
     min_len = settings.fuzzy_min_title_length
     generic = {t.strip().lower() for t in settings.fuzzy_generic_terms.split(",")}
 
-    # Pass 1: fuzzy match for long/unique titles
+    # Pass 1: exact word-boundary match for long, non-generic titles
+    # This catches cases where token_set_ratio fails due to text length dilution
+    for name in game_names:
+        if len(name) >= min_len and name.lower() not in generic:
+            pattern = r"(?<![a-zA-Z0-9])" + re.escape(name) + r"(?![a-zA-Z0-9])"
+            if re.search(pattern, text, re.IGNORECASE):
+                return name, 100.0
+
+    # Pass 2: fuzzy match for long/unique titles
     eligible = [n for n in game_names if len(n) >= min_len and n.lower() not in generic]
     if eligible:
         results = process.extract(
@@ -186,7 +198,7 @@ def _match_to_games(
             name, score, _ = results[0]
             return name, score
 
-    # Pass 2: exact word-boundary match for short/generic titles
+    # Pass 3: exact word-boundary match for short/generic titles
     short_names = [n for n in game_names if len(n) < min_len or n.lower() in generic]
     for name in short_names:
         pattern = r"(?<![a-zA-Z])" + re.escape(name) + r"(?![a-zA-Z])"
@@ -257,9 +269,9 @@ async def run_youtube_scan():
                     try:
                         vid_stats = stats.get(upload["video_id"], {})
 
-                        # Match against game titles
+                        # Match against game titles (always include description)
                         match_text = upload["title"]
-                        if ch_data["match_mode"] == "description":
+                        if upload.get("description"):
                             match_text = f"{upload['title']} {upload['description']}"
 
                         matched_name, score = _match_to_games(
@@ -309,5 +321,51 @@ async def run_youtube_scan():
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         logger.exception("YouTube scan failed")
+    finally:
+        db.close()
+
+
+def rematch_unmatched_videos():
+    """Re-match videos that have no matched_appid using title + description.
+
+    Useful after changing matching logic (e.g., adding description matching)
+    to retroactively find matches for existing videos.
+    """
+    db = SessionLocal()
+    try:
+        games = db.query(Game).all()
+        game_name_to_appid = {g.title: g.appid for g in games}
+        game_names = list(game_name_to_appid.keys())
+
+        if not game_names:
+            logger.info("No games in DB, skipping rematch")
+            return
+
+        unmatched = db.query(YoutubeVideo).filter(
+            YoutubeVideo.matched_appid.is_(None)
+        ).all()
+
+        logger.info(f"Re-matching {len(unmatched)} unmatched videos")
+        matched_count = 0
+
+        for vid in unmatched:
+            match_text = vid.title or ""
+            if vid.description:
+                match_text = f"{vid.title} {vid.description}"
+
+            matched_name, score = _match_to_games(
+                match_text, game_names, settings.fuzzy_match_threshold
+            )
+            if matched_name:
+                vid.matched_appid = game_name_to_appid[matched_name]
+                vid.match_score = score
+                matched_count += 1
+
+        db.commit()
+        logger.info(f"Re-matched {matched_count}/{len(unmatched)} videos")
+
+    except Exception:
+        db.rollback()
+        logger.exception("Video rematch failed")
     finally:
         db.close()

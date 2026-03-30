@@ -12,6 +12,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
+from sqlalchemy import func
 
 from collectors._http import fetch_with_retry, steam_limiter
 from database import SessionLocal
@@ -58,16 +59,31 @@ async def run_review_snapshots():
     try:
         games = db.query(Game).all()
 
+        # Batch-load latest snapshot per game (1 query instead of N)
+        latest_date_sub = (
+            db.query(
+                GameSnapshot.appid,
+                func.max(GameSnapshot.snapshot_date).label("max_date"),
+            )
+            .group_by(GameSnapshot.appid)
+            .subquery()
+        )
+        latest_snaps = (
+            db.query(GameSnapshot)
+            .join(
+                latest_date_sub,
+                (GameSnapshot.appid == latest_date_sub.c.appid)
+                & (GameSnapshot.snapshot_date == latest_date_sub.c.max_date),
+            )
+            .all()
+        )
+        snap_by_appid: dict[int, GameSnapshot] = {s.appid: s for s in latest_snaps}
+
         async with httpx.AsyncClient() as client:
             for game in games:
                 try:
                     # Check cadence
-                    latest = (
-                        db.query(GameSnapshot)
-                        .filter_by(appid=game.appid)
-                        .order_by(GameSnapshot.snapshot_date.desc())
-                        .first()
-                    )
+                    latest = snap_by_appid.get(game.appid)
 
                     if not _should_snapshot(game, latest):
                         continue

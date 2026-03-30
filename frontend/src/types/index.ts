@@ -9,6 +9,8 @@ export interface Game {
   tags: string | null;
   is_indie: boolean;
   is_horror: boolean;
+  has_demo: boolean;
+  demo_appid: number | null;
   header_image_url: string | null;
   short_description: string | null;
   created_at: string | null;
@@ -28,6 +30,8 @@ export interface GameSnapshot {
   current_ccu: number | null;
   average_playtime_forever: number | null;
   review_velocity_7d: number | null;
+  demo_review_count: number | null;
+  demo_review_score_pct: number | null;
 }
 
 export interface YoutubeChannelBrief {
@@ -50,10 +54,12 @@ export interface GameDetail extends Game {
   ops_history: OpsScore[];
 }
 
+export type OpsConfidence = "high" | "medium" | "low";
+
 export interface OpsScore {
   score_date: string;
   score: number | null;
-  confidence: string | null;
+  confidence: OpsConfidence | null;
   review_component: number | null;
   velocity_component: number | null;
   ccu_component: number | null;
@@ -130,6 +136,9 @@ export interface InsightGame {
   quality: number;
   yt_channels: number;
   ops_score: number | null;
+  has_demo: boolean;
+  demo_review_count: number | null;
+  demo_review_score_pct: number | null;
   signals: InsightSignal[];
   sparkline: number[];
   dominant_signal: string;
@@ -143,12 +152,14 @@ export interface InsightSubGenre {
   top_game: string;
 }
 
+export type GemOutcome = "hit" | "sleeper" | "steady";
+
 export interface InsightPastGem {
   title: string;
   week: string;
   score_at_discovery: number;
   current_reviews: number;
-  outcome: string;
+  outcome: GemOutcome;
 }
 
 export interface InsightsResponse {

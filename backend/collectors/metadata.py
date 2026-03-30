@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
-from config import CORE_HORROR_TAGS, INDIE_PUBLISHERS, MAJOR_PUBLISHERS
+from config import CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS, MAJOR_PUBLISHERS
 from database import SessionLocal
 from models import CollectionRun, DiscardedGame, Game
 
@@ -60,17 +60,29 @@ def _is_horror(
     genres: list[str] | None = None,
     description: str | None = None,
 ) -> bool:
-    # Check SteamSpy user-voted tags first
+    """5-layer horror classification chain.
+
+    Layer 1: SteamSpy/store-page user-voted tags (most reliable)
+    Layer 2: Steam genre categories
+    Layer 3: Description keyword scan (broadened keyword list)
+    """
+    # Layer 1: Check user-voted tags against expanded CORE_HORROR_TAGS
     if CORE_HORROR_TAGS & set(tags.keys()):
         return True
-    # Fallback: check Steam genres (for new games without SteamSpy data yet)
+
+    # Layer 2: Check Steam genres
     if genres:
         genre_horror = {"Horror", "Psychological Horror", "Survival Horror"}
         if genre_horror & set(genres):
             return True
-    # Fallback: check short description for the word "horror"
-    if description and "horror" in description.lower():
-        return True
+
+    # Layer 3: Scan description for horror-related keywords
+    if description:
+        desc_lower = description.lower()
+        for kw in HORROR_DESCRIPTION_KEYWORDS:
+            if kw in desc_lower:
+                return True
+
     return False
 
 
@@ -185,8 +197,12 @@ async def _fetch_and_classify(
     elif data.get("is_free"):
         price_usd = 0.0
 
-    # Demo flag: Steam appdetails includes a "demos" list when a demo exists
-    has_demo = bool(data.get("demos"))
+    # Demo flag + AppID: Steam appdetails includes a "demos" list when a demo exists
+    demos = data.get("demos")
+    has_demo = bool(demos)
+    demo_appid = None
+    if demos and isinstance(demos, list) and len(demos) > 0:
+        demo_appid = demos[0].get("appid")
 
     # Next Fest flag: check if any package group name or category mentions "Next Fest"
     # Steam sometimes includes this in categories or package group titles during events
@@ -211,11 +227,12 @@ async def _fetch_and_classify(
         "price_usd": price_usd,
         "genres": json.dumps(genres),
         "tags": json.dumps(tags),
-        "is_indie": True,
-        "is_horror": True,
+        "is_indie": indie,
+        "is_horror": _is_horror(tags, genres, combined_desc),
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),
         "has_demo": has_demo,
+        "demo_appid": demo_appid,
         "next_fest": next_fest,
     }
 
