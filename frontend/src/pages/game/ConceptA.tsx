@@ -785,8 +785,22 @@ export default function TheAutopsy() {
     if (!game || !latestSnapshot) return [];
     const maxCcu = snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
     const latestOps = latestWithOps?.ops_score;
+    // Owners: use SteamSpy data if available, otherwise estimate from reviews × 30
+    const REVIEW_MULTIPLIER = 30;
+    let ownersValue: string;
+    let ownersNote: string | null = null;
+    if (latestSnapshot.owners_estimate) {
+      ownersValue = fmtNum(latestSnapshot.owners_estimate);
+      ownersNote = "SteamSpy estimate";
+    } else if (latestSnapshot.review_count != null && latestSnapshot.review_count > 0) {
+      ownersValue = "~" + fmtNum(latestSnapshot.review_count * REVIEW_MULTIPLIER);
+      ownersNote = `Est. reviews × ${REVIEW_MULTIPLIER}`;
+    } else {
+      ownersValue = "--";
+    }
+
     return [
-      { label: "Owners", value: latestSnapshot.owners_estimate ? fmtNum(latestSnapshot.owners_estimate) : "--", color: C.green },
+      { label: "Owners", value: ownersValue, color: C.green, note: ownersNote },
       { label: "Peak CCU", value: maxCcu > 0 ? fmtNum(maxCcu) : "--", color: C.ccu },
       { label: "Reviews", value: latestSnapshot.review_count != null ? fmtNum(latestSnapshot.review_count) : "--", color: C.reviews },
       { label: "Score", value: latestSnapshot.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--", color: C.score },
@@ -1019,7 +1033,7 @@ export default function TheAutopsy() {
             borderBottom: `1px solid ${C.border}`,
           }}
         >
-          {heroStats.map((stat) => (
+          {heroStats.map((stat: any) => (
             <div key={stat.label} style={{ minWidth: 80 }}>
               <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 2 }}>
                 {stat.label}
@@ -1027,6 +1041,11 @@ export default function TheAutopsy() {
               <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: stat.color }}>
                 {stat.value}
               </div>
+              {stat.note && (
+                <div style={{ ...mono, fontSize: 8, color: C.dim, marginTop: 2, opacity: 0.7 }}>
+                  {stat.note}
+                </div>
+              )}
             </div>
           ))}
         </div>
