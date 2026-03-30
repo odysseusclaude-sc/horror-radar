@@ -15,6 +15,8 @@ we care specifically about their horror indie track record.
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy import func
+
 from database import SessionLocal
 from models import CollectionRun, DeveloperProfile, Game, GameSnapshot
 
@@ -40,6 +42,26 @@ async def run_dev_profiles() -> None:
         ]
         logger.info(f"Dev profiles: computing for {len(developers)} developers")
 
+        # Batch-load latest snapshot per game (1 query instead of N)
+        latest_date_sub = (
+            db.query(
+                GameSnapshot.appid,
+                func.max(GameSnapshot.snapshot_date).label("max_date"),
+            )
+            .group_by(GameSnapshot.appid)
+            .subquery()
+        )
+        latest_snaps = (
+            db.query(GameSnapshot)
+            .join(
+                latest_date_sub,
+                (GameSnapshot.appid == latest_date_sub.c.appid)
+                & (GameSnapshot.snapshot_date == latest_date_sub.c.max_date),
+            )
+            .all()
+        )
+        snap_by_appid: dict[int, GameSnapshot] = {s.appid: s for s in latest_snaps}
+
         for developer in developers:
             try:
                 dev_games = db.query(Game).filter_by(developer=developer).all()
@@ -53,12 +75,7 @@ async def run_dev_profiles() -> None:
                 best_game_reviews = 0
 
                 for game in dev_games:
-                    latest_snap = (
-                        db.query(GameSnapshot)
-                        .filter_by(appid=game.appid)
-                        .order_by(GameSnapshot.snapshot_date.desc())
-                        .first()
-                    )
+                    latest_snap = snap_by_appid.get(game.appid)
                     if not latest_snap:
                         continue
 

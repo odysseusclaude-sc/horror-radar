@@ -31,6 +31,7 @@ class GameOut(BaseModel):
     header_image_url: str | None = None
     short_description: str | None = None
     has_demo: bool = False
+    demo_appid: int | None = None
     next_fest: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -57,6 +58,8 @@ class GameSnapshotOut(BaseModel):
     days_since_last_update: int | None = None
     twitch_peak_viewers: int | None = None
     twitch_concurrent_streams: int | None = None
+    demo_review_count: int | None = None
+    demo_review_score_pct: float | None = None
 
     model_config = {"from_attributes": True}
 
@@ -210,6 +213,9 @@ class InsightGame(BaseModel):
     quality: float = 0
     yt_channels: int = 0
     ops_score: float | None = None
+    has_demo: bool = False
+    demo_review_count: int | None = None
+    demo_review_score_pct: float | None = None
     signals: list[InsightSignal] = []
     sparkline: list[float] = []
     dominant_signal: str = ""
@@ -235,6 +241,60 @@ class InsightsResponse(BaseModel):
     blindspot_games: list[InsightGame] = []
     sub_genres: list[InsightSubGenre] = []
     gem_history: list[InsightPastGem] = []
+
+
+# --- Timeline / Autopsy schemas ---
+
+class TimelineVideoOut(BaseModel):
+    video_id: str
+    channel_id: str
+    channel_name: str | None = None
+    subscriber_count: int | None = None
+    title: str
+    published_at: datetime | None = None
+    view_count: int | None = None
+    like_count: int | None = None
+    covers: str = "game"  # "demo" or "game"
+
+class TimelineSnapshotOut(BaseModel):
+    date: date
+    review_count: int | None = None
+    review_score_pct: float | None = None
+    peak_ccu: int | None = None
+    owners_estimate: int | None = None
+    demo_review_count: int | None = None
+    demo_review_score_pct: float | None = None
+    ops_score: float | None = None
+    ops_confidence: str | None = None
+    review_component: float | None = None
+    velocity_component: float | None = None
+    ccu_component: float | None = None
+    youtube_component: float | None = None
+    twitch_viewers: int | None = None
+    twitch_streams: int | None = None
+    yt_cumulative_views: int = 0
+    patch_count_30d: int | None = None
+    days_since_last_update: int | None = None
+
+class TimelineEventOut(BaseModel):
+    date: date
+    type: str  # "youtube_demo", "youtube_game", "reddit", "steam_update", "game_launch"
+    title: str
+    detail: str = ""
+    channel_name: str | None = None
+    subscriber_count: int | None = None
+    view_count: int | None = None
+    subreddit: str | None = None
+    score: int | None = None
+    num_comments: int | None = None
+    post_url: str | None = None
+
+class TimelineResponse(BaseModel):
+    game: GameOut
+    snapshots: list[TimelineSnapshotOut]
+    events: list[TimelineEventOut]
+    videos: list[TimelineVideoOut]
+    reddit_mentions: list[RedditMentionOut]
 
 
 # --- Health check ---

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -11,11 +11,12 @@ from collections import defaultdict
 
 from models import (
     CollectionRun, DeveloperProfile, Game, GameSnapshot, OpsScore,
-    RedditMention, TwitchSnapshot, YoutubeChannel, YoutubeVideo,
+    RedditMention, TwitchSnapshot, YoutubeChannel, YoutubeVideo, YoutubeVideoSnapshot,
 )
 from schemas import (
     DeveloperProfileOut, GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
     PaginatedResponse, RedditMentionOut, StatusOut, TwitchSnapshotOut, YoutubeChannelBrief,
+    TimelineVideoOut, TimelineSnapshotOut, TimelineEventOut, TimelineResponse,
 )
 
 router = APIRouter(tags=["games"])
@@ -76,6 +77,9 @@ def list_games(
             & (OpsScore.score_date == latest_ops_sq.c.max_ops_date),
         )
     )
+
+    # Only show horror games
+    query = query.filter(Game.is_horror == True)
 
     if days:
         cutoff = date.today() - timedelta(days=days)
@@ -237,6 +241,304 @@ def get_game(appid: int, db: Session = Depends(get_db)):
     if dev_profile:
         result.developer_profile = DeveloperProfileOut.model_validate(dev_profile)
     return result
+
+
+@router.get("/games/{appid}/timeline", response_model=TimelineResponse)
+def get_game_timeline(appid: int, db: Session = Depends(get_db)):
+    """Return full timeline/autopsy data for a single game."""
+    from schemas import GameOut
+
+    game = db.query(Game).filter_by(appid=appid).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    # --- Fetch all raw data ---
+    snapshots = (
+        db.query(GameSnapshot)
+        .filter_by(appid=appid)
+        .order_by(GameSnapshot.snapshot_date.asc())
+        .all()
+    )
+
+    ops_scores = (
+        db.query(OpsScore)
+        .filter_by(appid=appid)
+        .order_by(OpsScore.score_date.asc())
+        .all()
+    )
+
+    twitch_snaps = (
+        db.query(TwitchSnapshot)
+        .filter_by(appid=appid)
+        .order_by(TwitchSnapshot.snapshot_date.asc())
+        .all()
+    )
+
+    # YouTube videos matched to the game
+    game_videos = (
+        db.query(YoutubeVideo, YoutubeChannel.name, YoutubeChannel.subscriber_count)
+        .join(YoutubeChannel, YoutubeVideo.channel_id == YoutubeChannel.channel_id)
+        .filter(YoutubeVideo.matched_appid == appid)
+        .order_by(YoutubeVideo.published_at.asc())
+        .all()
+    )
+
+    # YouTube videos matched to the demo (if exists)
+    demo_videos = []
+    if game.demo_appid:
+        demo_videos = (
+            db.query(YoutubeVideo, YoutubeChannel.name, YoutubeChannel.subscriber_count)
+            .join(YoutubeChannel, YoutubeVideo.channel_id == YoutubeChannel.channel_id)
+            .filter(YoutubeVideo.matched_appid == game.demo_appid)
+            .order_by(YoutubeVideo.published_at.asc())
+            .all()
+        )
+
+    reddit_mentions = (
+        db.query(RedditMention)
+        .filter_by(appid=appid)
+        .order_by(RedditMention.posted_at.asc())
+        .all()
+    )
+
+    # --- Build index maps keyed by date ---
+    ops_by_date = {o.score_date: o for o in ops_scores}
+    twitch_by_date = {t.snapshot_date: t for t in twitch_snaps}
+
+    # Build all video output objects
+    all_videos: list[TimelineVideoOut] = []
+    for vid, ch_name, ch_subs in game_videos:
+        all_videos.append(TimelineVideoOut(
+            video_id=vid.video_id,
+            channel_id=vid.channel_id,
+            channel_name=ch_name,
+            subscriber_count=ch_subs,
+            title=vid.title,
+            published_at=vid.published_at,
+            view_count=vid.view_count,
+            like_count=vid.like_count,
+            covers="game",
+        ))
+    for vid, ch_name, ch_subs in demo_videos:
+        all_videos.append(TimelineVideoOut(
+            video_id=vid.video_id,
+            channel_id=vid.channel_id,
+            channel_name=ch_name,
+            subscriber_count=ch_subs,
+            title=vid.title,
+            published_at=vid.published_at,
+            view_count=vid.view_count,
+            like_count=vid.like_count,
+            covers="demo",
+        ))
+
+    # --- Determine full timeline date range ---
+    # Collect all candidate dates to find the earliest relevant one
+    candidate_dates: list[date] = []
+    if game.release_date:
+        candidate_dates.append(game.release_date)
+    for v in all_videos:
+        if v.published_at:
+            candidate_dates.append(v.published_at.date())
+    for rm in reddit_mentions:
+        if rm.posted_at:
+            candidate_dates.append(rm.posted_at.date())
+    for snap in snapshots:
+        candidate_dates.append(snap.snapshot_date)
+    for o in ops_scores:
+        candidate_dates.append(o.score_date)
+    for t in twitch_snaps:
+        candidate_dates.append(t.snapshot_date)
+
+    if not candidate_dates:
+        # No data at all — return empty timeline
+        return TimelineResponse(
+            game=GameOut.model_validate(game),
+            snapshots=[],
+            events=[],
+            videos=all_videos,
+            reddit_mentions=[RedditMentionOut.model_validate(r) for r in reddit_mentions],
+        )
+
+    start_date = min(candidate_dates)
+    end_date = date.today()
+
+    # --- Build index maps keyed by date for quick lookup ---
+    snap_by_date = {s.snapshot_date: s for s in snapshots}
+
+    # --- Build cumulative YT views using snapshot history ---
+    # Collect all video_ids for this game (both game + demo)
+    all_video_ids = [v.video_id for v in all_videos]
+
+    # Fetch all youtube_video_snapshots for these videos
+    yt_snaps: list[YoutubeVideoSnapshot] = []
+    if all_video_ids:
+        yt_snaps = (
+            db.query(YoutubeVideoSnapshot)
+            .filter(YoutubeVideoSnapshot.video_id.in_(all_video_ids))
+            .order_by(YoutubeVideoSnapshot.snapshot_date.asc())
+            .all()
+        )
+
+    # Build a map: date → {video_id → view_count} from snapshots
+    yt_snap_by_date: dict[date, dict[str, int]] = {}
+    for ys in yt_snaps:
+        yt_snap_by_date.setdefault(ys.snapshot_date, {})[ys.video_id] = ys.view_count or 0
+
+    has_yt_snapshots = len(yt_snaps) > 0
+
+    # For dates WITH snapshot data: sum view_counts across all videos that have
+    # a snapshot on or before that date (use most recent snapshot per video)
+    # For dates WITHOUT snapshot data (pre-history): use static view_count from
+    # videos published on/before that date (the old staircase approach)
+
+    # Build sorted video publish info for fallback
+    sorted_videos = sorted(all_videos, key=lambda v: v.published_at or datetime.min)
+    video_dates_views = []
+    for v in sorted_videos:
+        if v.published_at:
+            video_dates_views.append((v.published_at.date(), v.view_count or 0))
+
+    # Get all unique snapshot dates sorted
+    yt_snap_dates = sorted(yt_snap_by_date.keys()) if yt_snap_by_date else []
+
+    def _yt_cumulative_views_at(d: date) -> int:
+        if not has_yt_snapshots:
+            # No snapshot history yet — use static staircase
+            total = 0
+            for vd, views in video_dates_views:
+                if vd <= d:
+                    total += views
+                else:
+                    break
+            return total
+
+        # Use snapshot history: for each video, find its latest snapshot on or before d
+        total = 0
+        for vid in all_video_ids:
+            best_views = None
+            # Walk snapshot dates to find latest <= d for this video
+            for sd in yt_snap_dates:
+                if sd > d:
+                    break
+                vid_views = yt_snap_by_date.get(sd, {}).get(vid)
+                if vid_views is not None:
+                    best_views = vid_views
+            if best_views is not None:
+                total += best_views
+            else:
+                # No snapshot exists yet for this video — check if published before d
+                # and use current view_count as static fallback
+                for v in all_videos:
+                    if v.video_id == vid and v.published_at and v.published_at.date() <= d:
+                        total += v.view_count or 0
+                        break
+        return total
+
+    # --- Build merged snapshots: one per day across full lifecycle ---
+    timeline_snapshots: list[TimelineSnapshotOut] = []
+    current = start_date
+    while current <= end_date:
+        snap = snap_by_date.get(current)
+        ops = ops_by_date.get(current)
+        twitch = twitch_by_date.get(current)
+
+        timeline_snapshots.append(TimelineSnapshotOut(
+            date=current,
+            review_count=snap.review_count if snap else None,
+            review_score_pct=snap.review_score_pct if snap else None,
+            peak_ccu=snap.peak_ccu if snap else None,
+            owners_estimate=snap.estimated_owners_low if snap else None,
+            demo_review_count=snap.demo_review_count if snap else None,
+            demo_review_score_pct=snap.demo_review_score_pct if snap else None,
+            ops_score=ops.score if ops else None,
+            ops_confidence=ops.confidence if ops else None,
+            review_component=ops.review_component if ops else None,
+            velocity_component=ops.velocity_component if ops else None,
+            ccu_component=ops.ccu_component if ops else None,
+            youtube_component=ops.youtube_component if ops else None,
+            twitch_viewers=twitch.peak_viewers if twitch else None,
+            twitch_streams=twitch.concurrent_streams if twitch else None,
+            yt_cumulative_views=_yt_cumulative_views_at(current),
+            patch_count_30d=snap.patch_count_30d if snap else None,
+            days_since_last_update=snap.days_since_last_update if snap else None,
+        ))
+        current += timedelta(days=1)
+
+    # --- Build events ---
+    events: list[TimelineEventOut] = []
+
+    # Game launch event
+    if game.release_date:
+        events.append(TimelineEventOut(
+            date=game.release_date,
+            type="game_launch",
+            title=f"{game.title} launches on Steam",
+        ))
+
+    # YouTube game events
+    for vid, ch_name, ch_subs in game_videos:
+        if vid.published_at:
+            events.append(TimelineEventOut(
+                date=vid.published_at.date(),
+                type="youtube_game",
+                title=vid.title,
+                channel_name=ch_name,
+                subscriber_count=ch_subs,
+                view_count=vid.view_count,
+            ))
+
+    # YouTube demo events
+    for vid, ch_name, ch_subs in demo_videos:
+        if vid.published_at:
+            events.append(TimelineEventOut(
+                date=vid.published_at.date(),
+                type="youtube_demo",
+                title=vid.title,
+                channel_name=ch_name,
+                subscriber_count=ch_subs,
+                view_count=vid.view_count,
+            ))
+
+    # Reddit events (score >= 50 only)
+    for rm in reddit_mentions:
+        if rm.score is not None and rm.score >= 50 and rm.posted_at:
+            events.append(TimelineEventOut(
+                date=rm.posted_at.date(),
+                type="reddit",
+                title=rm.title,
+                subreddit=rm.subreddit,
+                score=rm.score,
+                num_comments=rm.num_comments,
+                post_url=rm.post_url,
+            ))
+
+    # Steam update events: detect resets in days_since_last_update
+    for i in range(1, len(snapshots)):
+        prev = snapshots[i - 1]
+        curr = snapshots[i]
+        if (
+            prev.days_since_last_update is not None
+            and curr.days_since_last_update is not None
+            and curr.days_since_last_update < prev.days_since_last_update
+        ):
+            events.append(TimelineEventOut(
+                date=curr.snapshot_date,
+                type="steam_update",
+                title="Steam update detected",
+                detail=f"days_since_last_update reset from {prev.days_since_last_update} to {curr.days_since_last_update}",
+            ))
+
+    # Sort events by date
+    events.sort(key=lambda e: e.date)
+
+    return TimelineResponse(
+        game=GameOut.model_validate(game),
+        snapshots=timeline_snapshots,
+        events=events,
+        videos=all_videos,
+        reddit_mentions=[RedditMentionOut.model_validate(r) for r in reddit_mentions],
+    )
 
 
 @router.get("/status", response_model=StatusOut)

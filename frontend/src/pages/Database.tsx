@@ -15,11 +15,13 @@ export default function Database() {
   const [days, setDays] = useState(90);
   const [maxPrice, setMaxPrice] = useState(60);
   const [sortBy, setSortBy] = useState("newest");
+  const [search, setSearch] = useState("");
 
   // Applied filters (only sent to API on "Apply")
   const [appliedDays, setAppliedDays] = useState(90);
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(60);
   const [appliedSortBy, setAppliedSortBy] = useState("newest");
+  const [appliedSearch, setAppliedSearch] = useState("");
 
   // Status
   const [activeScrapers, setActiveScrapers] = useState(0);
@@ -37,6 +39,7 @@ export default function Database() {
         days: appliedDays,
         max_price: appliedMaxPrice < 60 ? appliedMaxPrice : undefined,
         sort_by: appliedSortBy,
+        search: appliedSearch || undefined,
       });
       setGames(resp.data);
       setTotal(resp.total);
@@ -47,7 +50,7 @@ export default function Database() {
     } finally {
       setLoading(false);
     }
-  }, [page, appliedDays, appliedMaxPrice, appliedSortBy]);
+  }, [page, appliedDays, appliedMaxPrice, appliedSortBy, appliedSearch]);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -75,6 +78,7 @@ export default function Database() {
     setAppliedDays(days);
     setAppliedMaxPrice(maxPrice);
     setAppliedSortBy(sortBy);
+    setAppliedSearch(search);
     setPage(1);
   };
 
@@ -89,9 +93,11 @@ export default function Database() {
         days={days}
         maxPrice={maxPrice}
         sortBy={sortBy}
+        search={search}
         onDaysChange={setDays}
         onMaxPriceChange={setMaxPrice}
         onSortChange={setSortBy}
+        onSearchChange={setSearch}
         onApply={handleApply}
       />
       <GameTable games={games} loading={loading} />

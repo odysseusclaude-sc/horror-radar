@@ -29,6 +29,7 @@ class Game(Base):
     header_image_url = Column(String)
     short_description = Column(Text)
     has_demo = Column(Boolean, default=False)
+    demo_appid = Column(Integer)  # Steam AppID of the demo (if any)
     next_fest = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
@@ -70,6 +71,8 @@ class GameSnapshot(Base):
     days_since_last_update = Column(Integer)
     twitch_peak_viewers = Column(Integer)
     twitch_concurrent_streams = Column(Integer)
+    demo_review_count = Column(Integer)       # reviews on the demo itself
+    demo_review_score_pct = Column(Float)     # positive % on the demo
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="snapshots")
@@ -117,6 +120,24 @@ class YoutubeVideo(Base):
 
     channel = relationship("YoutubeChannel", back_populates="videos")
     matched_game = relationship("Game", foreign_keys=[matched_appid])
+
+
+class YoutubeVideoSnapshot(Base):
+    __tablename__ = "youtube_video_snapshots"
+
+    id = Column(Integer, primary_key=True)
+    video_id = Column(String, ForeignKey("youtube_videos.video_id"), nullable=False, index=True)
+    snapshot_date = Column(Date, nullable=False, index=True)
+    view_count = Column(Integer)
+    like_count = Column(Integer)
+    comment_count = Column(Integer)
+    created_at = Column(DateTime, default=_utcnow)
+
+    video = relationship("YoutubeVideo")
+
+    __table_args__ = (
+        UniqueConstraint("video_id", "snapshot_date", name="uq_yt_video_snapshot_date"),
+    )
 
 
 class CollectionRun(Base):

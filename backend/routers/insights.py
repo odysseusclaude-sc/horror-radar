@@ -45,6 +45,7 @@ def _extract_genre(tags_json: str | None) -> str:
 def _build_signals(
     yt_channels: int, review_score_pct: float, review_count: int,
     days_out: int, ops_score: float | None, peak_ccu: int | None,
+    has_demo: bool = False, demo_review_count: int | None = None,
 ) -> list[InsightSignal]:
     signals: list[InsightSignal] = []
     if yt_channels == 0:
@@ -53,6 +54,14 @@ def _build_signals(
         signals.append(InsightSignal(label="Review quality", value=f"{review_score_pct:.0f}%", detail="exceptional sentiment"))
     elif review_score_pct > 90 and review_count < 10 and review_count > 0:
         signals.append(InsightSignal(label="Early signal", value=f"{review_count} reviews", detail=f"{review_score_pct:.0f}% positive"))
+    if has_demo and demo_review_count and demo_review_count > 50:
+        signals.append(InsightSignal(
+            label="Demo buzz",
+            value=f"{demo_review_count} demo reviews",
+            detail="high demo engagement",
+        ))
+    elif has_demo and (not demo_review_count or demo_review_count == 0):
+        signals.append(InsightSignal(label="Demo available", value="Free trial", detail="playable demo on Steam"))
     if days_out <= 5:
         signals.append(InsightSignal(label="Just launched", value=f"{days_out}d ago", detail="early discovery window"))
     if ops_score and ops_score > 60:
@@ -65,7 +74,10 @@ def _build_signals(
 def _dominant_signal(
     yt_channels: int, quality: float, ops_score: float | None,
     review_count: int, review_score_pct: float, days_out: int,
+    demo_review_count: int | None = None,
 ) -> str:
+    if demo_review_count and demo_review_count > 200:
+        return f"Demo generating buzz: {demo_review_count} demo reviews"
     if yt_channels == 0 and quality > 80:
         return "High quality with zero creator visibility"
     if ops_score and ops_score > 60:
@@ -176,9 +188,17 @@ def get_insights(db: Session = Depends(get_db)):
         gem_score = quality * (inv_vis ** 0.6) * age_bonus
         gem_score = min(100, gem_score)
 
+        demo_review_count = snap.demo_review_count if snap else None
+
         genre = _extract_genre(g.tags)
-        signals = _build_signals(yt_ch_count, review_score_pct, review_count, days_out, ops_score, peak_ccu)
-        dominant = _dominant_signal(yt_ch_count, quality, ops_score, review_count, review_score_pct, days_out)
+        signals = _build_signals(
+            yt_ch_count, review_score_pct, review_count, days_out, ops_score, peak_ccu,
+            has_demo=g.has_demo, demo_review_count=demo_review_count,
+        )
+        dominant = _dominant_signal(
+            yt_ch_count, quality, ops_score, review_count, review_score_pct, days_out,
+            demo_review_count=demo_review_count,
+        )
         spark = sparklines.get(g.appid, [round(gem_score, 1)])
 
         ig = InsightGame(
@@ -196,6 +216,9 @@ def get_insights(db: Session = Depends(get_db)):
             quality=round(quality, 1),
             yt_channels=yt_ch_count,
             ops_score=round(ops_score, 1) if ops_score is not None else None,
+            has_demo=g.has_demo,
+            demo_review_count=snap.demo_review_count if snap else None,
+            demo_review_score_pct=round(snap.demo_review_score_pct, 1) if snap and snap.demo_review_score_pct else None,
             signals=signals,
             sparkline=spark,
             dominant_signal=dominant,

@@ -13,11 +13,13 @@ Subreddits default: HorrorGaming,IndieGaming
 Expand to r/Steam,r/pcgaming only for games with ≥100 reviews.
 """
 
+import asyncio
 import logging
 import time
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
+from sqlalchemy import func
 
 from collectors._http import reddit_limiter
 from config import settings
@@ -32,6 +34,7 @@ REDDIT_SEARCH_URL = "https://oauth.reddit.com/r/{subreddit}/search"
 # Module-level token state
 _token: str | None = None
 _token_expires_at: float = 0.0
+_token_lock = asyncio.Lock()
 
 BATCH_SIZE = 5  # Titles per OR query
 MIN_SCORE = 3   # Filter out low-quality posts
@@ -88,11 +91,12 @@ async def _search_subreddit_batch(
     """Search a subreddit for a batch of game titles. Returns raw post data or None on quota fail."""
     global _token, _token_expires_at
 
-    # Refresh token if near expiry
-    if _token is None or time.time() > _token_expires_at:
-        ok = await _refresh_reddit_token(client)
-        if not ok:
-            return None
+    # Refresh token if near expiry (lock prevents concurrent double-refresh)
+    async with _token_lock:
+        if _token is None or time.time() > _token_expires_at:
+            ok = await _refresh_reddit_token(client)
+            if not ok:
+                return None
 
     query = " OR ".join(f'"{t}"' for t in titles)
     url = REDDIT_SEARCH_URL.format(subreddit=subreddit)
@@ -114,7 +118,6 @@ async def _search_subreddit_batch(
         if retry_after:
             wait = float(retry_after)
             logger.warning(f"Reddit rate limited, waiting {wait:.0f}s")
-            import asyncio
             await asyncio.sleep(wait)
             return []  # Don't abort; just skip this batch
         else:
@@ -177,16 +180,27 @@ async def run_reddit_scan() -> None:
         games = [g for g in games if g.title and len(g.title) >= MIN_TITLE_LENGTH]
         logger.info(f"Reddit scan: {len(games)} active games to scan")
 
-        # Get review counts for subreddit expansion decision
-        review_counts: dict[int, int] = {}
-        for game in games:
-            snap = (
-                db.query(GameSnapshot)
-                .filter_by(appid=game.appid)
-                .order_by(GameSnapshot.snapshot_date.desc())
-                .first()
+        # Batch-load latest review counts (1 query instead of N)
+        latest_date_sub = (
+            db.query(
+                GameSnapshot.appid,
+                func.max(GameSnapshot.snapshot_date).label("max_date"),
             )
-            review_counts[game.appid] = snap.review_count or 0 if snap else 0
+            .group_by(GameSnapshot.appid)
+            .subquery()
+        )
+        review_rows = (
+            db.query(GameSnapshot.appid, GameSnapshot.review_count)
+            .join(
+                latest_date_sub,
+                (GameSnapshot.appid == latest_date_sub.c.appid)
+                & (GameSnapshot.snapshot_date == latest_date_sub.c.max_date),
+            )
+            .all()
+        )
+        review_counts: dict[int, int] = {
+            row.appid: row.review_count or 0 for row in review_rows
+        }
 
         base_subreddits = [s.strip() for s in settings.reddit_subreddits.split(",") if s.strip()]
         high_traffic_subs = ["Steam", "pcgaming"]

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { GameListItem, YoutubeChannelBrief } from "../types";
 
 interface GameRowProps {
@@ -7,7 +8,9 @@ interface GameRowProps {
 
 function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const diff = Date.now() - d.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
@@ -47,9 +50,9 @@ export default function GameRow({ game, even }: GameRowProps) {
   const reviewCount = snap?.review_count ?? null;
   const scorePct = snap?.review_score_pct ?? null;
   const peakCcu = snap?.peak_ccu ?? null;
-  const velocity = snap?.review_velocity_7d ?? null;
   const reviewDelta = game.review_delta_7d ?? null;
   const channels = game.youtube_channels ?? [];
+  const demoReviews = snap?.demo_review_count ?? null;
 
   return (
     <tr
@@ -60,21 +63,43 @@ export default function GameRow({ game, even }: GameRowProps) {
       {/* Game & Developer */}
       <td className="px-6 py-2">
         <div className="flex items-center gap-3">
-          {game.header_image_url ? (
-            <img
-              className="w-20 h-[30px] object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all flex-shrink-0"
-              src={game.header_image_url}
-              alt={game.title}
-            />
-          ) : (
-            <div className="w-20 h-[30px] rounded border border-white/5 bg-border-dark flex-shrink-0" />
-          )}
+          <a
+            href={`https://store.steampowered.com/app/${game.appid}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View on Steam"
+          >
+            {game.header_image_url ? (
+              <img
+                className="w-20 h-[30px] object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all flex-shrink-0"
+                src={game.header_image_url}
+                alt={game.title}
+              />
+            ) : (
+              <div className="w-20 h-[30px] rounded border border-white/5 bg-border-dark flex-shrink-0" />
+            )}
+          </a>
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-sm leading-tight group-hover:text-primary transition-colors truncate">
-              {game.title}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <Link
+                to={`/game/${game.appid}`}
+                className="font-bold text-sm leading-tight group-hover:text-primary transition-colors truncate hover:underline"
+              >
+                {game.title}
+              </Link>
+              {game.has_demo && (
+                <span className="px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-cyan-950/50 text-cyan-300 border border-cyan-800/40 flex-shrink-0">
+                  DEMO
+                </span>
+              )}
+            </div>
             <span className="text-[10px] text-text-dim uppercase tracking-tight truncate">
               {game.developer || "Unknown"}
+              {demoReviews != null && demoReviews > 0 && (
+                <span className="text-cyan-400 ml-1">
+                  ({demoReviews.toLocaleString()} demo reviews)
+                </span>
+              )}
             </span>
           </div>
         </div>

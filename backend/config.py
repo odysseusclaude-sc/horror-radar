@@ -41,9 +41,24 @@ INDIE_PUBLISHERS = frozenset({
 })
 
 CORE_HORROR_TAGS = frozenset({
+    # Primary horror tags
     "Horror", "Psychological Horror", "Survival Horror",
+    # Sub-genre / thematic horror tags
     "Supernatural", "Creature Feature", "Zombies",
+    "Lovecraftian", "Cosmic Horror", "Gothic",
+    "Gore", "Violent", "Dark", "Jump Scare",
+    "Creepy", "Demons", "Ghosts",
 })
+
+# Broader keywords for description-based horror detection (Layer 3).
+# Checked as substring matches against short_description + about_the_game.
+HORROR_DESCRIPTION_KEYWORDS = [
+    "horror", "terrif", "scare", "scary", "creepy", "haunt",
+    "nightmar", "dread", "macabre", "grotesque", "sinister",
+    "demonic", "paranormal", "supernatural", "disturbing",
+    "frightening", "gruesome", "ghastly", "eerie", "ominous",
+    "occult", "exorcis", "poltergeist", "asylum", "slaughter",
+]
 
 
 class Settings(BaseSettings):

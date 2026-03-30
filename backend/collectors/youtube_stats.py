@@ -12,7 +12,7 @@ import httpx
 from collectors._http import fetch_with_retry
 from config import settings
 from database import SessionLocal
-from models import CollectionRun, YoutubeVideo
+from models import CollectionRun, YoutubeVideo, YoutubeVideoSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,8 @@ async def run_youtube_stats_refresh():
 
                 now = datetime.now(timezone.utc)
 
+                today = now.date()
+
                 for item in data["items"]:
                     vid_id = item["id"]
                     video = video_map.get(vid_id)
@@ -91,6 +93,25 @@ async def run_youtube_stats_refresh():
                             and (now - video.published_at).total_seconds() <= 72 * 3600
                         ):
                             video.view_48h = video.view_count
+
+                        # Write daily snapshot for view history tracking
+                        existing_snap = (
+                            db.query(YoutubeVideoSnapshot)
+                            .filter_by(video_id=vid_id, snapshot_date=today)
+                            .first()
+                        )
+                        if existing_snap:
+                            existing_snap.view_count = video.view_count
+                            existing_snap.like_count = video.like_count
+                            existing_snap.comment_count = video.comment_count
+                        else:
+                            db.add(YoutubeVideoSnapshot(
+                                video_id=vid_id,
+                                snapshot_date=today,
+                                view_count=video.view_count,
+                                like_count=video.like_count,
+                                comment_count=video.comment_count,
+                            ))
 
                         processed += 1
                     except Exception as e:

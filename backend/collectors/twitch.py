@@ -15,6 +15,7 @@ Token management:
 - Pre-emptive refresh if < 24h remaining at run start
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -41,6 +42,7 @@ _MAP_PATH = Path(__file__).parent.parent / "twitch_game_map.json"
 # Module-level token state
 _token: str | None = None
 _token_expires_at: float = 0.0
+_token_lock = asyncio.Lock()
 _game_map: dict[str, int | None] = {}  # Twitch title → Twitch game_id (or None if not found)
 
 
@@ -103,12 +105,16 @@ async def _twitch_get(client: httpx.AsyncClient, url: str, params: dict) -> dict
     try:
         resp = await client.get(url, params=params, headers=_twitch_headers(), timeout=15.0)
         if resp.status_code == 401:
-            logger.info("Twitch 401 — refreshing token and retrying")
-            ok = await _refresh_token(client)
-            if not ok:
-                return None
-            await twitch_limiter.acquire()
-            resp = await client.get(url, params=params, headers=_twitch_headers(), timeout=15.0)
+            async with _token_lock:
+                # Re-check after acquiring lock (another coroutine may have refreshed)
+                resp2 = await client.get(url, params=params, headers=_twitch_headers(), timeout=15.0)
+                if resp2.status_code == 401:
+                    logger.info("Twitch 401 — refreshing token and retrying")
+                    ok = await _refresh_token(client)
+                    if not ok:
+                        return None
+                await twitch_limiter.acquire()
+                resp = await client.get(url, params=params, headers=_twitch_headers(), timeout=15.0)
         if resp.status_code != 200:
             logger.warning(f"Twitch API error {resp.status_code} for {url}")
             return None
@@ -191,14 +197,15 @@ async def run_twitch_snapshots() -> None:
         async with httpx.AsyncClient() as client:
             # Pre-emptive token refresh if needed
             global _token, _token_expires_at
-            if _token is None or time.time() > _token_expires_at - 86400:
-                ok = await _refresh_token(client)
-                if not ok:
-                    run.status = "failed"
-                    run.error_message = "Could not obtain Twitch token"
-                    run.finished_at = datetime.now(timezone.utc)
-                    db.commit()
-                    return
+            async with _token_lock:
+                if _token is None or time.time() > _token_expires_at - 86400:
+                    ok = await _refresh_token(client)
+                    if not ok:
+                        run.status = "failed"
+                        run.error_message = "Could not obtain Twitch token"
+                        run.finished_at = datetime.now(timezone.utc)
+                        db.commit()
+                        return
 
             games = db.query(Game).all()
             logger.info(f"Twitch: resolving {len(games)} games")
