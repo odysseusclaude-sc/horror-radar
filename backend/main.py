@@ -20,7 +20,9 @@ from collectors.twitch import run_twitch_snapshots
 from collectors.reddit import run_reddit_scan
 from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
-from routers import games, channels, videos, runs, insights
+from collectors.ops_autotune import run_ops_diagnostics
+from weekly_analysis import main as run_weekly_analysis
+from routers import games, channels, videos, runs, insights, radar
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -38,11 +40,12 @@ async def steam_pipeline_job():
 
 
 async def daily_snapshots_job():
-    """Run review + CCU + owner snapshots, then OPS."""
+    """Run review + CCU snapshots, then OPS."""
     logger.info("Starting daily snapshots pipeline")
     await run_review_snapshots()
     await run_ccu_snapshots()
-    await run_owner_estimates()
+    # Owners disabled — SteamSpy data too coarse/late for breakout detection.
+    # Using reviews × 30 heuristic where needed instead.
     await run_ops_calculation()
 
 
@@ -125,6 +128,28 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
     )
 
+    # OPS diagnostics: Monday at 06:00 (after dev profiles at 05:00)
+    scheduler.add_job(
+        run_ops_diagnostics,
+        "cron",
+        day_of_week="mon",
+        hour=6,
+        minute=0,
+        id="ops_diagnostics_job",
+        replace_existing=True,
+    )
+
+    # Weekly analysis report: Sunday at 06:00
+    scheduler.add_job(
+        run_weekly_analysis,
+        "cron",
+        day_of_week="sun",
+        hour=6,
+        minute=0,
+        id="weekly_analysis_job",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info("Scheduler started")
 
@@ -155,3 +180,4 @@ app.include_router(channels.router)
 app.include_router(videos.router)
 app.include_router(runs.router)
 app.include_router(insights.router)
+app.include_router(radar.router)

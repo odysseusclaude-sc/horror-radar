@@ -45,8 +45,10 @@ export interface TimelineSnapshot {
   ops_confidence: string | null;
   review_component: number | null;
   velocity_component: number | null;
+  decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
+  creator_response_component: number | null;
   // Twitch
   twitch_viewers: number;
   twitch_streams: number;
@@ -824,10 +826,12 @@ function generateSnapshots(): TimelineSnapshot[] {
       velocity_component: velocityComp
         ? Math.round(velocityComp * 100) / 100
         : null,
+      decay_component: null,
       ccu_component: ccuComp ? Math.round(ccuComp * 100) / 100 : null,
       youtube_component: youtubeComp
         ? Math.round(youtubeComp * 100) / 100
         : null,
+      creator_response_component: null,
       twitch_viewers: twitchViewers,
       twitch_streams: twitchStreams,
       yt_cumulative_views: ytViews,
@@ -895,8 +899,10 @@ export function generateGhostData(
       ops_confidence: null,
       review_component: null,
       velocity_component: null,
+      decay_component: null,
       ccu_component: null,
       youtube_component: null,
+      creator_response_component: null,
     };
   });
 }

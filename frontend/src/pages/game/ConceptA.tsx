@@ -30,6 +30,7 @@ interface TimelineGame {
   header_image_url: string | null;
   has_demo: boolean;
   demo_appid: number | null;
+  demo_release_date: string | null;
 }
 
 interface TimelineSnapshotRaw {
@@ -44,8 +45,11 @@ interface TimelineSnapshotRaw {
   ops_confidence: string | null;
   review_component: number | null;
   velocity_component: number | null;
+  decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
+  creator_response_component: number | null;
+  raw_ops: number | null;
   twitch_viewers: number | null;
   twitch_streams: number | null;
   yt_cumulative_views: number;
@@ -55,6 +59,7 @@ interface TimelineSnapshotRaw {
 
 interface TimelineSnapshot extends TimelineSnapshotRaw {
   day_index: number;
+  review_velocity?: number;  // computed: reviews gained per day (3-day rolling avg)
 }
 
 type EventType =
@@ -62,7 +67,8 @@ type EventType =
   | "youtube_game"
   | "reddit"
   | "steam_update"
-  | "game_launch";
+  | "game_launch"
+  | "demo_launch";
 
 interface TimelineEvent {
   date: string;
@@ -145,8 +151,12 @@ interface CreatorImpact {
   reviews_after_7d: number;
   ccu_before_7d: number;
   ccu_after_7d: number;
+  raw_review_delta: number;
+  velocity_before: number;
+  velocity_after: number;
   impact_score: number;
   covers: string;
+  shared_date: boolean;
 }
 
 /* ── Palette ──────────────────────────────────────────────────────── */
@@ -218,6 +228,7 @@ const PHASE_ACCENT_COLORS: Record<string, string> = {
 /* ── Event constants ─────────────────────────────────────────────── */
 
 const EVENT_COLORS: Record<string, string> = {
+  demo_launch: "#a78bfa",
   game_launch: "#c0392b",
   youtube_demo: "#22d3ee",
   youtube_game: "#22d3ee",
@@ -226,6 +237,7 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 const EVENT_LABELS: Record<string, string> = {
+  demo_launch: "Demo Launch",
   game_launch: "Game Launch",
   youtube_demo: "YouTube (Demo)",
   youtube_game: "YouTube (Game)",
@@ -234,6 +246,7 @@ const EVENT_LABELS: Record<string, string> = {
 };
 
 const EVENT_ICONS: Record<string, string> = {
+  demo_launch: "\u25B6",
   game_launch: "\u2B50",
   youtube_demo: "\u25CF",
   youtube_game: "\u25CF",
@@ -252,12 +265,11 @@ interface SeriesConfig {
 }
 
 const SERIES: SeriesConfig[] = [
-  { key: "ops_score", label: "OPS Score", color: C.ops, defaultOn: true, panel: 1 },
+  { key: "raw_ops", label: "OPS (Raw)", color: C.ops, defaultOn: true, panel: 1 },
   { key: "review_count", label: "Reviews", color: C.reviews, defaultOn: true, panel: 2 },
-  { key: "peak_ccu", label: "Peak CCU", color: C.ccu, defaultOn: true, panel: 2 },
+  { key: "review_velocity", label: "Rev. Velocity", color: "#f97316", defaultOn: true, panel: 2 },
+  { key: "peak_ccu", label: "Peak CCU", color: C.ccu, defaultOn: false, panel: 2 },
   { key: "review_score_pct", label: "Score %", color: C.score, defaultOn: true, panel: 3 },
-  // Twitch removed from panel 3 — not yet useful
-  // { key: "twitch_viewers", label: "Twitch", color: C.twitch, defaultOn: false, panel: 3 },
   { key: "owners_estimate", label: "Owners", color: C.green, defaultOn: false, panel: 2 },
   { key: "demo_review_count", label: "Demo Reviews", color: "#22d3ee", defaultOn: false, panel: 2 },
   { key: "yt_cumulative_views", label: "YT Views", color: "#38bdf8", defaultOn: true, panel: 3 },
@@ -418,21 +430,26 @@ function derivePhases(snapshots: TimelineSnapshot[], releaseDate: string): Phase
   return phases;
 }
 
-/** Derive creator impacts from videos + snapshots */
+/** Get Steam rating label for a given percentage */
+function getSteamRating(pct: number): { label: string; color: string } {
+  if (pct >= 95) return { label: "Overwhelmingly Positive", color: "#22c55e" };
+  if (pct >= 80) return { label: "Very Positive", color: "#22c55e" };
+  if (pct >= 70) return { label: "Mostly Positive", color: "#86efac" };
+  if (pct >= 40) return { label: "Mixed", color: "#facc15" };
+  if (pct >= 20) return { label: "Mostly Negative", color: "#f87171" };
+  return { label: "Overwhelmingly Negative", color: "#ef4444" };
+}
+
+/** Derive creator impacts from videos + snapshots with same-day attribution splitting */
 function deriveCreatorImpacts(videos: TimelineVideo[], snapshots: TimelineSnapshot[]): CreatorImpact[] {
   if (videos.length === 0 || snapshots.length === 0) return [];
 
-  // Build date-indexed lookup
   function findClosestSnapshot(targetDate: string): TimelineSnapshot | null {
-    // Find the snapshot with the closest date
     let best: TimelineSnapshot | null = null;
     let bestDist = Infinity;
     for (const s of snapshots) {
       const dist = Math.abs(daysBetween(s.date, targetDate));
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = s;
-      }
+      if (dist < bestDist) { bestDist = dist; best = s; }
     }
     return best;
   }
@@ -440,14 +457,24 @@ function deriveCreatorImpacts(videos: TimelineVideo[], snapshots: TimelineSnapsh
   function findSnapshotNearDay(dayOffset: number, pubDate: string): TimelineSnapshot | null {
     const d = new Date(pubDate + "T00:00:00Z");
     d.setUTCDate(d.getUTCDate() + dayOffset);
-    const target = d.toISOString().slice(0, 10);
-    return findClosestSnapshot(target);
+    return findClosestSnapshot(d.toISOString().slice(0, 10));
+  }
+
+  // Compute review velocity around upload: 3-day window before vs 3-day after
+  function velocityDelta(pubDate: string): { before: number; after: number } {
+    const dayBefore3 = findSnapshotNearDay(-3, pubDate);
+    const dayBefore0 = findClosestSnapshot(pubDate);
+    const dayAfter3 = findSnapshotNearDay(3, pubDate);
+    const revPre = (dayBefore0?.review_count ?? 0) - (dayBefore3?.review_count ?? 0);
+    const revPost = (dayAfter3?.review_count ?? 0) - (dayBefore0?.review_count ?? 0);
+    return { before: revPre / 3, after: revPost / 3 };
   }
 
   const latestSnap = snapshots[snapshots.length - 1];
   const maxReviews = latestSnap?.review_count ?? 1;
 
-  return videos
+  // First pass: compute raw impacts
+  const rawImpacts = videos
     .filter((v) => v.published_at)
     .map((v) => {
       const pubDate = v.published_at!.slice(0, 10);
@@ -457,10 +484,8 @@ function deriveCreatorImpacts(videos: TimelineVideo[], snapshots: TimelineSnapsh
       const reviewsAfter = after?.review_count ?? reviewsBefore;
       const ccuBefore = before?.peak_ccu ?? 0;
       const ccuAfter = after?.peak_ccu ?? ccuBefore;
-      const reviewDelta = reviewsAfter - reviewsBefore;
-      const impactScore = maxReviews > 0
-        ? Math.min(100, Math.round((reviewDelta / Math.max(1, maxReviews)) * 300))
-        : 0;
+      const rawDelta = reviewsAfter - reviewsBefore;
+      const vel = velocityDelta(pubDate);
 
       return {
         channel_name: v.channel_name || "Unknown",
@@ -472,11 +497,42 @@ function deriveCreatorImpacts(videos: TimelineVideo[], snapshots: TimelineSnapsh
         reviews_after_7d: reviewsAfter,
         ccu_before_7d: ccuBefore,
         ccu_after_7d: ccuAfter,
-        impact_score: Math.max(0, impactScore),
+        raw_review_delta: rawDelta,
+        velocity_before: vel.before,
+        velocity_after: vel.after,
+        impact_score: 0,
         covers: v.covers || "game",
+        shared_date: false,
       };
-    })
-    .sort((a, b) => b.impact_score - a.impact_score);
+    });
+
+  // Second pass: split same-day attribution proportionally by subscriber count
+  const byDate = new Map<string, typeof rawImpacts>();
+  for (const imp of rawImpacts) {
+    const group = byDate.get(imp.upload_date) || [];
+    group.push(imp);
+    byDate.set(imp.upload_date, group);
+  }
+
+  for (const [, group] of byDate) {
+    if (group.length <= 1) continue;
+    const totalSubs = group.reduce((s, g) => s + Math.max(1, g.subscriber_count), 0);
+    const totalDelta = group[0].raw_review_delta; // all share same 7-day window
+    for (const imp of group) {
+      const share = Math.max(1, imp.subscriber_count) / totalSubs;
+      imp.raw_review_delta = Math.round(totalDelta * share);
+      imp.shared_date = true;
+    }
+  }
+
+  // Third pass: compute impact scores
+  for (const imp of rawImpacts) {
+    imp.impact_score = maxReviews > 0
+      ? Math.max(0, Math.min(100, Math.round((imp.raw_review_delta / Math.max(1, maxReviews)) * 300)))
+      : 0;
+  }
+
+  return rawImpacts.sort((a, b) => b.impact_score - a.impact_score);
 }
 
 /* ── Custom Tooltip ───────────────────────────────────────────────── */
@@ -510,9 +566,9 @@ function AutopsyTooltip({
       <div style={{ ...heading, fontWeight: 700, fontSize: 12, marginBottom: 4, color: C.dim }}>
         {fmtDate(d.date)} &mdash; Day {d.day_index}
       </div>
-      {visibleSeries.ops_score && d.ops_score != null && (
+      {visibleSeries.raw_ops && d.raw_ops != null && (
         <div>
-          <span style={{ color: C.ops }}>OPS</span> {d.ops_score}
+          <span style={{ color: C.ops }}>OPS</span> {(d.raw_ops).toFixed(1)} <span style={{ color: C.dim, fontSize: 9 }}>(capped: {d.ops_score})</span>
         </div>
       )}
       {visibleSeries.review_count && d.review_count != null && (
@@ -525,9 +581,15 @@ function AutopsyTooltip({
           <span style={{ color: C.ccu }}>Peak CCU</span> {fmtNum(d.peak_ccu)}
         </div>
       )}
+      {(d as any).review_velocity != null && visibleSeries.review_velocity && (
+        <div>
+          <span style={{ color: "#f97316" }}>Velocity</span> {(d as any).review_velocity.toFixed(1)}/day
+        </div>
+      )}
       {visibleSeries.review_score_pct && d.review_score_pct != null && d.review_score_pct > 0 && (
         <div>
-          <span style={{ color: C.score }}>Score</span> {d.review_score_pct.toFixed(1)}%
+          <span style={{ color: C.score }}>Score</span> {d.review_score_pct.toFixed(1)}%{" "}
+          <span style={{ fontSize: 9, color: getSteamRating(d.review_score_pct).color }}>{getSteamRating(d.review_score_pct).label}</span>
         </div>
       )}
       {visibleSeries.twitch_viewers && d.twitch_viewers != null && d.twitch_viewers > 0 && (
@@ -746,7 +808,25 @@ export default function TheAutopsy() {
     }
   }, [snapshots.length]);
 
-  const chartData = useMemo(() => snapshots, [snapshots]);
+  // Compute review velocity (3-day rolling average of daily review delta)
+  const chartData = useMemo(() => {
+    if (snapshots.length === 0) return snapshots;
+    return snapshots.map((s, i) => {
+      let velocity: number | undefined;
+      if (i >= 3 && s.review_count != null) {
+        const prev = snapshots[i - 3];
+        if (prev?.review_count != null) {
+          velocity = Math.max(0, (s.review_count - prev.review_count) / 3);
+        }
+      } else if (i > 0 && s.review_count != null) {
+        const prev = snapshots[i - 1];
+        if (prev?.review_count != null) {
+          velocity = Math.max(0, s.review_count - prev.review_count);
+        }
+      }
+      return { ...s, review_velocity: velocity };
+    });
+  }, [snapshots]);
 
   /* ── Active phase from brush ── */
   const activePhase = useMemo(() => {
@@ -764,8 +844,9 @@ export default function TheAutopsy() {
   const opsPeak = useMemo(() => {
     let best = { score: 0, day: 0, date: "" };
     snapshots.forEach((s) => {
-      if (s.ops_score != null && s.ops_score > best.score) {
-        best = { score: s.ops_score, day: s.day_index, date: s.date };
+      const raw = s.raw_ops ?? s.ops_score ?? 0;
+      if (raw > best.score) {
+        best = { score: Math.round(raw * 10) / 10, day: s.day_index, date: s.date };
       }
     });
     return best;
@@ -778,13 +859,35 @@ export default function TheAutopsy() {
     return snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
   }, [snapshots]);
 
-  const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+  // Use the last snapshot that actually has review data (today's row may be empty)
+  const latestSnapshot = useMemo(() => {
+    for (let i = snapshots.length - 1; i >= 0; i--) {
+      if (snapshots[i].review_count != null) return snapshots[i];
+    }
+    return snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+  }, [snapshots]);
 
   /* ── Hero stats ── */
   const heroStats = useMemo(() => {
     if (!game || !latestSnapshot) return [];
     const maxCcu = snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
-    const latestOps = latestWithOps?.ops_score;
+    const latestRawOps = latestWithOps?.raw_ops;
+
+    // CCU context: find first day with CCU data
+    let ccuNote: string | null = null;
+    if (maxCcu > 0) {
+      const firstCcuSnap = snapshots.find((s) => s.peak_ccu != null && s.peak_ccu > 0);
+      if (firstCcuSnap && firstCcuSnap.day_index > 7) {
+        ccuNote = `First tracked Day ${firstCcuSnap.day_index}`;
+      }
+    }
+
+    // Score with Steam rating label
+    let scoreNote: string | null = null;
+    if (latestSnapshot.review_score_pct != null) {
+      scoreNote = getSteamRating(latestSnapshot.review_score_pct).label;
+    }
+
     // Owners: use SteamSpy data if available, otherwise estimate from reviews × 30
     const REVIEW_MULTIPLIER = 30;
     let ownersValue: string;
@@ -801,10 +904,10 @@ export default function TheAutopsy() {
 
     return [
       { label: "Owners", value: ownersValue, color: C.green, note: ownersNote },
-      { label: "Peak CCU", value: maxCcu > 0 ? fmtNum(maxCcu) : "--", color: C.ccu },
+      { label: "Peak CCU", value: maxCcu > 0 ? fmtNum(maxCcu) : "--", color: C.ccu, note: ccuNote },
       { label: "Reviews", value: latestSnapshot.review_count != null ? fmtNum(latestSnapshot.review_count) : "--", color: C.reviews },
-      { label: "Score", value: latestSnapshot.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--", color: C.score },
-      { label: "OPS", value: latestOps != null ? String(Math.round(latestOps)) : "--", color: C.ops },
+      { label: "Score", value: latestSnapshot.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--", color: C.score, note: scoreNote },
+      { label: "OPS", value: latestRawOps != null ? String(Math.min(100, Math.round(latestRawOps * 40))) : "--", color: C.ops, note: latestRawOps != null ? `Raw: ${latestRawOps.toFixed(1)}` : null },
       { label: "Price", value: game.price_usd != null ? "$" + game.price_usd.toFixed(2) : "Free", color: C.dim },
     ];
   }, [game, latestSnapshot, latestWithOps, snapshots]);
@@ -995,7 +1098,16 @@ export default function TheAutopsy() {
           </span>
         </div>
         <h1 style={{ ...heading, fontSize: 36, fontWeight: 800, margin: "0 0 4px", color: C.white }}>
-          {game.title}
+          <a
+            href={`https://store.steampowered.com/app/${game.appid}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "inherit", textDecoration: "none", transition: "color 0.2s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = C.ops)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = C.white)}
+          >
+            {game.title}
+          </a>
         </h1>
         <div style={{ ...mono, fontSize: 12, color: C.dim, marginBottom: 12 }}>
           {game.developer || "Unknown developer"} &middot; {genres.join(", ") || "Horror"}
@@ -1108,14 +1220,14 @@ export default function TheAutopsy() {
         {hasOpsData && (
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px 8px", marginBottom: 8 }}>
             <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, paddingLeft: 8 }}>
-              OPS Score &mdash; Vital Sign
+              OPS (Raw) &mdash; Vital Sign
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid {...gridProps} />
                 {renderPhaseBands()}
                 <XAxis {...xAxisProps} hide />
-                <YAxis {...yAxisStyle} domain={[0, 100]} tickFormatter={(v: number) => String(v)} />
+                <YAxis {...yAxisStyle} tickFormatter={(v: number) => v.toFixed(1)} />
                 <Tooltip
                   content={(props: any) => (
                     <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />
@@ -1124,9 +1236,9 @@ export default function TheAutopsy() {
                 />
                 {renderEventLines(true)}
                 <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" label={{ value: "Today", fill: C.dim, fontSize: 10, position: "top" }} />
-                {visibleSeries.ops_score && (
+                {visibleSeries.raw_ops && (
                   <Line
-                    dataKey="ops_score"
+                    dataKey="raw_ops"
                     stroke={C.ops}
                     strokeWidth={2.5}
                     dot={false}
@@ -1225,6 +1337,18 @@ export default function TheAutopsy() {
                   strokeDasharray="4 2"
                 />
               )}
+              {visibleSeries.review_velocity && (
+                <Line
+                  dataKey="review_velocity"
+                  yAxisId="ccu"
+                  stroke="#f97316"
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls
+                  strokeDasharray="4 2"
+                  activeDot={{ r: 3, fill: "#f97316", stroke: C.bg, strokeWidth: 2 }}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -1247,6 +1371,17 @@ export default function TheAutopsy() {
                 )}
                 cursor={{ stroke: C.dim, strokeDasharray: "3 3" }}
               />
+              {/* Steam rating reference bands */}
+              {visibleSeries.review_score_pct && (
+                <>
+                  <ReferenceArea yAxisId="score" y1={95} y2={100} fill="#22c55e" fillOpacity={0.04} />
+                  <ReferenceArea yAxisId="score" y1={80} y2={95} fill="#22c55e" fillOpacity={0.03} />
+                  <ReferenceArea yAxisId="score" y1={70} y2={80} fill="#86efac" fillOpacity={0.02} />
+                  <ReferenceArea yAxisId="score" y1={40} y2={70} fill="#facc15" fillOpacity={0.02} />
+                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
+                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
+                </>
+              )}
               {renderEventLines(false)}
               <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" yAxisId="score" />
               {visibleSeries.review_score_pct && (
@@ -1282,6 +1417,11 @@ export default function TheAutopsy() {
               />
             </ComposedChart>
           </ResponsiveContainer>
+          {visibleSeries.yt_cumulative_views && (
+            <div style={{ ...mono, fontSize: 9, color: C.dim, padding: "4px 8px 0", opacity: 0.6 }}>
+              YT views are cumulative snapshots &mdash; step pattern reflects periodic collection, not actual view growth curve.
+            </div>
+          )}
         </div>
       </div>
 
@@ -1346,99 +1486,152 @@ export default function TheAutopsy() {
             </div>
           </div>
         ) : (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: "hidden" }}>
-            <table style={{ ...mono, width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                  {["Creator", "Subs", "Video", "Date", "Views", "Rev +/-", "CCU +/-", "Impact"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "10px 12px",
-                        textAlign: "left",
-                        color: C.dim,
-                        fontWeight: 400,
-                        fontSize: 10,
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {creatorImpacts.map((c) => (
-                  <tr key={c.channel_name + c.upload_date} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={{ padding: "10px 12px" }}>
-                      <span style={{ color: "#22d3ee", fontWeight: 700 }}>{c.channel_name}</span>
-                    </td>
-                    <td style={{ padding: "10px 12px", color: C.dim }}>{fmtNum(c.subscriber_count)}</td>
-                    <td style={{ padding: "10px 12px", color: C.white, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.video_title}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: C.dim }}>{fmtDate(c.upload_date)}</td>
-                    <td style={{ padding: "10px 12px", color: C.white }}>{fmtNum(c.view_count)}</td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <span style={{ color: C.dim }}>{c.reviews_before_7d}</span>
-                      <span style={{ color: C.green }}> +{c.reviews_after_7d - c.reviews_before_7d}</span>
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <span style={{ color: C.dim }}>{c.ccu_before_7d}</span>
-                      <span style={{ color: c.ccu_after_7d >= c.ccu_before_7d ? C.green : C.ops }}>
-                        {" "}{c.ccu_after_7d >= c.ccu_before_7d ? "+" : ""}{c.ccu_after_7d - c.ccu_before_7d}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div
-                          style={{
-                            width: 60,
-                            height: 8,
-                            background: C.border,
-                            borderRadius: 4,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${c.impact_score}%`,
-                              height: "100%",
-                              background: c.impact_score >= 70 ? C.ops : c.impact_score >= 40 ? C.score : C.dim,
-                              borderRadius: 4,
-                            }}
-                          />
-                        </div>
-                        <span style={{ color: c.impact_score >= 70 ? C.ops : C.white, fontWeight: 700 }}>
-                          {c.impact_score}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {/* Coverage badges below the table */}
-            <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderTop: `1px solid ${C.border}` }}>
-              {creatorImpacts.map((c) => (
-                <span
-                  key={c.channel_name + c.upload_date}
+          <>
+            {/* Hero card for #1 creator (breakout catalyst) */}
+            {(() => {
+              const hero = creatorImpacts[0];
+              const velocityChange = hero.velocity_after - hero.velocity_before;
+              const velocityPct = hero.velocity_before > 0 ? Math.round((velocityChange / hero.velocity_before) * 100) : velocityChange > 0 ? 999 : 0;
+              return (
+                <div
                   style={{
-                    ...mono,
-                    fontSize: 9,
-                    padding: "2px 8px",
-                    borderRadius: 3,
-                    background: c.covers === "demo" ? "rgba(34,211,238,0.1)" : "rgba(192,57,43,0.1)",
-                    color: c.covers === "demo" ? "#22d3ee" : C.ccu,
-                    border: `1px solid ${c.covers === "demo" ? "#22d3ee30" : C.ccu + "30"}`,
+                    background: `linear-gradient(135deg, ${C.surface} 0%, rgba(34,211,238,0.06) 100%)`,
+                    border: `1px solid #22d3ee40`,
+                    borderLeft: `4px solid #22d3ee`,
+                    borderRadius: 6,
+                    padding: "20px 24px",
+                    marginBottom: 12,
+                    display: "flex",
+                    gap: 24,
+                    alignItems: "stretch",
                   }}
                 >
-                  {c.channel_name}: {c.covers.toUpperCase()}
-                </span>
-              ))}
-            </div>
-          </div>
+                  {/* Left: Creator identity + verdict */}
+                  <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                    <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#22d3ee", marginBottom: 6 }}>
+                      Breakout Catalyst
+                    </div>
+                    <div style={{ ...heading, fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 2 }}>
+                      {hero.channel_name}
+                    </div>
+                    <div style={{ ...mono, fontSize: 11, color: C.dim, marginBottom: 10 }}>
+                      {fmtNum(hero.subscriber_count)} subscribers &middot; {fmtDate(hero.upload_date)}
+                    </div>
+                    <div style={{ ...mono, fontSize: 11, color: C.white, marginBottom: 8, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      &ldquo;{hero.video_title}&rdquo;
+                    </div>
+                    <div style={{ ...heading, fontSize: 12, color: C.dim, lineHeight: 1.6, maxWidth: 480 }}>
+                      {hero.raw_review_delta > 0
+                        ? `This creator's coverage drove +${hero.raw_review_delta} reviews in the 7 days following upload${hero.shared_date ? " (attributed share)" : ""}, accelerating review velocity by ${velocityPct > 0 ? `${Math.min(velocityPct, 999)}%` : "—"}.`
+                        : `This creator had the highest measured impact of all covering channels.`}
+                    </div>
+                  </div>
+
+                  {/* Right: Impact metrics grid */}
+                  <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", alignSelf: "center" }}>
+                    <div>
+                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Views</div>
+                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: C.white }}>{fmtNum(hero.view_count)}</div>
+                    </div>
+                    <div>
+                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Impact</div>
+                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: hero.impact_score >= 70 ? C.ops : hero.impact_score >= 40 ? C.score : C.white }}>{hero.impact_score}</div>
+                    </div>
+                    <div>
+                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Rev +7d</div>
+                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: C.green }}>+{hero.reviews_after_7d - hero.reviews_before_7d}</div>
+                    </div>
+                    <div>
+                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Velocity</div>
+                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: velocityChange > 0 ? C.green : C.dim }}>
+                        {velocityChange > 0 ? "+" : ""}{velocityChange.toFixed(1)}/d
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Remaining creators table */}
+            {creatorImpacts.length > 1 && (
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: "hidden" }}>
+                <table style={{ ...mono, width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                      {["Creator", "Subs", "Video", "Date", "Views", "Rev +/-", "Impact"].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            padding: "8px 12px",
+                            textAlign: "left",
+                            color: C.dim,
+                            fontWeight: 400,
+                            fontSize: 9,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {creatorImpacts.slice(1).map((c) => (
+                      <tr key={c.channel_name + c.upload_date} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <td style={{ padding: "8px 12px" }}>
+                          <span style={{ color: "#22d3ee" }}>{c.channel_name}</span>
+                          {c.shared_date && <span style={{ ...mono, fontSize: 8, color: C.dim, marginLeft: 4 }} title="Shared upload date — impact split by subscriber count">*</span>}
+                        </td>
+                        <td style={{ padding: "8px 12px", color: C.dim }}>{fmtNum(c.subscriber_count)}</td>
+                        <td style={{ padding: "8px 12px", color: C.white, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.video_title}
+                        </td>
+                        <td style={{ padding: "8px 12px", color: C.dim }}>{fmtDate(c.upload_date)}</td>
+                        <td style={{ padding: "8px 12px", color: C.white }}>{fmtNum(c.view_count)}</td>
+                        <td style={{ padding: "8px 12px" }}>
+                          <span style={{ color: C.dim }}>{c.reviews_before_7d}</span>
+                          <span style={{ color: C.green }}> +{c.reviews_after_7d - c.reviews_before_7d}</span>
+                        </td>
+                        <td style={{ padding: "8px 12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ width: 44, height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                              <div style={{ width: `${c.impact_score}%`, height: "100%", background: c.impact_score >= 70 ? C.ops : c.impact_score >= 40 ? C.score : C.dim, borderRadius: 3 }} />
+                            </div>
+                            <span style={{ color: C.dim, fontSize: 10 }}>{c.impact_score}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Coverage + shared-date footnote */}
+                <div style={{ display: "flex", gap: 8, padding: "6px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", flexWrap: "wrap" }}>
+                  {creatorImpacts.map((c) => (
+                    <span
+                      key={c.channel_name + c.upload_date}
+                      style={{
+                        ...mono,
+                        fontSize: 9,
+                        padding: "2px 8px",
+                        borderRadius: 3,
+                        background: c.covers === "demo" ? "rgba(34,211,238,0.1)" : "rgba(192,57,43,0.1)",
+                        color: c.covers === "demo" ? "#22d3ee" : C.ccu,
+                        border: `1px solid ${c.covers === "demo" ? "#22d3ee30" : C.ccu + "30"}`,
+                      }}
+                    >
+                      {c.channel_name}: {c.covers.toUpperCase()}
+                    </span>
+                  ))}
+                  {creatorImpacts.some((c) => c.shared_date) && (
+                    <span style={{ ...mono, fontSize: 8, color: C.dim, marginLeft: 8 }}>
+                      * Same-day uploads &mdash; review delta split proportionally by subscriber count
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1452,12 +1645,12 @@ export default function TheAutopsy() {
             {/* OPS mini chart */}
             <div style={{ flex: "1 1 400px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px" }}>
               <ResponsiveContainer width="100%" height={140}>
-                <ComposedChart data={chartData.filter((d) => d.ops_score != null)} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData.filter((d) => d.raw_ops != null)} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid {...gridProps} />
                   <XAxis {...xAxisProps} />
-                  <YAxis {...yAxisStyle} domain={[0, 100]} />
+                  <YAxis {...yAxisStyle} tickFormatter={(v: number) => v.toFixed(1)} />
                   <Area
-                    dataKey="ops_score"
+                    dataKey="raw_ops"
                     stroke={C.ops}
                     fill={C.ops}
                     fillOpacity={0.12}
@@ -1491,11 +1684,11 @@ export default function TheAutopsy() {
               {/* Current OPS */}
               <div>
                 <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 4 }}>
-                  Current OPS
+                  Current OPS (Raw)
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                   <span style={{ ...mono, fontSize: 36, fontWeight: 700, color: C.ops }}>
-                    {latestWithOps?.ops_score ?? "--"}
+                    {latestWithOps?.raw_ops != null ? latestWithOps.raw_ops.toFixed(1) : (latestWithOps?.ops_score ?? "--")}
                   </span>
                   {opsMomentum.arrow && (
                     <>
@@ -1508,11 +1701,14 @@ export default function TheAutopsy() {
                     </>
                   )}
                 </div>
-                {latestWithOps?.ops_confidence && (
-                  <div style={{ ...mono, fontSize: 10, color: C.dim, marginTop: 2 }}>
-                    Confidence: <span style={{ color: C.green }}>{latestWithOps.ops_confidence}</span>
-                  </div>
-                )}
+                <div style={{ ...mono, fontSize: 10, color: C.dim, marginTop: 2, display: "flex", gap: 12 }}>
+                  {latestWithOps?.ops_score != null && (
+                    <span>Capped: <span style={{ color: C.ops }}>{latestWithOps.ops_score}</span>/100</span>
+                  )}
+                  {latestWithOps?.ops_confidence && (
+                    <span>Confidence: <span style={{ color: C.green }}>{latestWithOps.ops_confidence}</span></span>
+                  )}
+                </div>
               </div>
 
               {/* Component breakdown */}
@@ -1521,17 +1717,18 @@ export default function TheAutopsy() {
                   Latest Components
                 </div>
                 {latestWithOps && [
-                  { label: "Review", value: latestWithOps.review_component, weight: 0.30, color: C.reviews },
-                  { label: "Velocity", value: latestWithOps.velocity_component, weight: 0.25, color: C.score },
-                  { label: "CCU", value: latestWithOps.ccu_component, weight: 0.20, color: C.ccu },
-                  { label: "YouTube", value: latestWithOps.youtube_component, weight: 0.25, color: "#38bdf8" },
+                  { label: "Velocity", value: latestWithOps.velocity_component, weight: 0.35, max: 10, color: C.score },
+                  { label: "Decay", value: latestWithOps.decay_component, weight: 0.25, max: 2, color: "#f59e0b" },
+                  { label: "Reviews", value: latestWithOps.review_component, weight: 0.15, max: 10, color: C.reviews },
+                  { label: "YouTube", value: latestWithOps.youtube_component, weight: 0.15, max: 2, color: "#38bdf8" },
+                  { label: "Creator", value: latestWithOps.creator_response_component, weight: 0.10, max: 5, color: "#a78bfa" },
                 ].map((comp) => (
                   <div key={comp.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ ...mono, fontSize: 10, color: C.dim, width: 52 }}>{comp.label}</span>
                     <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
                       <div
                         style={{
-                          width: `${Math.min(100, (comp.value || 0) * 100)}%`,
+                          width: `${Math.min(100, ((comp.value || 0) / comp.max) * 100)}%`,
                           height: "100%",
                           background: comp.color,
                           borderRadius: 4,
@@ -1539,8 +1736,8 @@ export default function TheAutopsy() {
                         }}
                       />
                     </div>
-                    <span style={{ ...mono, fontSize: 10, color: comp.color, width: 32, textAlign: "right" }}>
-                      {comp.value != null ? (comp.value * 100).toFixed(0) + "%" : "--"}
+                    <span style={{ ...mono, fontSize: 10, color: comp.color, width: 40, textAlign: "right" }}>
+                      {comp.value != null ? comp.value.toFixed(2) : "--"}
                     </span>
                   </div>
                 ))}
@@ -1548,7 +1745,7 @@ export default function TheAutopsy() {
 
               {/* Explanation */}
               <div style={{ ...heading, fontSize: 11, color: C.dim, lineHeight: 1.6, marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-                OPS (Overperformance Score) measures how much a game outperforms the median for its peer cohort across reviews, velocity, CCU, and YouTube signals. A score above 60 indicates breakout potential.
+                OPS v3 measures breakout potential via age-adjusted velocity (35%), velocity decay rate (25%), review volume (15%), YouTube engagement (15%), and creator velocity response (10%). Low decay = sustained interest.
               </div>
             </div>
           </div>

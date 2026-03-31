@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Database from "./pages/Database";
-import Insights from "./pages/insights/ConceptB";
+import RadarPick from "./pages/radar/SignalFire";
 import Autopsy from "./pages/game/ConceptA";
 
 export default function App() {
@@ -11,7 +11,7 @@ export default function App() {
         <Header />
         <Routes>
           <Route path="/" element={<Database />} />
-          <Route path="/insights" element={<Insights />} />
+          <Route path="/radar-pick" element={<RadarPick />} />
           <Route path="/game/:appid" element={<Autopsy />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

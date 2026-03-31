@@ -16,7 +16,11 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
-from config import CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS, MAJOR_PUBLISHERS
+from config import (
+    CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS,
+    MAJOR_PUBLISHERS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
+    NON_HORROR_GENRE_TAGS,
+)
 from database import SessionLocal
 from models import CollectionRun, DiscardedGame, Game
 
@@ -60,23 +64,75 @@ def _is_horror(
     genres: list[str] | None = None,
     description: str | None = None,
 ) -> bool:
-    """5-layer horror classification chain.
+    """5-layer horror classification chain with ambiguity filtering.
 
-    Layer 1: SteamSpy/store-page user-voted tags (most reliable)
-    Layer 2: Steam genre categories
-    Layer 3: Description keyword scan (broadened keyword list)
+    Layer 1: Strong horror tags — instant pass (Horror, Survival Horror, etc.)
+    Layer 2: Ambiguous tags (Zombies, Dark, etc.) — only pass if:
+             (a) paired with at least one strong horror tag, OR
+             (b) no anti-horror tags (Cartoon, Cute, Comedy, etc.) are present
+    Layer 3: Steam genre categories
+    Layer 4: Description keyword scan
     """
-    # Layer 1: Check user-voted tags against expanded CORE_HORROR_TAGS
-    if CORE_HORROR_TAGS & set(tags.keys()):
+    tag_set = set(tags.keys())
+    anti_matches = ANTI_HORROR_TAGS & tag_set
+
+    # Layer 0: If vote counts are available, filter to tags with meaningful votes.
+    # SteamSpy sometimes returns all tags with 0 votes; Steam store tags have real counts.
+    has_vote_counts = any(v > 0 for v in tags.values())
+    if has_vote_counts:
+        # Only consider tags with at least 1 vote for classification
+        voted_tags = {k for k, v in tags.items() if v > 0}
+        tag_set = voted_tags
+        anti_matches = ANTI_HORROR_TAGS & tag_set
+
+    # Helper: does the description explicitly mention horror?
+    desc_confirms_horror = False
+    if description:
+        desc_lower = description.lower()
+        for kw in HORROR_DESCRIPTION_KEYWORDS:
+            if kw in desc_lower:
+                desc_confirms_horror = True
+                break
+
+    # Layer 1: Strong horror tags → pass unless heavily overridden by anti-horror
+    #          or dominated by non-horror genre tags (Romance, Dating Sim, etc.)
+    strong_matches = STRONG_HORROR_TAGS & tag_set
+    non_horror_matches = NON_HORROR_GENRE_TAGS & tag_set
+    if strong_matches:
+        # If anti-horror tags significantly outnumber strong horror tags (3+ more),
+        # this is likely a non-horror game with a minor/troll "Horror" tag.
+        # Games like "cute horror" or "horror comedy" with 1-2 anti tags still pass.
+        if len(anti_matches) >= len(strong_matches) + 3:
+            return False
+        # When tags are unvoted (all 0 votes), they're untrustworthy — a single "Horror"
+        # tag on a romance dating sim is likely noise. Reject if non-horror genre tags
+        # dominate and the description doesn't confirm horror.
+        # When tags have real votes, trust them — Horror:266 is a real signal even
+        # alongside Puzzle or Tower Defense tags.
+        if not has_vote_counts and not desc_confirms_horror and len(non_horror_matches) >= len(strong_matches) + 1:
+            return False
         return True
 
-    # Layer 2: Check Steam genres
+    # Layer 2: Ambiguous horror tags — need validation
+    ambiguous_matches = AMBIGUOUS_HORROR_TAGS & tag_set
+    if ambiguous_matches:
+        # If anti-horror tags are present, reject — not horror
+        if anti_matches:
+            return False
+        # If non-horror genre tags dominate and desc doesn't confirm, reject (unvoted only)
+        if not has_vote_counts and not desc_confirms_horror and len(non_horror_matches) >= 2:
+            return False
+        # Ambiguous tag alone without anti-horror signals: allow it
+        # (e.g., a dark zombie game without Cartoon/Cute tags is likely horror)
+        return True
+
+    # Layer 3: Check Steam genres
     if genres:
         genre_horror = {"Horror", "Psychological Horror", "Survival Horror"}
         if genre_horror & set(genres):
             return True
 
-    # Layer 3: Scan description for horror-related keywords
+    # Layer 4: Scan description for horror-related keywords
     if description:
         desc_lower = description.lower()
         for kw in HORROR_DESCRIPTION_KEYWORDS:
@@ -201,8 +257,25 @@ async def _fetch_and_classify(
     demos = data.get("demos")
     has_demo = bool(demos)
     demo_appid = None
+    demo_release_date = None
     if demos and isinstance(demos, list) and len(demos) > 0:
         demo_appid = demos[0].get("appid")
+        # Fetch demo's release date from its own appdetails
+        if demo_appid and client:
+            try:
+                demo_data = await fetch_with_retry(
+                    client,
+                    STEAM_APPDETAILS_URL,
+                    params={"appids": str(demo_appid), "cc": "us", "l": "en"},
+                    limiter=steam_limiter,
+                )
+                if demo_data:
+                    demo_entry = demo_data.get(str(demo_appid), {})
+                    if demo_entry.get("success"):
+                        demo_info = demo_entry.get("data", {}).get("release_date", {})
+                        demo_release_date = _parse_release_date(demo_info.get("date", ""))
+            except Exception as e:
+                logger.debug(f"Could not fetch demo release date for {demo_appid}: {e}")
 
     # Next Fest flag: check if any package group name or category mentions "Next Fest"
     # Steam sometimes includes this in categories or package group titles during events
@@ -233,6 +306,7 @@ async def _fetch_and_classify(
         "short_description": data.get("short_description"),
         "has_demo": has_demo,
         "demo_appid": demo_appid,
+        "demo_release_date": demo_release_date,
         "next_fest": next_fest,
     }
 

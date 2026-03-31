@@ -50,6 +50,33 @@ CORE_HORROR_TAGS = frozenset({
     "Creepy", "Demons", "Ghosts",
 })
 
+# Tags that are horror-adjacent but ambiguous — they appear in non-horror games.
+# These only count as horror if paired with at least one STRONG horror tag.
+AMBIGUOUS_HORROR_TAGS = frozenset({
+    "Zombies", "Dark", "Violent", "Gore",
+    "Demons", "Supernatural", "Ghosts",
+})
+
+# Strong horror tags — unambiguously horror-focused.
+STRONG_HORROR_TAGS = CORE_HORROR_TAGS - AMBIGUOUS_HORROR_TAGS
+
+# Anti-horror tags — if a game's only horror signal is an ambiguous tag
+# AND it has any of these, it is almost certainly not horror.
+ANTI_HORROR_TAGS = frozenset({
+    "Cartoon", "Cartoony", "Colorful", "Cute",
+    "Comedy", "Funny", "Family Friendly", "Wholesome",
+    "Relaxing", "Cozy",
+})
+
+# Non-horror genre tags — when a game's tag list is dominated by these
+# and only has a minor/troll "Horror" tag, it's not a horror game.
+NON_HORROR_GENRE_TAGS = frozenset({
+    "Romance", "Dating Sim", "Visual Novel", "Sexual Content",
+    "Farming Sim", "City Builder", "Tower Defense", "Puzzle",
+    "Sports", "Racing", "Card Game", "Board Game",
+    "Education", "Music", "Rhythm",
+})
+
 # Broader keywords for description-based horror detection (Layer 3).
 # Checked as substring matches against short_description + about_the_game.
 HORROR_DESCRIPTION_KEYWORDS = [
@@ -79,15 +106,21 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-    # OPS formula weights (active components, redistribute on NULL)
-    ops_review_weight: float = 0.30
-    ops_velocity_weight: float = 0.25
-    ops_youtube_weight: float = 0.25
-    ops_ccu_weight: float = 0.20
+    # OPS v4 formula weights (active components, redistribute on NULL)
+    ops_velocity_weight: float = 0.35       # age-adjusted velocity (primary signal)
+    ops_decay_weight: float = 0.20          # velocity decay rate
+    ops_review_weight: float = 0.15         # review volume vs peers
+    ops_youtube_weight: float = 0.15        # YT engagement (views/subs ratio + breadth)
+    ops_ccu_weight: float = 0.15            # peak CCU vs peers, with age decay
     ops_ccu_decay_days: int = 14
-    ops_score_multiplier: float = 40.0
+    ops_score_multiplier: float = 24.0
 
-    # Price modifier brackets
+    # Age-adjusted velocity: expected reviews/day by age bracket
+    ops_velocity_baseline_week1: float = 1.14    # median from data
+    ops_velocity_baseline_week2_4: float = 0.14
+    ops_velocity_baseline_month2_3: float = 0.03
+
+    # Price modifier brackets (applied to review component only)
     ops_price_free: float = 0.6
     ops_price_under5: float = 0.85
     ops_price_5to10: float = 1.0
@@ -97,6 +130,7 @@ class Settings(BaseSettings):
     # YouTube sub-weights
     ops_yt_view_subweight: float = 0.6
     ops_yt_breadth_subweight: float = 0.4
+    ops_yt_median_views_subs_ratio: float = 0.074  # median from data
 
     # Twitch
     twitch_client_id: str = ""

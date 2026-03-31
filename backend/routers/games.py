@@ -335,6 +335,8 @@ def get_game_timeline(appid: int, db: Session = Depends(get_db)):
     # --- Determine full timeline date range ---
     # Collect all candidate dates to find the earliest relevant one
     candidate_dates: list[date] = []
+    if game.demo_release_date:
+        candidate_dates.append(game.demo_release_date)
     if game.release_date:
         candidate_dates.append(game.release_date)
     for v in all_videos:
@@ -455,8 +457,11 @@ def get_game_timeline(appid: int, db: Session = Depends(get_db)):
             ops_confidence=ops.confidence if ops else None,
             review_component=ops.review_component if ops else None,
             velocity_component=ops.velocity_component if ops else None,
+            decay_component=ops.decay_component if ops else None,
             ccu_component=ops.ccu_component if ops else None,
             youtube_component=ops.youtube_component if ops else None,
+            creator_response_component=ops.creator_response_component if ops else None,
+            raw_ops=ops.raw_ops if ops else None,
             twitch_viewers=twitch.peak_viewers if twitch else None,
             twitch_streams=twitch.concurrent_streams if twitch else None,
             yt_cumulative_views=_yt_cumulative_views_at(current),
@@ -467,6 +472,14 @@ def get_game_timeline(appid: int, db: Session = Depends(get_db)):
 
     # --- Build events ---
     events: list[TimelineEventOut] = []
+
+    # Demo launch event (before game launch)
+    if game.demo_release_date:
+        events.append(TimelineEventOut(
+            date=game.demo_release_date,
+            type="demo_launch",
+            title=f"{game.title} demo releases on Steam",
+        ))
 
     # Game launch event
     if game.release_date:

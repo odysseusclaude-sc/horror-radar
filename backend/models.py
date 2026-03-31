@@ -30,6 +30,7 @@ class Game(Base):
     short_description = Column(Text)
     has_demo = Column(Boolean, default=False)
     demo_appid = Column(Integer)  # Steam AppID of the demo (if any)
+    demo_release_date = Column(Date)  # When the demo was released on Steam
     next_fest = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
@@ -167,6 +168,8 @@ class OpsScore(Base):
     wishlist_bonus = Column(Float, default=0.0)
     raw_ops = Column(Float)
     velocity_component = Column(Float)
+    decay_component = Column(Float)       # v3: velocity decay rate
+    creator_response_component = Column(Float)  # v3: velocity response to YT coverage
     price_modifier = Column(Float)
     youtube_breadth = Column(Float)
     formula_version = Column(Integer, default=2)

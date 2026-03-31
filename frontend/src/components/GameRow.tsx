@@ -89,7 +89,7 @@ export default function GameRow({ game, even }: GameRowProps) {
               </Link>
               {game.has_demo && (
                 <span className="px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-cyan-950/50 text-cyan-300 border border-cyan-800/40 flex-shrink-0">
-                  DEMO
+                  &#x2713; DEMO
                 </span>
               )}
             </div>

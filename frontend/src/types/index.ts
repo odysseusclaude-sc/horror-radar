@@ -62,8 +62,10 @@ export interface OpsScore {
   confidence: OpsConfidence | null;
   review_component: number | null;
   velocity_component: number | null;
+  decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
+  creator_response_component: number | null;
   youtube_breadth: number | null;
   wishlist_bonus: number | null;
   raw_ops: number | null;
@@ -160,6 +162,81 @@ export interface InsightPastGem {
   score_at_discovery: number;
   current_reviews: number;
   outcome: GemOutcome;
+}
+
+// ── Radar Pick types ──
+
+export interface RadarOpsComponent {
+  key: string;
+  label: string;
+  value: number | null;
+  max: number;
+  weight: number;
+  color: string;
+  desc: string;
+  formula: string;
+}
+
+export interface RadarOps {
+  score: number;
+  delta_14d: number | null;
+  percentile: number | null;
+  components: RadarOpsComponent[];
+}
+
+export interface RadarOpsHistoryPoint {
+  day: number;
+  score: number;
+}
+
+export interface RadarYoutube {
+  video_count: number;
+  largest_subscriber_count: number | null;
+  total_views: number;
+  channels: YoutubeChannelBrief[];
+}
+
+export interface RadarDemo {
+  review_count: number;
+  score_pct: number;
+}
+
+export interface RadarPreviousPick {
+  appid: number;
+  title: string;
+  picked_date: string;
+  ops_at_pick: number;
+  ops_now: number | null;
+  status: "climbing" | "steady" | "peaked";
+}
+
+export interface RadarVelocitySpark {
+  label: string;
+  value: number;
+}
+
+export interface RadarPickResponse {
+  appid: number;
+  title: string;
+  developer: string | null;
+  header_image_url: string | null;
+  price_usd: number | null;
+  days_since_launch: number | null;
+  release_date: string | null;
+  review_count: number | null;
+  sentiment_pct: number | null;
+  velocity_7d: number | null;
+  velocity_prev_7d: number | null;
+  velocity_per_day: number | null;
+  estimated_owners: number | null;
+  peak_ccu: number | null;
+  current_ccu: number | null;
+  youtube: RadarYoutube | null;
+  demo: RadarDemo | null;
+  ops: RadarOps | null;
+  ops_history: RadarOpsHistoryPoint[];
+  velocity_spark: RadarVelocitySpark[];
+  previous_picks: RadarPreviousPick[];
 }
 
 export interface InsightsResponse {
