@@ -32,6 +32,7 @@ class GameOut(BaseModel):
     short_description: str | None = None
     has_demo: bool = False
     demo_appid: int | None = None
+    demo_release_date: date | None = None
     next_fest: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -70,8 +71,10 @@ class OpsScoreOut(BaseModel):
     confidence: str | None = None
     review_component: float | None = None
     velocity_component: float | None = None
+    decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
+    creator_response_component: float | None = None
     youtube_breadth: float | None = None
     wishlist_bonus: float | None = None
     raw_ops: float | None = None
@@ -268,8 +271,11 @@ class TimelineSnapshotOut(BaseModel):
     ops_confidence: str | None = None
     review_component: float | None = None
     velocity_component: float | None = None
+    decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
+    creator_response_component: float | None = None
+    raw_ops: float | None = None
     twitch_viewers: int | None = None
     twitch_streams: int | None = None
     yt_cumulative_views: int = 0
@@ -295,6 +301,77 @@ class TimelineResponse(BaseModel):
     events: list[TimelineEventOut]
     videos: list[TimelineVideoOut]
     reddit_mentions: list[RedditMentionOut]
+
+
+# --- Radar Pick schemas ---
+
+class RadarOpsComponent(BaseModel):
+    key: str
+    label: str
+    value: float | None = None
+    max: float
+    weight: float
+    color: str
+    desc: str
+    formula: str
+
+class RadarOps(BaseModel):
+    score: float
+    delta_14d: float | None = None
+    percentile: float | None = None
+    components: list[RadarOpsComponent] = []
+
+class RadarOpsHistoryPoint(BaseModel):
+    day: int
+    score: float
+
+class RadarYoutube(BaseModel):
+    video_count: int = 0
+    largest_subscriber_count: int | None = None
+    total_views: int = 0
+    channels: list[YoutubeChannelBrief] = []
+
+class RadarDemo(BaseModel):
+    review_count: int
+    score_pct: float
+
+class RadarPreviousPick(BaseModel):
+    appid: int
+    title: str
+    picked_date: str
+    ops_at_pick: float
+    ops_now: float | None = None
+    status: str  # "climbing" | "steady" | "peaked"
+
+class RadarVelocitySpark(BaseModel):
+    label: str
+    value: int
+
+class RadarPickResponse(BaseModel):
+    appid: int
+    title: str
+    developer: str | None = None
+    header_image_url: str | None = None
+    price_usd: float | None = None
+    days_since_launch: int | None = None
+    release_date: str | None = None
+
+    review_count: int | None = None
+    sentiment_pct: float | None = None
+    velocity_7d: int | None = None
+    velocity_prev_7d: int | None = None
+    velocity_per_day: float | None = None
+    estimated_owners: int | None = None
+    peak_ccu: int | None = None
+    current_ccu: int | None = None
+
+    youtube: RadarYoutube | None = None
+    demo: RadarDemo | None = None
+
+    ops: RadarOps | None = None
+    ops_history: list[RadarOpsHistoryPoint] = []
+    velocity_spark: list[RadarVelocitySpark] = []
+    previous_picks: list[RadarPreviousPick] = []
 
 
 # --- Health check ---

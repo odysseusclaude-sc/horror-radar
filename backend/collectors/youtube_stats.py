@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry
+from collectors._http import fetch_with_retry, youtube_limiter
 from config import settings
 from database import SessionLocal
 from models import CollectionRun, YoutubeVideo, YoutubeVideoSnapshot
@@ -64,6 +64,7 @@ async def run_youtube_stats_refresh():
                         "id": ",".join(batch),
                         "key": settings.youtube_api_key,
                     },
+                    limiter=youtube_limiter,
                 )
 
                 if not data or "items" not in data:

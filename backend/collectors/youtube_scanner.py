@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from rapidfuzz import fuzz, process
 
-from collectors._http import fetch_with_retry
+from collectors._http import fetch_with_retry, youtube_limiter
 from config import SEED_CHANNELS, settings
 from database import SessionLocal
 from models import CollectionRun, Game, YoutubeChannel, YoutubeVideo
@@ -23,7 +23,7 @@ from models import CollectionRun, Game, YoutubeChannel, YoutubeVideo
 logger = logging.getLogger(__name__)
 
 YT_BASE = "https://www.googleapis.com/youtube/v3"
-SCAN_WINDOW_DAYS = 180  # 6 months — covers demo-period YouTube coverage
+SCAN_WINDOW_DAYS = 60  # 2 months — initial backfill done, conserve quota
 
 
 def _parse_iso8601_duration(duration: str) -> int:
@@ -55,6 +55,7 @@ async def _resolve_channels(client: httpx.AsyncClient) -> list[dict]:
                 "forHandle": ch.handle,
                 "key": settings.youtube_api_key,
             },
+            limiter=youtube_limiter,
         )
 
         if not data or not data.get("items"):
@@ -95,7 +96,7 @@ async def _fetch_recent_uploads(
         if next_page:
             params["pageToken"] = next_page
 
-        data = await fetch_with_retry(client, f"{YT_BASE}/playlistItems", params=params)
+        data = await fetch_with_retry(client, f"{YT_BASE}/playlistItems", params=params, limiter=youtube_limiter)
 
         if not data or "items" not in data:
             break
@@ -142,6 +143,7 @@ async def _fetch_video_stats(
                 "id": ",".join(batch),
                 "key": settings.youtube_api_key,
             },
+            limiter=youtube_limiter,
         )
 
         if not data or "items" not in data:

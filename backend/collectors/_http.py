@@ -29,6 +29,7 @@ steam_limiter = RateLimiter(min_interval=1.5)       # ~200 req/5min
 steamspy_limiter = RateLimiter(min_interval=15.0)   # ~4 req/min
 twitch_limiter = RateLimiter(min_interval=0.08)     # 800 req/min → use ~12/sec to be safe
 reddit_limiter = RateLimiter(min_interval=0.8)      # ~75 req/min (conservative; Reddit headers unreliable)
+youtube_limiter = RateLimiter(min_interval=0.25)    # ~4 req/sec (YouTube quota is per-day, but per-user rate is ~10/sec)
 
 
 async def fetch_with_retry(
@@ -69,6 +70,26 @@ async def fetch_with_retry(
                 logger.warning(f"Server error {resp.status_code} on {url}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
                 await asyncio.sleep(wait)
                 continue
+
+            # YouTube returns 403 for both quota exhaustion and per-user rate limits.
+            # Check the response body for the specific reason and retry on rate limits.
+            if resp.status_code == 403 and "googleapis.com" in url:
+                try:
+                    body = resp.json()
+                    errors = body.get("error", {}).get("errors", [])
+                    reason = errors[0].get("reason", "") if errors else ""
+                except Exception:
+                    reason = ""
+
+                if reason == "quotaExceeded":
+                    logger.error(f"YouTube daily quota exceeded, aborting: {url}")
+                    return None
+                else:
+                    # rateLimitExceeded, userRateLimitExceeded, or unknown 403
+                    wait = (2 ** attempt) + random.uniform(1, 3)
+                    logger.warning(f"YouTube 403 ({reason or 'unknown'}) on {url}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
+                    await asyncio.sleep(wait)
+                    continue
 
             if resp.status_code >= 400:
                 logger.error(f"Client error {resp.status_code} on {url}, not retrying")
