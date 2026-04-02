@@ -39,6 +39,7 @@ def list_games(
     max_price: float | None = Query(None, ge=0, description="Filter: max price USD"),
     sort_by: str = Query("newest", description="Sort: newest, reviews, ccu, ops"),
     search: str | None = Query(None, description="Search by title"),
+    game_mode: str | None = Query(None, description="Filter: 'all', 'narrative', or 'multiplayer'"),
     db: Session = Depends(get_db),
 ):
     # Subquery: latest snapshot date per game
@@ -90,6 +91,11 @@ def list_games(
 
     if search:
         query = query.filter(Game.title.ilike(f"%{search}%"))
+
+    if game_mode == "narrative":
+        query = query.filter(Game.is_multiplayer == False)
+    elif game_mode == "multiplayer":
+        query = query.filter(Game.is_multiplayer == True)
 
     # Sorting
     release_desc = Game.release_date.desc().nullslast()
@@ -334,24 +340,30 @@ def get_game_timeline(appid: int, db: Session = Depends(get_db)):
         ))
 
     # --- Determine full timeline date range ---
-    # Collect all candidate dates to find the earliest relevant one
+    # Start from release date, but extend earlier only if there's real data
+    # (snapshots, videos, reddit mentions, twitch) before release.
+    # Demo release date alone shouldn't create months of empty timeline.
     candidate_dates: list[date] = []
-    if game.demo_release_date:
-        candidate_dates.append(game.demo_release_date)
     if game.release_date:
         candidate_dates.append(game.release_date)
+    for snap in snapshots:
+        candidate_dates.append(snap.snapshot_date)
+    for o in ops_scores:
+        candidate_dates.append(o.score_date)
     for v in all_videos:
         if v.published_at:
             candidate_dates.append(v.published_at.date())
     for rm in reddit_mentions:
         if rm.posted_at:
             candidate_dates.append(rm.posted_at.date())
-    for snap in snapshots:
-        candidate_dates.append(snap.snapshot_date)
-    for o in ops_scores:
-        candidate_dates.append(o.score_date)
     for t in twitch_snaps:
         candidate_dates.append(t.snapshot_date)
+    # Only include demo release date if there's actual demo snapshot data
+    if game.demo_release_date and any(
+        s.demo_review_count is not None and s.demo_review_count > 0
+        for s in snapshots
+    ):
+        candidate_dates.append(game.demo_release_date)
 
     if not candidate_dates:
         # No data at all — return empty timeline

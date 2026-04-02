@@ -6,6 +6,7 @@
  * Now wired to the real `/radar-pick` endpoint.
  */
 import { useState, useEffect, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip,
 } from "recharts";
@@ -299,6 +300,7 @@ function getComponentCalcText(comp: RadarOpsComponent, d: RadarPickResponse): { 
 
 // ─── Component ──────────────────────────────────────────────────
 export default function SignalFire() {
+  const navigate = useNavigate();
   const [data, setData] = useState<RadarPickResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -741,10 +743,11 @@ export default function SignalFire() {
                     borderBottom: `1px solid ${C.border}`,
                     cursor: "pointer", transition: "background 0.15s",
                   }}
+                  onClick={() => navigate(`/game/${pick.appid}`)}
                   onMouseEnter={e => (e.currentTarget.style.background = C.tile)}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span style={{ ...sans, fontSize: 14, fontWeight: 600, flex: 1 }}>{pick.title}</span>
+                  <span style={{ ...sans, fontSize: 14, fontWeight: 600, flex: 1, textDecoration: "underline", textDecorationColor: C.border, textUnderlineOffset: 2 }}>{pick.title}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, width: 110 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
                     <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{statusLabel}</span>

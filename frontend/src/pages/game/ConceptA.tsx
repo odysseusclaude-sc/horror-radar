@@ -1293,7 +1293,8 @@ export default function TheAutopsy() {
                   fill={C.ccu}
                   fillOpacity={0.12}
                   strokeWidth={1.5}
-                  dot={false}
+                  connectNulls
+                  dot={snapshots.filter(s => s.peak_ccu != null).length <= 3 ? { r: 3, fill: C.ccu } : false}
                 />
               )}
               {visibleSeries.review_count && (
@@ -1302,7 +1303,8 @@ export default function TheAutopsy() {
                   yAxisId="reviews"
                   stroke={C.reviews}
                   strokeWidth={2}
-                  dot={false}
+                  dot={snapshots.filter(s => s.review_count != null).length <= 3 ? { r: 3, fill: C.reviews } : false}
+                  connectNulls
                   activeDot={{ r: 3, fill: C.reviews, stroke: C.bg, strokeWidth: 2 }}
                 />
               )}
@@ -1369,7 +1371,8 @@ export default function TheAutopsy() {
                   yAxisId="score"
                   stroke={C.score}
                   strokeWidth={2}
-                  dot={false}
+                  dot={snapshots.filter(s => s.review_score_pct != null).length <= 3 ? { r: 3, fill: C.score } : false}
+                  connectNulls
                   activeDot={{ r: 3, fill: C.score, stroke: C.bg, strokeWidth: 2 }}
                 />
               )}

@@ -9,6 +9,7 @@ export interface Game {
   tags: string | null;
   is_indie: boolean;
   is_horror: boolean;
+  is_multiplayer: boolean;
   has_demo: boolean;
   demo_appid: number | null;
   header_image_url: string | null;
@@ -240,4 +241,95 @@ export interface InsightsResponse {
   blindspot_games: InsightGame[];
   sub_genres: InsightSubGenre[];
   gem_history: InsightPastGem[];
+}
+
+// ── Trends types ──
+
+export interface TrendsWeekPoint {
+  week_label: string;
+  week_iso: string;
+  active_games: number;
+  total_new_reviews: number;
+  avg_ops: number | null;
+  new_releases: number;
+}
+
+export interface TrendsSubgenre {
+  name: string;
+  game_count: number;
+  avg_ops: number | null;
+  avg_review_score: number | null;
+  avg_review_count: number | null;
+  ops_delta_4w: number | null;
+  top_mover_title: string | null;
+  top_mover_appid: number | null;
+}
+
+export interface TrendsPriceBucket {
+  label: string;
+  range_label: string;
+  game_count: number;
+  median_reviews: number;
+  median_sentiment: number;
+  avg_ops: number | null;
+  demo_pct: number;
+}
+
+export interface TrendsDemoCohort {
+  label: string;
+  game_count: number;
+  median_reviews: number;
+  median_sentiment: number;
+  avg_ops: number | null;
+  median_peak_ccu: number;
+}
+
+export interface TrendsSurger {
+  appid: number;
+  title: string;
+  developer: string | null;
+  header_image_url: string | null;
+  subgenre: string;
+  price: number | null;
+  has_demo: boolean;
+  ops_score: number | null;
+  ops_delta: number | null;
+  ops_prev: number | null;
+  review_count: number;
+  review_delta_7d: number;
+  review_score_pct: number;
+  velocity_spark: number[];
+}
+
+export interface TrendsHeadline {
+  total_games: number;
+  new_last_30d: number;
+  total_reviews: number;
+  avg_sentiment: number;
+  breakout_count: number;
+  yt_videos_tracked: number;
+  yt_channels_covering: number;
+  demo_pct: number;
+}
+
+export interface TrendsYoutubeGame {
+  appid: number;
+  title: string;
+  total_views: number;
+  unique_channels: number;
+  header_image_url: string | null;
+}
+
+export interface TrendsResponse {
+  headline: TrendsHeadline;
+  market_pulse: TrendsWeekPoint[];
+  market_narrative: string;
+  subgenres: TrendsSubgenre[];
+  subgenre_narrative: string;
+  price_buckets: TrendsPriceBucket[];
+  demo_cohorts: TrendsDemoCohort[];
+  price_narrative: string;
+  surgers: TrendsSurger[];
+  youtube_top: TrendsYoutubeGame[];
+  generated_at: string;
 }

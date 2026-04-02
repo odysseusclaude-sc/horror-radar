@@ -39,6 +39,7 @@ backend/           — FastAPI app, collectors, SQLite DB
     ops.py           — OPS v4 scoring engine
     ops_backfill.py  — Historical OPS recalculation
     ops_autotune.py  — Signal quality diagnostics + weight recommendations
+    review_backfill.py — Reconstruct daily review history for late-discovered games
     _http.py         — Rate limiters + fetch_with_retry (handles YouTube 403)
   routers/         — API endpoints
     games.py         — Game list, detail, timeline
@@ -146,9 +147,30 @@ Scope: **MAX_AGE_DAYS = 90** (3 months from release)
 | steam_extras | Daily 03:00 | update tracking → achievement stats |
 | dev_profiles | Monday 05:00 | developer profile aggregation |
 | ops_diagnostics | Monday 06:00 | signal quality report (coverage, discrimination, correlations) |
+| stale_run_watchdog | Every 1h | mark jobs stuck >2h as "stale" |
 | weekly_analysis | Sunday 06:00 | markdown summary report |
 
+### Pipeline Reliability Guardrails
+
+Three layers protect against silent pipeline failures:
+
+1. **Startup cleanup** (`database.py _cleanup_stale_runs()`): On server start, marks all orphaned "running" jobs as "crashed". If the server is starting, no jobs can actually be running — these are leftovers from a process that died mid-run.
+2. **Hourly watchdog** (`main.py stale_run_watchdog()`): Marks any job stuck in "running" for >2 hours as "stale". Catches jobs that hang without crashing (e.g., stuck on a rate-limited API call that never returns).
+3. **Per-collector try/except**: Each collector wraps its main loop in try/except, writing `status="failed"` with error message on exception.
+
 **Pipeline health is critical.** Always check `collection_runs` for stale "running" jobs or gaps longer than 1 cycle. Silent failures (stuck jobs, API rate limits treated as permanent errors) cause compounding data loss. Investigate immediately if a pipeline goes stale.
+
+### Review Backfill for Late-Discovered Games
+
+`collectors/review_backfill.py` — For games discovered well after release (e.g., The Stalking Stairs: released Feb 6, discovered Apr 1). Fetches all individual reviews from Steam's review API (`/appreviews/{appid}`), bins them by `timestamp_created` date, and reconstructs daily cumulative review counts to backfill `game_snapshots` for days that don't already have data.
+
+Usage: `from collectors.review_backfill import backfill_review_history; backfill_review_history(appid)`
+
+Key implementation details:
+- Deduplicates reviews by `recommendationid` (Steam API can return duplicates across pages)
+- Tracks `seen_cursors` to detect pagination cycling (Steam returns the same cursor when exhausted)
+- Safety limit: 30 pages × 100 reviews = 3,000 max (sufficient for indie horror scope)
+- Only creates snapshots for days not already covered by real collector data
 
 ## Frontend
 
@@ -168,6 +190,8 @@ Columns: Game & Developer | Days | Price | Reviews (7D) | Score % | Δ Rev 7D | 
 - **OPS**: score 0-100 with confidence label, color-coded (green ≥60, amber ≥30, red <30)
 
 Filter Bar: Days Since Launch slider (1-90), Max Price slider (0-60), Sort by (Newest / Velocity / OPS / Reviews / CCU)
+
+**Sorting**: All sort modes use release date (newest first) as secondary tiebreaker. When sorting by OPS, games with the same score are ordered by release date descending.
 
 **Radar Pick** (`/radar-pick`) — Editorial breakout spotlight page (SignalFire).
 - Fetches from `GET /radar-pick` — top OPS game released 7-90 days ago
@@ -210,7 +234,7 @@ All configurable intervals, OPS weights, and fuzzy matching thresholds in `.env`
 
 ## Important Gotchas
 
-- **Pipeline staleness**: Check `collection_runs` for stale "running" jobs. A job stuck in "running" for longer than its interval means data loss. The owners collector was chronically stuck; CCU has hung before. Always verify pipeline health before other work.
+- **Pipeline staleness**: Check `collection_runs` for stale "running" jobs. A job stuck in "running" for longer than its interval means data loss. Three guardrails now exist (startup cleanup, hourly watchdog, per-collector try/except) but always verify pipeline health before other work.
 - **SQLite timezone**: Collectors write `snapshot_date` in UTC. Monitor and frontend must use UTC date, not local date (system is UTC+8).
 - **`items_processed` only written at job completion**: For live progress, query the actual data tables (game_snapshots, ops_scores) directly.
 - **SteamSpy tags can be dict OR list**: Handler must check `isinstance(raw_tags, dict)` vs `isinstance(raw_tags, list)`.
@@ -221,4 +245,8 @@ All configurable intervals, OPS weights, and fuzzy matching thresholds in `.env`
 - **`review_velocity_7d`** on game_snapshots is launch-window velocity (first 7 days only). The frontend column "Δ Rev 7D" uses a **rolling** 7-day delta computed live in the API from comparing two snapshots.
 - **YouTube scan window**: Set to 60 days (was 180). Initial backfill is done; longer windows waste API quota on pagination for already-known videos.
 - **OPS scores only for horror games**: `run_ops_calculation()` filters `Game.is_horror == True`. Non-horror games (reclassified or otherwise) do not receive scores.
+- **Steam search API null items**: Steam's search endpoint can return `null` entries in the `items` array. Discovery code must skip null items to avoid `'NoneType' has no attribute 'get'` crashes.
+- **YouTube published_at timezone**: SQLite stores `published_at` as naive datetime. When comparing to `datetime.now(timezone.utc)`, must add tzinfo: `pub_at.replace(tzinfo=timezone.utc)`.
+- **Late-discovered games**: Games found well after release have no historical snapshot data. Use `review_backfill.py` to reconstruct from individual Steam reviews. Consider auto-triggering backfill in metadata pipeline for games discovered >7 days after release (not yet implemented).
+- **Estimated owners**: SteamSpy owners collector disabled. Frontend uses `reviews × 30` heuristic everywhere. The `estimated_owners` field is removed from frontend types.
 - **Start commands**: Backend: `python3 -m uvicorn main:app --reload` from `backend/`. Frontend: `npm run dev` from `frontend/`.

@@ -34,6 +34,7 @@ class GameOut(BaseModel):
     demo_appid: int | None = None
     demo_release_date: date | None = None
     next_fest: bool = False
+    is_multiplayer: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -385,3 +386,94 @@ class StatusOut(BaseModel):
     active_scrapers: int = 0
     total_scrapers: int = 12
     last_sync: datetime | None = None
+
+
+# --- Trends schemas ---
+
+class TrendsWeekPoint(BaseModel):
+    week_label: str          # "Mar 3"
+    week_iso: str            # "2026-W10"
+    active_games: int = 0
+    total_new_reviews: int = 0
+    avg_ops: float | None = None
+    new_releases: int = 0
+
+
+class TrendsSubgenre(BaseModel):
+    name: str
+    game_count: int = 0
+    avg_ops: float | None = None
+    avg_review_score: float | None = None
+    avg_review_count: float | None = None
+    ops_delta_4w: float | None = None
+    top_mover_title: str | None = None
+    top_mover_appid: int | None = None
+
+
+class TrendsPriceBucket(BaseModel):
+    label: str
+    range_label: str
+    game_count: int = 0
+    median_reviews: float = 0
+    median_sentiment: float = 0
+    avg_ops: float | None = None
+    demo_pct: float = 0
+
+
+class TrendsDemoCohort(BaseModel):
+    label: str
+    game_count: int = 0
+    median_reviews: float = 0
+    median_sentiment: float = 0
+    avg_ops: float | None = None
+    median_peak_ccu: float = 0
+
+
+class TrendsSurger(BaseModel):
+    appid: int
+    title: str
+    developer: str | None = None
+    header_image_url: str | None = None
+    subgenre: str = "Horror"
+    price: float | None = None
+    has_demo: bool = False
+    ops_score: float | None = None
+    ops_prev: float | None = None
+    ops_delta: float | None = None
+    review_count: int = 0
+    review_delta_7d: int = 0
+    review_score_pct: float = 0
+    velocity_spark: list[int] = []
+
+
+class TrendsHeadline(BaseModel):
+    total_games: int = 0
+    new_last_30d: int = 0
+    total_reviews: int = 0
+    avg_sentiment: float = 0
+    breakout_count: int = 0
+    yt_videos_tracked: int = 0
+    yt_channels_covering: int = 0
+    demo_pct: float = 0
+
+
+class TrendsYoutubeGame(BaseModel):
+    appid: int
+    title: str
+    total_views: int = 0
+    unique_channels: int = 0
+    header_image_url: str | None = None
+
+
+class TrendsResponse(BaseModel):
+    headline: TrendsHeadline
+    market_pulse: list[TrendsWeekPoint] = []
+    market_narrative: str = ""
+    subgenres: list[TrendsSubgenre] = []
+    subgenre_narrative: str = ""
+    price_buckets: list[TrendsPriceBucket] = []
+    demo_cohorts: list[TrendsDemoCohort] = []
+    price_narrative: str = ""
+    surgers: list[TrendsSurger] = []
+    youtube_top: list[TrendsYoutubeGame] = []
+    generated_at: datetime | None = None

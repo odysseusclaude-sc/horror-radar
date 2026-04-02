@@ -107,10 +107,20 @@ def _is_horror(
         # When tags are unvoted (all 0 votes), they're untrustworthy — a single "Horror"
         # tag on a romance dating sim is likely noise. Reject if non-horror genre tags
         # dominate and the description doesn't confirm horror.
-        # When tags have real votes, trust them — Horror:266 is a real signal even
-        # alongside Puzzle or Tower Defense tags.
         if not has_vote_counts and not desc_confirms_horror and len(non_horror_matches) >= len(strong_matches) + 1:
             return False
+        # Even with voted tags: if the combined weight of anti-horror + non-horror
+        # genre tags exceeds horror tag votes, the game's identity is primarily
+        # non-horror (horror is just flavoring). Reject unless description confirms.
+        # e.g., INFLUXIS: Colorful(147) + Open World Survival Craft(181) = 328 > Horror(180) + Survival Horror(166) = 346
+        #   → still passes, but with 3+ non-horror signals it's suspect
+        if has_vote_counts and not desc_confirms_horror:
+            all_non_horror = non_horror_matches | anti_matches
+            if all_non_horror:
+                horror_votes = sum(tags.get(t, 0) for t in strong_matches)
+                non_horror_votes = sum(tags.get(t, 0) for t in all_non_horror)
+                if non_horror_votes > horror_votes:
+                    return False
         return True
 
     # Layer 2: Ambiguous horror tags — need validation
@@ -144,6 +154,17 @@ def _is_horror(
 
 def _is_major_publisher(publisher: str | None) -> bool:
     return publisher in MAJOR_PUBLISHERS if publisher else False
+
+
+MULTIPLAYER_TAGS = {
+    "Multiplayer", "Co-op", "Online Co-Op", "Local Co-Op",
+    "Local Multiplayer", "Online PvP", "Co-op Campaign",
+}
+
+
+def _is_multiplayer(tags: dict) -> bool:
+    """Check if a game has multiplayer/co-op tags."""
+    return bool(MULTIPLAYER_TAGS & set(tags.keys()))
 
 
 async def _fetch_and_classify(
@@ -302,6 +323,7 @@ async def _fetch_and_classify(
         "tags": json.dumps(tags),
         "is_indie": indie,
         "is_horror": _is_horror(tags, genres, combined_desc),
+        "is_multiplayer": _is_multiplayer(tags),
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),
         "has_demo": has_demo,

@@ -24,7 +24,7 @@ from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
 from weekly_analysis import main as run_weekly_analysis
-from routers import games, channels, videos, runs, insights, radar
+from routers import games, channels, videos, runs, insights, radar, trends
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -211,3 +211,4 @@ app.include_router(videos.router)
 app.include_router(runs.router)
 app.include_router(insights.router)
 app.include_router(radar.router)
+app.include_router(trends.router)

@@ -75,6 +75,7 @@ NON_HORROR_GENRE_TAGS = frozenset({
     "Farming Sim", "City Builder", "Tower Defense", "Puzzle",
     "Sports", "Racing", "Card Game", "Board Game",
     "Education", "Music", "Rhythm",
+    "Open World Survival Craft", "Colony Sim", "Base Building",
 })
 
 # Broader keywords for description-based horror detection (Layer 3).
@@ -102,7 +103,7 @@ class Settings(BaseSettings):
 
     fuzzy_match_threshold: int = 85
     fuzzy_min_title_length: int = 4
-    fuzzy_generic_terms: str = "content warning,the game,horror game,scary game,indie game,new game,this game"
+    fuzzy_generic_terms: str = "content warning,the game,horror game,scary game,indie game,new game,this game,horror,scary,indie,survival,zombie,zombies,ghost,demon,fear"
 
     log_level: str = "INFO"
 
