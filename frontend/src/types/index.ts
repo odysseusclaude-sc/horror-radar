@@ -23,9 +23,6 @@ export interface GameSnapshot {
   review_score_pct: number | null;
   total_positive: number | null;
   total_negative: number | null;
-  estimated_owners_low: number | null;
-  estimated_owners_high: number | null;
-  low_confidence_owners: boolean;
   peak_ccu: number | null;
   current_ccu: number | null;
   average_playtime_forever: number | null;
@@ -65,9 +62,7 @@ export interface OpsScore {
   decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
-  creator_response_component: number | null;
   youtube_breadth: number | null;
-  wishlist_bonus: number | null;
   raw_ops: number | null;
   price_modifier: number | null;
   formula_version: number | null;
@@ -228,7 +223,6 @@ export interface RadarPickResponse {
   velocity_7d: number | null;
   velocity_prev_7d: number | null;
   velocity_per_day: number | null;
-  estimated_owners: number | null;
   peak_ccu: number | null;
   current_ccu: number | null;
   youtube: RadarYoutube | null;

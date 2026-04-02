@@ -38,7 +38,6 @@ interface TimelineSnapshotRaw {
   review_count: number | null;
   review_score_pct: number | null;
   peak_ccu: number | null;
-  owners_estimate: number | null;
   demo_review_count: number | null;
   demo_review_score_pct: number | null;
   ops_score: number | null;
@@ -48,7 +47,6 @@ interface TimelineSnapshotRaw {
   decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
-  creator_response_component: number | null;
   raw_ops: number | null;
   twitch_viewers: number | null;
   twitch_streams: number | null;
@@ -270,7 +268,6 @@ const SERIES: SeriesConfig[] = [
   { key: "review_velocity", label: "Rev. Velocity", color: "#f97316", defaultOn: true, panel: 2 },
   { key: "peak_ccu", label: "Peak CCU", color: C.ccu, defaultOn: false, panel: 2 },
   { key: "review_score_pct", label: "Score %", color: C.score, defaultOn: true, panel: 3 },
-  { key: "owners_estimate", label: "Owners", color: C.green, defaultOn: false, panel: 2 },
   { key: "demo_review_count", label: "Demo Reviews", color: "#22d3ee", defaultOn: false, panel: 2 },
   { key: "yt_cumulative_views", label: "YT Views", color: "#38bdf8", defaultOn: true, panel: 3 },
 ];
@@ -597,11 +594,6 @@ function AutopsyTooltip({
           <span style={{ color: C.twitch }}>Twitch</span> {fmtNum(d.twitch_viewers)} viewers
         </div>
       )}
-      {visibleSeries.owners_estimate && d.owners_estimate != null && d.owners_estimate > 0 && (
-        <div>
-          <span style={{ color: C.green }}>Owners</span> {fmtNum(d.owners_estimate)}
-        </div>
-      )}
       {visibleSeries.demo_review_count && d.demo_review_count != null && d.demo_review_count > 0 && (
         <div>
           <span style={{ color: "#22d3ee" }}>Demo Rev</span> {d.demo_review_count}
@@ -888,14 +880,11 @@ export default function TheAutopsy() {
       scoreNote = getSteamRating(latestSnapshot.review_score_pct).label;
     }
 
-    // Owners: use SteamSpy data if available, otherwise estimate from reviews × 30
+    // Owners: estimated from reviews × 30 (SteamSpy disabled — too coarse/late)
     const REVIEW_MULTIPLIER = 30;
     let ownersValue: string;
     let ownersNote: string | null = null;
-    if (latestSnapshot.owners_estimate) {
-      ownersValue = fmtNum(latestSnapshot.owners_estimate);
-      ownersNote = "SteamSpy estimate";
-    } else if (latestSnapshot.review_count != null && latestSnapshot.review_count > 0) {
+    if (latestSnapshot.review_count != null && latestSnapshot.review_count > 0) {
       ownersValue = "~" + fmtNum(latestSnapshot.review_count * REVIEW_MULTIPLIER);
       ownersNote = `Est. reviews × ${REVIEW_MULTIPLIER}`;
     } else {
@@ -903,7 +892,7 @@ export default function TheAutopsy() {
     }
 
     return [
-      { label: "Owners", value: ownersValue, color: C.green, note: ownersNote },
+      { label: "Est. Owners", value: ownersValue, color: C.green, note: ownersNote },
       { label: "Peak CCU", value: maxCcu > 0 ? fmtNum(maxCcu) : "--", color: C.ccu, note: ccuNote },
       { label: "Reviews", value: latestSnapshot.review_count != null ? fmtNum(latestSnapshot.review_count) : "--", color: C.reviews },
       { label: "Score", value: latestSnapshot.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--", color: C.score, note: scoreNote },
@@ -1317,16 +1306,6 @@ export default function TheAutopsy() {
                   activeDot={{ r: 3, fill: C.reviews, stroke: C.bg, strokeWidth: 2 }}
                 />
               )}
-              {visibleSeries.owners_estimate && (
-                <Line
-                  dataKey="owners_estimate"
-                  yAxisId="reviews"
-                  stroke={C.green}
-                  strokeWidth={1.5}
-                  dot={false}
-                  strokeDasharray="6 3"
-                />
-              )}
               {visibleSeries.demo_review_count && (
                 <Line
                   dataKey="demo_review_count"
@@ -1718,10 +1697,10 @@ export default function TheAutopsy() {
                 </div>
                 {latestWithOps && [
                   { label: "Velocity", value: latestWithOps.velocity_component, weight: 0.35, max: 10, color: C.score },
-                  { label: "Decay", value: latestWithOps.decay_component, weight: 0.25, max: 2, color: "#f59e0b" },
-                  { label: "Reviews", value: latestWithOps.review_component, weight: 0.15, max: 10, color: C.reviews },
-                  { label: "YouTube", value: latestWithOps.youtube_component, weight: 0.15, max: 2, color: "#38bdf8" },
-                  { label: "Creator", value: latestWithOps.creator_response_component, weight: 0.10, max: 5, color: "#a78bfa" },
+                  { label: "Decay", value: latestWithOps.decay_component, weight: 0.20, max: 2, color: "#f59e0b" },
+                  { label: "Reviews", value: latestWithOps.review_component, weight: 0.15, max: 5, color: C.reviews },
+                  { label: "YouTube", value: latestWithOps.youtube_component, weight: 0.15, max: 1.8, color: "#38bdf8" },
+                  { label: "CCU", value: latestWithOps.ccu_component, weight: 0.15, max: 5, color: C.ccu },
                 ].map((comp) => (
                   <div key={comp.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ ...mono, fontSize: 10, color: C.dim, width: 52 }}>{comp.label}</span>

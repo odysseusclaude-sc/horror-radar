@@ -180,9 +180,9 @@ function buildEvidenceBlocks(d: RadarPickResponse): EvidenceBlock[] {
           {d.title}. The largest creator has{" "}
           <Hl>{largestStr} subscribers</Hl>.
           {!bigCreator && <> No one above 500K has touched it yet. </>}
-          {d.estimated_owners != null && (
+          {d.review_count != null && (
             <>
-              {" "}<Hl>~{fmtK(d.estimated_owners)} copies</Hl> sold
+              {" "}<Hl>~{fmtK(d.review_count * 30)} copies</Hl> estimated
               {!bigCreator && " largely through organic Steam discovery"}.
             </>
           )}
@@ -199,48 +199,6 @@ function buildEvidenceBlocks(d: RadarPickResponse): EvidenceBlock[] {
         </div>
       ),
       artifactLabel: "Creator coverage",
-    });
-    idx++;
-  }
-
-  // Signal: Engagement Quality (review-to-owner ratio)
-  if (d.review_count != null && d.estimated_owners != null && d.estimated_owners > 0) {
-    const ratio = ((d.review_count / d.estimated_owners) * 100).toFixed(1);
-    const ratioNum = parseFloat(ratio);
-    const isHighEngagement = ratioNum > 3.0;
-
-    blocks.push({
-      signal: String(idx).padStart(2, "0"),
-      label: "ENGAGEMENT QUALITY",
-      headline: isHighEngagement
-        ? "A review ratio that signals deep player investment"
-        : "Solid engagement relative to install base",
-      body: (
-        <>
-          Review-to-owner ratio: <Hl>{ratio}%</Hl>. The genre average is 2.1%.
-          {isHighEngagement ? (
-            <>
-              {" "}At <Hl>{fmt(d.review_count)} reviews</Hl> and{" "}
-              <Hl>~{fmtK(d.estimated_owners)} owners</Hl>,
-              this ratio indicates a player base that feels <em>compelled</em> to share their experience.
-              High engagement ratios at this volume correlate strongly with long-tail commercial performance.
-            </>
-          ) : (
-            <>
-              {" "}With <Hl>{fmt(d.review_count)} reviews</Hl> from{" "}
-              <Hl>~{fmtK(d.estimated_owners)} owners</Hl>, engagement is
-              {ratioNum >= 2.1 ? " above" : " near"} the genre average.
-            </>
-          )}
-        </>
-      ),
-      artifact: (
-        <div style={{ ...mono, fontSize: 11, textAlign: "right" }}>
-          <span style={{ color: C.accent, fontSize: 18, fontWeight: 600 }}>{ratio}%</span>
-          <div style={{ color: C.textDim, fontSize: 9, marginTop: 2 }}>vs 2.1% avg</div>
-        </div>
-      ),
-      artifactLabel: "Review ratio",
     });
     idx++;
   }
@@ -392,11 +350,9 @@ export default function SignalFire() {
       : "";
     tiles.push({ label: "VELOCITY", value: `${d.velocity_per_day.toFixed(1)}/d`, sub: medianSub, subColor: C.accent });
   }
-  if (d.estimated_owners != null) {
-    const ownerRatio = d.review_count != null && d.estimated_owners > 0
-      ? `${((d.review_count / d.estimated_owners) * 100).toFixed(1)}% review ratio`
-      : "";
-    tiles.push({ label: "OWNERS", value: `~${fmtK(d.estimated_owners)}`, sub: ownerRatio, subColor: C.accent });
+  if (d.review_count != null) {
+    const estOwners = d.review_count * 30;
+    tiles.push({ label: "EST. OWNERS", value: `~${fmtK(estOwners)}`, sub: "reviews × 30", subColor: C.textDim });
   }
   if (d.peak_ccu != null) {
     const ccuSub = d.current_ccu != null ? `${d.current_ccu} current` : "";
