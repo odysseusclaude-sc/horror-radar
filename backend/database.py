@@ -77,6 +77,8 @@ def _run_migrations():
         # OPS v3 components
         "ALTER TABLE ops_scores ADD COLUMN decay_component REAL",
         "ALTER TABLE ops_scores ADD COLUMN creator_response_component REAL",
+        # Multiplayer classification
+        "ALTER TABLE games ADD COLUMN is_multiplayer INTEGER DEFAULT 0",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:
@@ -85,3 +87,24 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()  # column already exists, safe to ignore
+
+    # Backfill is_multiplayer from tags JSON for existing games
+    import json as _json
+    _mp_tags = {"Multiplayer", "Co-op", "Online Co-Op", "Local Co-Op",
+                "Local Multiplayer", "Online PvP", "Co-op Campaign"}
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            "SELECT appid, tags FROM games WHERE (is_multiplayer IS NULL OR is_multiplayer = 0) AND tags IS NOT NULL"
+        )).fetchall()
+        updated = 0
+        for appid, tags_json in rows:
+            try:
+                tags = _json.loads(tags_json)
+                if _mp_tags & set(tags.keys()):
+                    conn.execute(text("UPDATE games SET is_multiplayer = 1 WHERE appid = :appid"), {"appid": appid})
+                    updated += 1
+            except (ValueError, TypeError):
+                pass
+        conn.commit()
+        if updated:
+            logger.info(f"Backfilled is_multiplayer for {updated} games")

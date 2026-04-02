@@ -9,6 +9,7 @@ export interface Game {
   tags: string | null;
   is_indie: boolean;
   is_horror: boolean;
+  is_multiplayer: boolean;
   has_demo: boolean;
   demo_appid: number | null;
   header_image_url: string | null;

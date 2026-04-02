@@ -34,6 +34,7 @@ class GameOut(BaseModel):
     demo_appid: int | None = None
     demo_release_date: date | None = None
     next_fest: bool = False
+    is_multiplayer: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

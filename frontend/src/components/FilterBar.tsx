@@ -3,10 +3,12 @@ interface FilterBarProps {
   maxPrice: number;
   sortBy: string;
   search: string;
+  gameMode: string;
   onDaysChange: (v: number) => void;
   onMaxPriceChange: (v: number) => void;
   onSortChange: (v: string) => void;
   onSearchChange: (v: string) => void;
+  onGameModeChange: (v: string) => void;
   onApply: () => void;
 }
 
@@ -15,10 +17,12 @@ export default function FilterBar({
   maxPrice,
   sortBy,
   search,
+  gameMode,
   onDaysChange,
   onMaxPriceChange,
   onSortChange,
   onSearchChange,
+  onGameModeChange,
   onApply,
 }: FilterBarProps) {
   return (
@@ -44,6 +48,34 @@ export default function FilterBar({
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") onApply(); }}
             />
+          </div>
+        </div>
+
+        <div className="h-8 w-[1px] bg-border-dark" />
+
+        {/* Game Mode */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
+            Mode
+          </span>
+          <div className="flex rounded overflow-hidden border border-border-dark">
+            {[
+              { value: "all", label: "All" },
+              { value: "narrative", label: "Narrative" },
+              { value: "multiplayer", label: "Co-op" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                className={`px-3 py-1 text-xs font-bold transition-colors ${
+                  gameMode === opt.value
+                    ? "bg-primary text-white"
+                    : "bg-background-dark text-text-dim hover:bg-border-dark"
+                }`}
+                onClick={() => { onGameModeChange(opt.value); }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 

@@ -32,6 +32,7 @@ class Game(Base):
     demo_appid = Column(Integer)  # Steam AppID of the demo (if any)
     demo_release_date = Column(Date)  # When the demo was released on Steam
     next_fest = Column(Boolean, default=False)
+    is_multiplayer = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

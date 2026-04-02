@@ -39,6 +39,7 @@ def list_games(
     max_price: float | None = Query(None, ge=0, description="Filter: max price USD"),
     sort_by: str = Query("newest", description="Sort: newest, reviews, ccu, ops"),
     search: str | None = Query(None, description="Search by title"),
+    game_mode: str | None = Query(None, description="Filter: 'all', 'narrative', or 'multiplayer'"),
     db: Session = Depends(get_db),
 ):
     # Subquery: latest snapshot date per game
@@ -90,6 +91,11 @@ def list_games(
 
     if search:
         query = query.filter(Game.title.ilike(f"%{search}%"))
+
+    if game_mode == "narrative":
+        query = query.filter(Game.is_multiplayer == False)
+    elif game_mode == "multiplayer":
+        query = query.filter(Game.is_multiplayer == True)
 
     # Sorting
     release_desc = Game.release_date.desc().nullslast()
