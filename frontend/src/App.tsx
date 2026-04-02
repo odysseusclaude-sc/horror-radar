@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Database from "./pages/Database";
 import RadarPick from "./pages/radar/SignalFire";
 import Autopsy from "./pages/game/ConceptA";
+import Trends from "./pages/Trends";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Database />} />
           <Route path="/radar-pick" element={<RadarPick />} />
+          <Route path="/trends" element={<Trends />} />
           <Route path="/game/:appid" element={<Autopsy />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
