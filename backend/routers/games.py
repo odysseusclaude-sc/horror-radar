@@ -334,24 +334,30 @@ def get_game_timeline(appid: int, db: Session = Depends(get_db)):
         ))
 
     # --- Determine full timeline date range ---
-    # Collect all candidate dates to find the earliest relevant one
+    # Start from release date, but extend earlier only if there's real data
+    # (snapshots, videos, reddit mentions, twitch) before release.
+    # Demo release date alone shouldn't create months of empty timeline.
     candidate_dates: list[date] = []
-    if game.demo_release_date:
-        candidate_dates.append(game.demo_release_date)
     if game.release_date:
         candidate_dates.append(game.release_date)
+    for snap in snapshots:
+        candidate_dates.append(snap.snapshot_date)
+    for o in ops_scores:
+        candidate_dates.append(o.score_date)
     for v in all_videos:
         if v.published_at:
             candidate_dates.append(v.published_at.date())
     for rm in reddit_mentions:
         if rm.posted_at:
             candidate_dates.append(rm.posted_at.date())
-    for snap in snapshots:
-        candidate_dates.append(snap.snapshot_date)
-    for o in ops_scores:
-        candidate_dates.append(o.score_date)
     for t in twitch_snaps:
         candidate_dates.append(t.snapshot_date)
+    # Only include demo release date if there's actual demo snapshot data
+    if game.demo_release_date and any(
+        s.demo_review_count is not None and s.demo_review_count > 0
+        for s in snapshots
+    ):
+        candidate_dates.append(game.demo_release_date)
 
     if not candidate_dates:
         # No data at all — return empty timeline
