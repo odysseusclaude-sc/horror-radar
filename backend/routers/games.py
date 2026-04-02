@@ -92,16 +92,17 @@ def list_games(
         query = query.filter(Game.title.ilike(f"%{search}%"))
 
     # Sorting
+    release_desc = Game.release_date.desc().nullslast()
     if sort_by == "reviews":
-        query = query.order_by(GameSnapshot.review_count.desc().nullslast())
+        query = query.order_by(GameSnapshot.review_count.desc().nullslast(), release_desc)
     elif sort_by == "ccu":
-        query = query.order_by(GameSnapshot.peak_ccu.desc().nullslast())
+        query = query.order_by(GameSnapshot.peak_ccu.desc().nullslast(), release_desc)
     elif sort_by == "ops":
-        query = query.order_by(OpsScore.score.desc().nullslast())
+        query = query.order_by(OpsScore.score.desc().nullslast(), release_desc)
     elif sort_by == "velocity":
-        query = query.order_by(GameSnapshot.review_velocity_7d.desc().nullslast())
+        query = query.order_by(GameSnapshot.review_velocity_7d.desc().nullslast(), release_desc)
     else:  # "newest"
-        query = query.order_by(Game.release_date.desc().nullslast())
+        query = query.order_by(release_desc)
 
     total = query.count()
     rows = query.offset((page - 1) * page_size).limit(page_size).all()
