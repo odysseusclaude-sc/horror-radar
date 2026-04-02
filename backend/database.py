@@ -31,6 +31,25 @@ def init_db():
     import models  # noqa: F401 — ensure all models are registered
     Base.metadata.create_all(bind=engine)
     _run_migrations()
+    _cleanup_stale_runs()
+
+
+def _cleanup_stale_runs():
+    """Mark any 'running' collection_runs as 'crashed' on startup.
+
+    If the server is starting, no jobs can actually be running — these are
+    orphans from a previous process that died mid-run.
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text(
+            "UPDATE collection_runs SET status = 'crashed', "
+            "error_message = 'Process died mid-run (cleaned up on restart)', "
+            "finished_at = CURRENT_TIMESTAMP "
+            "WHERE status = 'running'"
+        ))
+        conn.commit()
+        if result.rowcount > 0:
+            logger.warning(f"Cleaned up {result.rowcount} stale 'running' jobs from previous session")
 
 
 def _run_migrations():
