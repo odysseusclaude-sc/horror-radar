@@ -1,13 +1,15 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from config import settings
-from database import init_db
+from database import init_db, engine
 from collectors.discovery import run_discovery
 from collectors.metadata import run_metadata_fetch
 from collectors.reviews import run_review_snapshots
@@ -29,6 +31,25 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+async def stale_run_watchdog():
+    """Mark collection_runs stuck in 'running' for >2h as 'stale'.
+
+    Runs hourly. Catches jobs that hang without crashing (e.g., stuck
+    on a rate-limited API call that never returns).
+    """
+    max_age_hours = 2
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    with engine.connect() as conn:
+        result = conn.execute(text(
+            "UPDATE collection_runs SET status = 'stale', "
+            "error_message = :msg, finished_at = CURRENT_TIMESTAMP "
+            "WHERE status = 'running' AND started_at < :cutoff"
+        ), {"msg": f"Watchdog: running for >{max_age_hours}h", "cutoff": cutoff})
+        conn.commit()
+        if result.rowcount > 0:
+            logger.warning(f"Watchdog marked {result.rowcount} stale jobs")
 
 
 async def steam_pipeline_job():
@@ -125,6 +146,15 @@ async def lifespan(app: FastAPI):
         hour=5,
         minute=0,
         id="dev_profiles_job",
+        replace_existing=True,
+    )
+
+    # Watchdog: mark stale jobs every hour
+    scheduler.add_job(
+        stale_run_watchdog,
+        "interval",
+        hours=1,
+        id="stale_run_watchdog",
         replace_existing=True,
     )
 

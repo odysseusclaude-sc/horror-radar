@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import func, and_
@@ -77,7 +77,8 @@ def generate_report() -> str:
     games_with_ops = db.query(func.count(func.distinct(OpsScore.appid))).scalar()
 
     # New games this week
-    new_this_week = db.query(Game).filter(Game.created_at >= week_ago.isoformat()).count()
+    week_ago_dt = datetime(week_ago.year, week_ago.month, week_ago.day, tzinfo=timezone.utc)
+    new_this_week = db.query(Game).filter(Game.created_at >= week_ago_dt).count()
 
     table(
         ["Metric", "Value"],

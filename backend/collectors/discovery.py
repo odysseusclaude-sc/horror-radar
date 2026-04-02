@@ -95,8 +95,14 @@ async def _discover_from_steam_search(client: httpx.AsyncClient) -> set[int]:
                     headers={"User-Agent": "Mozilla/5.0"},
                     timeout=30,
                 )
-                items = r.json().get("items", [])
+                data = r.json()
+                if not data or not isinstance(data, dict):
+                    logger.warning(f"Steam search page {page} tag {tag_id}: unexpected response format")
+                    break
+                items = data.get("items") or []
                 for item in items:
+                    if not item:
+                        continue
                     m = re.search(r"/apps/(\d+)/", item.get("logo", ""))
                     if m:
                         discovered.add(int(m.group(1)))

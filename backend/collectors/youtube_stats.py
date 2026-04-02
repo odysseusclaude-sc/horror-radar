@@ -88,10 +88,13 @@ async def run_youtube_stats_refresh():
                         video.comment_count = int(stats.get("commentCount", 0))
 
                         # Capture view_48h if within window and not yet set
+                        pub_at = video.published_at
+                        if pub_at and pub_at.tzinfo is None:
+                            pub_at = pub_at.replace(tzinfo=timezone.utc)
                         if (
                             video.view_48h is None
-                            and video.published_at
-                            and (now - video.published_at).total_seconds() <= 72 * 3600
+                            and pub_at
+                            and (now - pub_at).total_seconds() <= 72 * 3600
                         ):
                             video.view_48h = video.view_count
 
