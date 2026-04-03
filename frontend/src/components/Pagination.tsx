@@ -9,7 +9,7 @@ interface PaginationProps {
 }
 
 function timeAgo(isoStr: string | null | undefined): string {
-  if (!isoStr) return "—";
+  if (!isoStr) return "--";
   const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
   if (diff < 60) return `${Math.round(diff)}s ago`;
   if (diff < 3600) return `${Math.round(diff / 60)} mins ago`;
@@ -44,65 +44,95 @@ export default function Pagination({
   }
 
   return (
-    <footer className="bg-surface-dark border-t border-border-dark px-6 py-3 flex items-center justify-between text-[11px] font-bold text-text-dim uppercase tracking-widest shadow-2xl">
-      <div className="flex items-center gap-6">
-        <p>
-          Showing{" "}
-          <span className="text-text-main">{total > 0 ? start : 0}–{end}</span> of{" "}
-          <span className="text-text-main">{total}</span> Games
+    <footer className="bg-surface-dark border-t border-border-dark px-4 md:px-6 py-3 text-[11px] font-bold text-text-dim uppercase tracking-widest shadow-2xl">
+      {/* Mobile layout */}
+      <div className="flex md:hidden items-center justify-between">
+        <p className="text-[10px]">
+          <span className="text-text-main">{total > 0 ? start : 0}-{end}</span> / {total}
         </p>
-        <div className="h-4 w-[1px] bg-border-dark" />
-        <p>
-          Active Scrapers:{" "}
-          <span className={activeScrapers > 0 ? "text-green-400 font-mono" : "text-red-400 font-mono"}>
-            {activeScrapers}/{totalScrapers}
-          </span>
-        </p>
-        <div className="h-4 w-[1px] bg-border-dark" />
-        <p>
-          Last Sync:{" "}
+        <div className="flex items-center gap-2">
+          <button
+            className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_left</span>
+          </button>
+          <span className="text-text-main font-mono text-xs">{page}/{totalPages}</span>
+          <button
+            className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+          </button>
+        </div>
+        <p className="text-[10px]">
           <span className="text-primary font-mono">{timeAgo(lastSync)}</span>
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          <span className="material-symbols-outlined">chevron_left</span>
-        </button>
-
-        <div className="flex gap-1.5">
-          {pages.map((p, i) =>
-            p === "..." ? (
-              <span key={`dots-${i}`} className="px-1 text-border-dark">
-                ...
-              </span>
-            ) : (
-              <button
-                key={p}
-                className={
-                  p === page
-                    ? "px-3 py-1 bg-primary text-white rounded font-black shadow-lg shadow-primary/20"
-                    : "px-3 py-1 hover:bg-background-dark border border-transparent hover:border-border-dark rounded transition-colors"
-                }
-                onClick={() => onPageChange(p)}
-              >
-                {p}
-              </button>
-            )
-          )}
+      {/* Desktop layout */}
+      <div className="hidden md:flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <p>
+            Showing{" "}
+            <span className="text-text-main">{total > 0 ? start : 0}-{end}</span> of{" "}
+            <span className="text-text-main">{total}</span> Games
+          </p>
+          <div className="h-4 w-[1px] bg-border-dark" />
+          <p>
+            Active Scrapers:{" "}
+            <span className={activeScrapers > 0 ? "text-green-400 font-mono" : "text-red-400 font-mono"}>
+              {activeScrapers}/{totalScrapers}
+            </span>
+          </p>
+          <div className="h-4 w-[1px] bg-border-dark" />
+          <p>
+            Last Sync:{" "}
+            <span className="text-primary font-mono">{timeAgo(lastSync)}</span>
+          </p>
         </div>
 
-        <button
-          className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          <span className="material-symbols-outlined">chevron_right</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <span className="material-symbols-outlined">chevron_left</span>
+          </button>
+
+          <div className="flex gap-1.5">
+            {pages.map((p, i) =>
+              p === "..." ? (
+                <span key={`dots-${i}`} className="px-1 text-border-dark">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={p}
+                  className={
+                    p === page
+                      ? "px-3 py-1 bg-primary text-white rounded font-black shadow-lg shadow-primary/20"
+                      : "px-3 py-1 hover:bg-background-dark border border-transparent hover:border-border-dark rounded transition-colors"
+                  }
+                  onClick={() => onPageChange(p)}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          </div>
+
+          <button
+            className="p-1.5 hover:bg-background-dark border border-border-dark rounded disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <span className="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
       </div>
     </footer>
   );

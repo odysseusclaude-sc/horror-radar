@@ -114,15 +114,15 @@ export default function Trends() {
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text, paddingBottom: 80 }}>
 
       {/* ═══ HEADLINE STRIP ═══ */}
-      <section style={{ padding: "32px 40px 0" }}>
+      <section className="px-4 md:px-10 pt-6 md:pt-8">
         <div style={{ ...mono, fontSize: 11, color: C.accent, textTransform: "uppercase", letterSpacing: 3, marginBottom: 4 }}>
           The Pulse
         </div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: "0 0 20px", fontFamily: "'Outfit', sans-serif", color: C.text }}>
+        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Outfit', sans-serif", color: C.text }}>
           Indie Horror Market Intelligence
         </h1>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 md:gap-3 mb-4">
           {[
             { label: "Games Tracked", value: fmtK(h.total_games), color: C.text },
             { label: "New (30d)", value: String(h.new_last_30d), color: C.green },
@@ -132,8 +132,8 @@ export default function Trends() {
             { label: "YT Videos", value: String(h.yt_videos_tracked), color: C.ccu },
             { label: "Have Demos", value: `${h.demo_pct}%`, color: C.textMid },
           ].map((t) => (
-            <div key={t.label} style={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, padding: "12px 20px", minWidth: 110 }}>
-              <div style={{ ...mono, fontSize: 22, fontWeight: 700, color: t.color }}>{t.value}</div>
+            <div key={t.label} className="md:min-w-[110px]" style={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 14px" }}>
+              <div className="text-lg md:text-[22px]" style={{ ...mono, fontWeight: 700, color: t.color }}>{t.value}</div>
               <div style={{ ...mono, fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{t.label}</div>
             </div>
           ))}
@@ -143,7 +143,7 @@ export default function Trends() {
       </section>
 
       {/* ═══ MARKET PULSE ═══ */}
-      <section style={{ padding: "24px 40px" }}>
+      <section className="px-4 md:px-10 py-6">
         <SectionHeader label="Market Pulse" sub="12-week review velocity, OPS trend & new releases" />
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "20px 16px 8px" }}>
           <ResponsiveContainer width="100%" height={280}>
@@ -166,7 +166,7 @@ export default function Trends() {
       </section>
 
       {/* ═══ SUBGENRE MOMENTUM + CREATOR RADAR (side by side) ═══ */}
-      <section style={{ padding: "24px 40px", display: "grid", gridTemplateColumns: "1fr 380px", gap: 24 }}>
+      <section className="px-4 md:px-10 py-6 grid grid-cols-1 md:grid-cols-[1fr_380px] gap-6">
 
         {/* Subgenre Momentum */}
         <div>
@@ -178,10 +178,10 @@ export default function Trends() {
               const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
               const barWidth = Math.min(100, Math.abs(delta) * 5);
               return (
-                <div key={sg.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ width: 140, fontSize: 13, color: C.text, fontWeight: 500 }}>{sg.name}</div>
+                <div key={sg.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap" }}>
+                  <div style={{ minWidth: 100, maxWidth: 140, fontSize: 13, color: C.text, fontWeight: 500 }}>{sg.name}</div>
                   <div style={{ ...mono, fontSize: 10, color: C.textDim, width: 50 }}>{sg.game_count} games</div>
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 100 }}>
                     <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
                       <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.5s" }} />
                     </div>
@@ -237,7 +237,7 @@ export default function Trends() {
       </section>
 
       {/* ═══ PRICE & DEMO INTELLIGENCE (side by side) ═══ */}
-      <section style={{ padding: "24px 40px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <section className="px-4 md:px-10 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Price Tiers */}
         <div>
@@ -273,7 +273,7 @@ export default function Trends() {
           <SectionHeader label="Demo Impact" sub="Performance with vs without demo" />
           <Narrative text={data.price_narrative} />
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="grid grid-cols-2 gap-4">
               {data.demo_cohorts.map((c) => {
                 const isDemo = c.label === "With Demo";
                 return (
@@ -302,15 +302,15 @@ export default function Trends() {
       </section>
 
       {/* ═══ SURGING NOW ═══ */}
-      <section style={{ padding: "24px 40px" }}>
+      <section className="px-4 md:px-10 py-6">
         <SectionHeader label="Surging Now" sub="Games gaining the most momentum this week" />
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
           {data.surgers.map((s, i) => (
             <div
               key={s.appid}
               onClick={() => navigate(`/game/${s.appid}`)}
+              className="flex items-center gap-3 md:gap-4 px-3 md:px-5 py-3"
               style={{
-                display: "flex", alignItems: "center", gap: 16, padding: "12px 20px",
                 borderBottom: i < data.surgers.length - 1 ? `1px solid ${C.border}` : "none",
                 cursor: "pointer",
                 transition: "background 0.15s",
@@ -319,22 +319,23 @@ export default function Trends() {
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
               {/* Rank */}
-              <span style={{ ...mono, fontSize: 20, fontWeight: 700, color: C.accent, width: 32, textAlign: "center" }}>
+              <span style={{ ...mono, fontWeight: 700, color: C.accent }} className="text-base md:text-xl w-6 md:w-8 text-center flex-shrink-0">
                 {i + 1}
               </span>
 
-              {/* Thumbnail */}
+              {/* Thumbnail — hidden on mobile */}
               {s.header_image_url && (
                 <img
                   src={s.header_image_url}
                   alt=""
+                  className="hidden md:block"
                   style={{ width: 120, height: 45, objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
                 />
               )}
 
               {/* Title + Developer */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div className="text-xs md:text-sm" style={{ fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {s.title}
                 </div>
                 <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
@@ -343,8 +344,8 @@ export default function Trends() {
               </div>
 
               {/* OPS + Delta */}
-              <div style={{ textAlign: "center", width: 70 }}>
-                <div style={{ ...mono, fontSize: 18, fontWeight: 700, color: (s.ops_score ?? 0) >= 60 ? C.green : (s.ops_score ?? 0) >= 30 ? C.amber : C.textDim }}>
+              <div className="flex-shrink-0 text-center w-12 md:w-[70px]">
+                <div style={{ ...mono, fontWeight: 700, color: (s.ops_score ?? 0) >= 60 ? C.green : (s.ops_score ?? 0) >= 30 ? C.amber : C.textDim }} className="text-base md:text-lg">
                   {s.ops_score?.toFixed(0) ?? "--"}
                 </div>
                 {s.ops_delta != null && (
@@ -354,11 +355,13 @@ export default function Trends() {
                 )}
               </div>
 
-              {/* Velocity Spark */}
-              <VelocitySpark data={s.velocity_spark} />
+              {/* Velocity Spark — hidden on mobile */}
+              <div className="hidden md:block">
+                <VelocitySpark data={s.velocity_spark} />
+              </div>
 
               {/* Reviews */}
-              <div style={{ textAlign: "right", width: 80 }}>
+              <div className="hidden md:block" style={{ textAlign: "right", width: 80 }}>
                 <div style={{ ...mono, fontSize: 13, color: C.text }}>{fmtK(s.review_count)}</div>
                 {s.review_delta_7d > 0 && (
                   <div style={{ ...mono, fontSize: 10, color: C.green }}>+{s.review_delta_7d}</div>
@@ -366,7 +369,7 @@ export default function Trends() {
               </div>
 
               {/* Price */}
-              <div style={{ ...mono, fontSize: 12, color: C.textDim, width: 50, textAlign: "right" }}>
+              <div className="hidden md:block" style={{ ...mono, fontSize: 12, color: C.textDim, width: 50, textAlign: "right" }}>
                 {s.price != null && s.price > 0 ? `$${s.price.toFixed(0)}` : "Free"}
               </div>
             </div>
