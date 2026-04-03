@@ -70,10 +70,13 @@ def _is_horror(
 ) -> bool:
     """5-layer horror classification chain with ambiguity filtering.
 
-    Layer 1: Strong horror tags — instant pass (Horror, Survival Horror, etc.)
-    Layer 2: Ambiguous tags (Zombies, Dark, etc.) — only pass if:
-             (a) paired with at least one strong horror tag, OR
-             (b) no anti-horror tags (Cartoon, Cute, Comedy, etc.) are present
+    Layer 0: Vote count filtering — ignore unvoted tags when real votes exist
+    Layer 1: Strong horror tags — pass unless:
+             (a) heavily overridden by anti-horror tags, OR
+             (b) dominated by non-horror genre tags, OR
+             (c) horror tag is a weak signal (bottom third by votes)
+    Layer 2: Ambiguous tags (Zombies, Dark, Lovecraftian, etc.) — only pass if
+             description confirms horror OR Steam genre confirms horror
     Layer 3: Steam genre categories
     Layer 4: Description keyword scan
     """
@@ -98,6 +101,11 @@ def _is_horror(
                 desc_confirms_horror = True
                 break
 
+    # Helper: do Steam genres include horror?
+    genre_confirms_horror = False
+    if genres:
+        genre_confirms_horror = bool({"Horror", "Psychological Horror", "Survival Horror"} & set(genres))
+
     # Layer 1: Strong horror tags → pass unless heavily overridden by anti-horror
     #          or dominated by non-horror genre tags (Romance, Dating Sim, etc.)
     strong_matches = STRONG_HORROR_TAGS & tag_set
@@ -116,8 +124,6 @@ def _is_horror(
         # Even with voted tags: if the combined weight of anti-horror + non-horror
         # genre tags exceeds horror tag votes, the game's identity is primarily
         # non-horror (horror is just flavoring). Reject unless description confirms.
-        # e.g., INFLUXIS: Colorful(147) + Open World Survival Craft(181) = 328 > Horror(180) + Survival Horror(166) = 346
-        #   → still passes, but with 3+ non-horror signals it's suspect
         if has_vote_counts and not desc_confirms_horror:
             all_non_horror = non_horror_matches | anti_matches
             if all_non_horror:
@@ -125,33 +131,43 @@ def _is_horror(
                 non_horror_votes = sum(tags.get(t, 0) for t in all_non_horror)
                 if non_horror_votes > horror_votes:
                     return False
+        # Weak horror signal check: if all strong horror tags rank in the bottom
+        # third of the game's tag list by vote count, horror is likely just
+        # flavoring (e.g., a bullet-hell shooter with a minor "Horror" tag).
+        # Require description or genre confirmation.
+        if has_vote_counts and not desc_confirms_horror and not genre_confirms_horror:
+            sorted_tags = sorted(
+                [(k, v) for k, v in tags.items() if v > 0],
+                key=lambda x: x[1], reverse=True,
+            )
+            voted_count = len(sorted_tags)
+            if voted_count >= 6:
+                bottom_third_start = voted_count * 2 // 3
+                bottom_tag_names = {t[0] for t in sorted_tags[bottom_third_start:]}
+                if strong_matches <= bottom_tag_names:
+                    return False
         return True
 
-    # Layer 2: Ambiguous horror tags — need validation
+    # Layer 2: Ambiguous horror tags — require validation
     ambiguous_matches = AMBIGUOUS_HORROR_TAGS & tag_set
     if ambiguous_matches:
         # If anti-horror tags are present, reject — not horror
         if anti_matches:
             return False
-        # If non-horror genre tags dominate and desc doesn't confirm, reject (unvoted only)
-        if not has_vote_counts and not desc_confirms_horror and len(non_horror_matches) >= 2:
-            return False
-        # Ambiguous tag alone without anti-horror signals: allow it
-        # (e.g., a dark zombie game without Cartoon/Cute tags is likely horror)
-        return True
+        # Ambiguous tags alone (Lovecraftian, Dark, Zombies, etc.) are not enough.
+        # Many non-horror games use these for aesthetic (tactical RPGs, roguelikes,
+        # card games). Require description keywords OR Steam genre confirmation.
+        if desc_confirms_horror or genre_confirms_horror:
+            return True
+        return False
 
     # Layer 3: Check Steam genres
-    if genres:
-        genre_horror = {"Horror", "Psychological Horror", "Survival Horror"}
-        if genre_horror & set(genres):
-            return True
+    if genre_confirms_horror:
+        return True
 
     # Layer 4: Scan description for horror-related keywords
-    if description:
-        desc_lower = description.lower()
-        for kw in HORROR_DESCRIPTION_KEYWORDS:
-            if kw in desc_lower:
-                return True
+    if desc_confirms_horror:
+        return True
 
     return False
 
