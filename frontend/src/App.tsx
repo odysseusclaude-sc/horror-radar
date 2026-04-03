@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Header from "./components/Header";
 import Database from "./pages/Database";
 import RadarPick from "./pages/radar/SignalFire";
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      <SpeedInsights />
     </BrowserRouter>
   );
 }
