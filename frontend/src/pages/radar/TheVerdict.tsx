@@ -78,9 +78,9 @@ const C = {
   creatorColor: "#a36aa5",
 };
 
-const serif: React.CSSProperties = { fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif" };
-const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter', -apple-system, sans-serif" };
+const serif: React.CSSProperties = { fontFamily: "'Playfair Display', Georgia, serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const sans: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 // ─── Component ──────────────────────────────────────────────────
 export default function TheVerdict() {

@@ -31,9 +31,9 @@ const C = {
   amberDim: "#5c3a12",
 };
 
-const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter', -apple-system, sans-serif" };
-const heading: React.CSSProperties = { fontFamily: "'Outfit', 'Inter', sans-serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const sans: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
+const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 // ─── Helpers ───────────────────────────────────────────────────
 function fmt(n: number): string { return n.toLocaleString(); }

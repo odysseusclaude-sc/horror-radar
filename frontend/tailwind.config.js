@@ -38,6 +38,8 @@ module.exports = {
       },
       fontFamily: {
         display: ["Public Sans", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+        serif: ["Playfair Display", "Georgia", "serif"],
       },
     },
   },

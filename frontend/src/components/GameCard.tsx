@@ -34,16 +34,18 @@ export default function GameCard({ game }: GameCardProps) {
     >
       {/* Top row: image + title + OPS */}
       <div className="flex items-start gap-3">
-        {game.header_image_url ? (
-          <img
-            className="w-14 aspect-[460/215] object-cover rounded border border-white/5 flex-shrink-0 mt-0.5"
-            src={game.header_image_url}
-            alt={game.title}
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-14 aspect-[460/215] rounded border border-white/5 bg-border-dark flex-shrink-0 mt-0.5" />
-        )}
+        <div className="w-14 h-[26px] rounded border border-white/5 overflow-hidden flex-shrink-0 mt-0.5">
+          {game.header_image_url ? (
+            <img
+              className="w-full h-full object-cover"
+              src={game.header_image_url}
+              alt={game.title}
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-border-dark" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-sm leading-tight truncate">

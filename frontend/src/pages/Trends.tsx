@@ -24,10 +24,10 @@ const C = {
   textMid: "#a09080",
   textDim: "#6b6058",
   border: "#2a2420",
-  green: "#22c55e",
-  amber: "#bb7125",
-  red: "#802626",
-  ccu: "#a36aa5",
+  green: "#5ec269",
+  amber: "#e8a832",
+  red: "#e25535",
+  ccu: "#b07db2",
 };
 
 const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
@@ -118,7 +118,7 @@ export default function Trends() {
         <div style={{ ...mono, fontSize: 11, color: C.accent, textTransform: "uppercase", letterSpacing: 3, marginBottom: 4 }}>
           The Pulse
         </div>
-        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Outfit', sans-serif", color: C.text }}>
+        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Public Sans', sans-serif", color: C.text }}>
           Indie Horror Market Intelligence
         </h1>
 
@@ -169,68 +169,77 @@ export default function Trends() {
       <section className="px-4 md:px-10 py-6 grid grid-cols-1 md:grid-cols-[1fr_380px] gap-6">
 
         {/* Subgenre Momentum */}
-        <div>
+        <div className="flex flex-col">
           <SectionHeader label="Subgenre Momentum" sub="Where attention is flowing" />
-          <Narrative text={data.subgenre_narrative} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16 }}>
-            {data.subgenres.map((sg) => {
-              const delta = sg.ops_delta_4w ?? 0;
-              const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
-              const barWidth = Math.min(100, Math.abs(delta) * 5);
-              return (
-                <div key={sg.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap" }}>
-                  <div style={{ minWidth: 100, maxWidth: 140, fontSize: 13, color: C.text, fontWeight: 500 }}>{sg.name}</div>
-                  <div style={{ ...mono, fontSize: 10, color: C.textDim, width: 50 }}>{sg.game_count} games</div>
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 100 }}>
-                    <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.5s" }} />
-                    </div>
-                    <span style={{ ...mono, fontSize: 11, color: barColor, width: 50, textAlign: "right" }}>
-                      {delta > 0 ? "+" : ""}{delta.toFixed(1)}
-                    </span>
-                  </div>
-                  <div style={{ ...mono, fontSize: 10, color: C.textDim, width: 60, textAlign: "right" }}>
-                    OPS {sg.avg_ops?.toFixed(0) ?? "--"}
-                  </div>
-                </div>
-              );
-            })}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
+            {data.subgenre_narrative && (
+              <div style={{ fontSize: 12, color: C.textMid, fontStyle: "italic", marginBottom: 12, lineHeight: 1.5, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+                {data.subgenre_narrative}
+              </div>
+            )}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <tbody>
+                {data.subgenres.map((sg, i) => {
+                  const delta = sg.ops_delta_4w ?? 0;
+                  const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
+                  const maxDelta = Math.max(...data.subgenres.map((s) => Math.abs(s.ops_delta_4w ?? 0)), 1);
+                  const barWidth = Math.min(100, (Math.abs(delta) / maxDelta) * 100);
+                  return (
+                    <tr key={sg.name} style={{ borderBottom: i < data.subgenres.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                      <td style={{ fontSize: 13, color: C.text, fontWeight: 500, whiteSpace: "nowrap", padding: "8px 12px 8px 0" }}>{sg.name}</td>
+                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 12px 8px 0", whiteSpace: "nowrap" }}>{sg.game_count}</td>
+                      <td style={{ padding: "8px 12px 8px 0", width: "100%" }}>
+                        <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 3, transition: "width 0.5s" }} />
+                        </div>
+                      </td>
+                      <td style={{ ...mono, fontSize: 11, color: barColor, textAlign: "right", fontWeight: 600, padding: "8px 0 8px 0", whiteSpace: "nowrap" }}>
+                        {delta > 0 ? "+" : ""}{delta.toFixed(1)}
+                      </td>
+                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 0 8px 12px", whiteSpace: "nowrap" }}>
+                        OPS {sg.avg_ops?.toFixed(0) ?? "--"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
         {/* Creator Radar */}
-        <div>
+        <div className="flex flex-col">
           <SectionHeader label="Creator Radar" sub={`YouTube attention leaders (${data.youtube_top.length} games tracked)`} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16 }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
             {data.youtube_top.length === 0 ? (
               <div style={{ ...mono, fontSize: 12, color: C.textDim, textAlign: "center", padding: 20 }}>No YouTube data yet</div>
             ) : (
-              data.youtube_top.map((yt, i) => {
-                const maxViews = data.youtube_top[0]?.total_views || 1;
-                return (
-                  <div
-                    key={yt.appid}
-                    onClick={() => navigate(`/game/${yt.appid}`)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
-                      borderBottom: i < data.youtube_top.length - 1 ? `1px solid ${C.border}` : "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ ...mono, fontSize: 16, color: C.accent, width: 24, fontWeight: 700 }}>{i + 1}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{yt.title}</div>
-                      <div style={{ display: "flex", gap: 12, marginTop: 2 }}>
-                        <span style={{ ...mono, fontSize: 10, color: C.ccu }}>{fmtK(yt.total_views)} views</span>
-                        <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{yt.unique_channels} channels</span>
-                      </div>
-                      <div style={{ height: 3, background: C.border, borderRadius: 2, marginTop: 4 }}>
-                        <div style={{ width: `${(yt.total_views / maxViews) * 100}%`, height: "100%", background: C.ccu, borderRadius: 2, opacity: 0.6 }} />
-                      </div>
+              data.youtube_top.map((yt, i) => (
+                <div
+                  key={yt.appid}
+                  onClick={() => navigate(`/game/${yt.appid}`)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "8px 0",
+                    borderBottom: i < data.youtube_top.length - 1 ? `1px solid ${C.border}` : "none",
+                    cursor: "pointer",
+                  }}
+                  className="hover:opacity-80 transition-opacity"
+                >
+                  <span style={{ ...mono, fontSize: 18, color: C.textDim, width: 22, fontWeight: 700, textAlign: "center", flexShrink: 0 }}>{i + 1}</span>
+                  {yt.header_image_url && (
+                    <div style={{ width: 48, height: 22, borderRadius: 3, overflow: "hidden", flexShrink: 0, border: `1px solid rgba(255,255,255,0.05)` }}>
+                      <img src={yt.header_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{yt.title}</div>
+                    <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                      <span style={{ ...mono, fontSize: 10, color: C.ccu, fontWeight: 600 }}>{fmtK(yt.total_views)} views</span>
+                      <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{yt.unique_channels} {yt.unique_channels === 1 ? "channel" : "channels"}</span>
                     </div>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
         </div>

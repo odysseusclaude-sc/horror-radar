@@ -36,8 +36,8 @@ const scanline: React.CSSProperties = {
   pointerEvents: "none" as const,
 };
 
-const mono: React.CSSProperties = { fontFamily: "'Space Mono', monospace" };
-const heading: React.CSSProperties = { fontFamily: "'Outfit', sans-serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 /* ── keyframes injected once ── */
 const styleTag = `
@@ -319,14 +319,14 @@ export default function ConceptB() {
                   type="number"
                   domain={[0, 100]}
                   name="Visibility"
-                  tick={{ fill: C.dim, fontSize: 11, fontFamily: "'Space Mono'" }}
+                  tick={{ fill: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono'" }}
                   label={{
                     value: "VISIBILITY",
                     position: "insideBottom",
                     offset: -4,
                     fill: C.dim,
                     fontSize: 10,
-                    fontFamily: "'Space Mono'",
+                    fontFamily: "'JetBrains Mono'",
                   }}
                   stroke={C.line}
                 />
@@ -335,7 +335,7 @@ export default function ConceptB() {
                   type="number"
                   domain={[0, 100]}
                   name="Quality"
-                  tick={{ fill: C.dim, fontSize: 11, fontFamily: "'Space Mono'" }}
+                  tick={{ fill: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono'" }}
                   label={{
                     value: "QUALITY",
                     angle: -90,
@@ -343,7 +343,7 @@ export default function ConceptB() {
                     offset: 12,
                     fill: C.dim,
                     fontSize: 10,
-                    fontFamily: "'Space Mono'",
+                    fontFamily: "'JetBrains Mono'",
                   }}
                   stroke={C.line}
                 />
@@ -669,14 +669,14 @@ export default function ConceptB() {
                 <XAxis
                   type="number"
                   domain={[-1, 1]}
-                  tick={{ fill: C.dim, fontSize: 10, fontFamily: "'Space Mono'" }}
+                  tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono'" }}
                   stroke={C.line}
                   tickFormatter={(v: number) => v.toFixed(1)}
                 />
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fill: C.white, fontSize: 12, fontFamily: "'Space Mono'" }}
+                  tick={{ fill: C.white, fontSize: 12, fontFamily: "'JetBrains Mono'" }}
                   stroke="transparent"
                   width={120}
                 />

@@ -175,8 +175,8 @@ const C = {
   green: "#4ade80",
 } as const;
 
-const mono: React.CSSProperties = { fontFamily: "'Space Mono', monospace" };
-const heading: React.CSSProperties = { fontFamily: "'Outfit', sans-serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 /* ── Keyframes ────────────────────────────────────────────────────── */
 
@@ -945,7 +945,7 @@ export default function TheAutopsy() {
 
   const xAxisProps = {
     dataKey: "date",
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'Space Mono', monospace" },
+    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
     tickLine: false,
     axisLine: { stroke: C.border },
     tickFormatter: (v: string) => fmtDate(v),
@@ -953,7 +953,7 @@ export default function TheAutopsy() {
   };
 
   const yAxisStyle = {
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'Space Mono', monospace" },
+    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
     tickLine: false,
     axisLine: false,
     width: 50,
@@ -988,7 +988,7 @@ export default function TheAutopsy() {
                 position: "top",
                 fill: EVENT_COLORS[e.type] || C.dim,
                 fontSize: 14,
-                fontFamily: "'Space Mono', monospace",
+                fontFamily: "'JetBrains Mono', monospace",
               }
             : undefined
         }
@@ -1359,8 +1359,8 @@ export default function TheAutopsy() {
                   <ReferenceArea yAxisId="score" y1={80} y2={95} fill="#22c55e" fillOpacity={0.03} />
                   <ReferenceArea yAxisId="score" y1={70} y2={80} fill="#86efac" fillOpacity={0.02} />
                   <ReferenceArea yAxisId="score" y1={40} y2={70} fill="#facc15" fillOpacity={0.02} />
-                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
-                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
+                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
+                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
                 </>
               )}
               {renderEventLines(false)}
@@ -1649,7 +1649,7 @@ export default function TheAutopsy() {
                         value: `Day ${opsPeak.day}: OPS ${opsPeak.score}`,
                         fill: C.ops,
                         fontSize: 10,
-                        fontFamily: "'Space Mono', monospace",
+                        fontFamily: "'JetBrains Mono', monospace",
                         position: "insideTopRight",
                       }}
                     />
