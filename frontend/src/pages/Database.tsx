@@ -14,14 +14,14 @@ export default function Database() {
   // Filter state
   const [days, setDays] = useState(90);
   const [maxPrice, setMaxPrice] = useState(60);
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy, setSortBy] = useState("ops");
   const [search, setSearch] = useState("");
   const [gameMode, setGameMode] = useState("all");
 
   // Applied filters (only sent to API on "Apply")
   const [appliedDays, setAppliedDays] = useState(90);
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(60);
-  const [appliedSortBy, setAppliedSortBy] = useState("newest");
+  const [appliedSortBy, setAppliedSortBy] = useState("ops");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [appliedGameMode, setAppliedGameMode] = useState("all");
 

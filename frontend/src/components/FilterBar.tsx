@@ -260,12 +260,6 @@ export default function FilterBar({
             </span>
             Apply Filters
           </button>
-          <button className="flex items-center gap-2 bg-surface-dark border border-border-dark hover:bg-border-dark text-text-main px-4 py-1.5 rounded text-xs font-bold transition-colors">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              download
-            </span>
-            Export CSV
-          </button>
         </div>
       </div>
     </section>

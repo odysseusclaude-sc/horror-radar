@@ -5,7 +5,6 @@ const NAV_ITEMS = [
   { label: "Database", path: "/", disabled: false },
   { label: "Radar Pick", path: "/radar-pick", disabled: false },
   { label: "Trends", path: "/trends", disabled: false },
-  { label: "Submit Game", path: "#", disabled: true },
 ];
 
 export default function Header() {

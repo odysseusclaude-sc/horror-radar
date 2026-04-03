@@ -22,7 +22,13 @@ export default function GameTable({ games, loading }: GameTableProps) {
             <th className="px-4 py-4">&Delta; Rev 7D</th>
             <th className="px-4 py-4">Peak CCU</th>
             <th className="px-4 py-4">YouTube Visibility</th>
-            <th className="px-6 py-4 text-right">OPS</th>
+            <th className="px-6 py-4 text-right group/ops relative cursor-help">
+              <span className="border-b border-dashed border-text-dim/40">OPS</span>
+              <div className="absolute right-0 top-full mt-1 w-64 p-3 bg-surface-dark border border-border-dark rounded-lg shadow-xl text-left normal-case tracking-normal font-normal text-xs text-text-mid opacity-0 pointer-events-none group-hover/ops:opacity-100 group-hover/ops:pointer-events-auto transition-opacity z-20">
+                <p className="font-bold text-text-main mb-1">Overperformance Score (0-100)</p>
+                <p className="leading-relaxed">Measures how much a game outperforms its peers across review velocity, retention, review volume, YouTube coverage, and concurrent players. Higher = stronger breakout signal.</p>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border-dark/50">
