@@ -16,18 +16,18 @@ import {
 import type { TrendsResponse } from "../types";
 
 const C = {
-  bg: "#080809",
-  surface: "#0f0f11",
-  tile: "#131315",
-  accent: "#c0392b",
-  text: "#f0ece6",
-  textMid: "#a09890",
-  textDim: "#7a756e",
-  border: "#2a2725",
+  bg: "#111314",
+  surface: "#1a1a1c",
+  tile: "#1f1f22",
+  accent: "#802626",
+  text: "#e8e0d4",
+  textMid: "#a09080",
+  textDim: "#6b6058",
+  border: "#2a2420",
   green: "#22c55e",
-  amber: "#f59e0b",
-  red: "#ef4444",
-  ccu: "#38bdf8",
+  amber: "#bb7125",
+  red: "#802626",
+  ccu: "#a36aa5",
 };
 
 const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };

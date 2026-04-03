@@ -15,20 +15,20 @@ import type { RadarPickResponse, RadarOpsComponent } from "../../types";
 
 // ─── Palette ────────────────────────────────────────────────────
 const C = {
-  bg: "#080809",
-  surface: "#0f0f11",
-  tile: "#131315",
-  accent: "#c0392b",
-  accentDim: "rgba(192,57,43,0.25)",
-  text: "#f0ece6",
-  textMid: "#a09890",
-  textDim: "#7a756e",
-  textFaint: "#3d3a37",
-  border: "#2a2725",
+  bg: "#111314",
+  surface: "#1a1a1c",
+  tile: "#1f1f22",
+  accent: "#802626",
+  accentDim: "rgba(128,38,38,0.25)",
+  text: "#e8e0d4",
+  textMid: "#a09080",
+  textDim: "#6b6058",
+  textFaint: "#3d3530",
+  border: "#2a2420",
   green: "#22c55e",
-  amber: "#f59e0b",
+  amber: "#bb7125",
   greenDim: "#1a5c3a",
-  amberDim: "#8b6914",
+  amberDim: "#5c3a12",
 };
 
 const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };

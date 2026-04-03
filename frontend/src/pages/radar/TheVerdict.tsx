@@ -61,21 +61,21 @@ const PREV_PICKS = [
 
 // ─── Palette ────────────────────────────────────────────────────
 const C = {
-  bg: "#080809",
-  surface: "#0f0f11",
-  accent: "#a83229",
-  accentDim: "rgba(168,50,41,0.25)",
-  text: "#e8e2d9",
-  textDim: "#6b6560",
-  textFaint: "#3d3a37",
-  border: "#2a2725",
+  bg: "#111314",
+  surface: "#1a1a1c",
+  accent: "#802626",
+  accentDim: "rgba(128,38,38,0.25)",
+  text: "#e8e0d4",
+  textDim: "#6b6058",
+  textFaint: "#3d3530",
+  border: "#2a2420",
   green: "#1a5c3a",
   amber: "#8b6914",
-  velocityColor: "#e8e2d9",
-  decayColor: "#f59e0b",
-  reviewColor: "#c0392b",
-  ytColor: "#38bdf8",
-  creatorColor: "#a78bfa",
+  velocityColor: "#e8e0d4",
+  decayColor: "#bb7125",
+  reviewColor: "#802626",
+  ytColor: "#a36aa5",
+  creatorColor: "#a36aa5",
 };
 
 const serif: React.CSSProperties = { fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif" };

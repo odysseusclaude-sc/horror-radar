@@ -915,11 +915,11 @@ export const GHOST_SNAPSHOTS = generateGhostData(SNAPSHOTS);
 // ─── Utility: Color & Shape Maps ────────────────────────────────────
 
 export const EVENT_COLORS: Record<EventType, string> = {
-  demo_launch: "#a78bfa", // violet
-  game_launch: "#c0392b", // horror red
-  youtube_demo: "#22d3ee", // cyan
-  youtube_game: "#22d3ee", // cyan
-  reddit: "#f97316", // orange
+  demo_launch: "#a36aa5", // violet
+  game_launch: "#802626", // horror red
+  youtube_demo: "#a36aa5", // violet
+  youtube_game: "#a36aa5", // violet
+  reddit: "#bb7125", // amber
   steam_update: "#4ade80", // green
 };
 
@@ -942,13 +942,13 @@ export const EVENT_ICONS: Record<EventType, string> = {
 };
 
 export const SERIES_COLORS = {
-  reviews: "#e2e2e2",
-  demo_reviews: "#22d3ee",
-  review_score: "#facc15",
-  peak_ccu: "#c0392b",
-  twitch: "#a855f7",
+  reviews: "#e8e0d4",
+  demo_reviews: "#a36aa5",
+  review_score: "#bb7125",
+  peak_ccu: "#802626",
+  twitch: "#a36aa5",
   owners: "#4ade80",
-  ops: "#ef4444",
-  yt_views: "#38bdf8",
+  ops: "#802626",
+  yt_views: "#a36aa5",
   ghost: "#ffffff18",
 };

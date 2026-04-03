@@ -70,7 +70,7 @@ export default function FilterBar({
           </span>
         </button>
         <button
-          className="bg-primary hover:bg-red-800 text-white p-2 rounded transition-all shadow-lg"
+          className="bg-primary hover:bg-primary-light text-white p-2 rounded transition-all shadow-lg"
           onClick={onApply}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>filter_alt</span>
@@ -252,7 +252,7 @@ export default function FilterBar({
 
         <div className="ml-auto flex gap-2">
           <button
-            className="flex items-center gap-2 bg-primary hover:bg-red-800 text-white px-4 py-1.5 rounded text-xs font-bold transition-all shadow-lg hover:shadow-primary/20"
+            className="flex items-center gap-2 bg-primary hover:bg-primary-light text-white px-4 py-1.5 rounded text-xs font-bold transition-all shadow-lg hover:shadow-primary/20"
             onClick={onApply}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
