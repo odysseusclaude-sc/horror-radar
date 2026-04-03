@@ -62,7 +62,7 @@ export default function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden md:block w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-orange-900 border border-white/10 shadow-inner" />
+          <div className="hidden md:block w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary border border-white/10 shadow-inner" />
           {/* Hamburger */}
           <button
             className="md:hidden p-1.5 rounded hover:bg-surface-dark transition-colors"

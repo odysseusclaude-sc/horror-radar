@@ -3,14 +3,30 @@ module.exports = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   darkMode: "class",
   theme: {
+    // Major fourths type scale (ratio 1.333, base 16px)
+    fontSize: {
+      "xs":   ["0.75rem",  { lineHeight: "1rem" }],       // 12px
+      "sm":   ["0.875rem", { lineHeight: "1.25rem" }],     // 14px
+      "base": ["1rem",     { lineHeight: "1.5rem" }],      // 16px
+      "lg":   ["1.333rem", { lineHeight: "1.75rem" }],     // 21px
+      "xl":   ["1.777rem", { lineHeight: "2.25rem" }],     // 28px
+      "2xl":  ["2.369rem", { lineHeight: "2.75rem" }],     // 38px
+      "3xl":  ["3.157rem", { lineHeight: "3.5rem" }],      // 51px
+      "4xl":  ["4.209rem", { lineHeight: "4.5rem" }],      // 67px
+    },
     extend: {
       colors: {
-        primary: "#c0392b",
-        "background-dark": "#080809",
-        "surface-dark": "#0f0f11",
-        "border-dark": "#1e1e1e",
-        "text-main": "#e2e2e2",
-        "text-dim": "#888888",
+        // Wada Sanzo Combination 269 — "Occult Amber"
+        primary:          "#802626",   // Pale Burnt Lake — dried-blood red
+        "primary-light":  "#9a3333",   // Lighter variant for hover
+        secondary:        "#bb7125",   // Raw Sienna — warm amber
+        tertiary:         "#a36aa5",   // Aconite Violet — muted purple
+        "background-dark":"#111314",   // Near-black
+        "surface-dark":   "#1a1a1c",   // Card/panel bg
+        "border-dark":    "#2a2420",   // Warm border
+        "text-main":      "#e8e0d4",   // Warm parchment
+        "text-mid":       "#a09080",   // Mid tone
+        "text-dim":       "#6b6058",   // Dimmed
       },
       fontFamily: {
         display: ["Public Sans", "sans-serif"],

@@ -52,11 +52,11 @@ const STYLES = `
 }
 .signal-trace-tooltip {
   font-family: 'IBM Plex Mono', monospace;
-  background: #0f0f11;
+  background: #1a1a1c;
   border: 1px solid rgba(255,255,255,0.12);
   padding: 10px 14px;
   font-size: 12px;
-  color: #e2e2e2;
+  color: #e8e0d4;
   border-radius: 4px;
 }
 .signal-trace-tooltip .tt-date {
@@ -71,7 +71,7 @@ const STYLES = `
 }
 .intercept-card {
   font-family: 'IBM Plex Mono', monospace;
-  background: #0f0f11;
+  background: #1a1a1c;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 4px;
   padding: 12px 14px;
@@ -193,14 +193,14 @@ function EventDot({ cx, cy, event, index, isSelected, onClick }: EventDotProps) 
         }}
       />
       {/* Solid dot */}
-      <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={0.9} stroke="#080809" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={0.9} stroke="#111314" strokeWidth={1.5} />
       {/* Shape glyph */}
       <text
         x={cx}
         y={cy + 1}
         textAnchor="middle"
         dominantBaseline="central"
-        fill="#080809"
+        fill="#111314"
         fontSize={r < 7 ? 7 : 9}
         fontFamily={FONT_MONO}
       >
@@ -360,7 +360,7 @@ export default function SignalTrace() {
   // OPS component breakdown from latest snapshot
   const components = [
     { label: "Review", value: latestSnap.review_component ?? 0, color: SERIES_COLORS.reviews },
-    { label: "Velocity", value: latestSnap.velocity_component ?? 0, color: "#facc15" },
+    { label: "Velocity", value: latestSnap.velocity_component ?? 0, color: "#bb7125" },
     { label: "CCU", value: latestSnap.ccu_component ?? 0, color: SERIES_COLORS.peak_ccu },
     { label: "YouTube", value: latestSnap.youtube_component ?? 0, color: SERIES_COLORS.yt_views },
   ];
@@ -383,7 +383,7 @@ export default function SignalTrace() {
   return (
     <>
       <style>{STYLES}</style>
-      <div style={{ background: "#080809", minHeight: "100vh", color: "#e2e2e2", padding: "0 0 48px" }}>
+      <div style={{ background: "#111314", minHeight: "100vh", color: "#e8e0d4", padding: "0 0 48px" }}>
 
         {/* ═══════ Element 1: Game Identity Header ═══════ */}
         <header
@@ -462,9 +462,9 @@ export default function SignalTrace() {
                     fontSize: 11,
                     padding: "5px 14px",
                     borderRadius: 3,
-                    border: zoom === k ? "1px solid rgba(239,68,68,0.6)" : "1px solid rgba(255,255,255,0.1)",
-                    background: zoom === k ? "rgba(239,68,68,0.12)" : "transparent",
-                    color: zoom === k ? "#ef4444" : "rgba(255,255,255,0.45)",
+                    border: zoom === k ? "1px solid rgba(128,38,38,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                    background: zoom === k ? "rgba(128,38,38,0.12)" : "transparent",
+                    color: zoom === k ? "#802626" : "rgba(255,255,255,0.45)",
                     cursor: "pointer",
                     transition: "all 0.15s",
                   }}
@@ -578,7 +578,7 @@ export default function SignalTrace() {
                     yAxisId="ops"
                     x1={Math.max(p.start_day, range.startDay)}
                     x2={Math.min(p.end_day, range.endDay)}
-                    fill={p.id === "crisis" ? "rgba(239,68,68,0.04)" : "rgba(255,255,255,0.015)"}
+                    fill={p.id === "crisis" ? "rgba(128,38,38,0.04)" : "rgba(255,255,255,0.015)"}
                     fillOpacity={1}
                     ifOverflow="hidden"
                   />
@@ -617,8 +617,8 @@ export default function SignalTrace() {
                 {activeSeries.includes("ops") && (
                   <defs>
                     <linearGradient id="opsGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#802626" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#802626" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                 )}
@@ -639,11 +639,11 @@ export default function SignalTrace() {
                     yAxisId="ops"
                     type="monotone"
                     dataKey="ops_score"
-                    stroke="#ef4444"
+                    stroke="#802626"
                     strokeWidth={3}
                     dot={false}
                     connectNulls
-                    style={{ filter: "drop-shadow(0 0 6px #ef444440)" }}
+                    style={{ filter: "drop-shadow(0 0 6px #80262640)" }}
                   />
                 )}
 
@@ -767,8 +767,8 @@ export default function SignalTrace() {
                     key={p.id}
                     style={{
                       flex: "0 0 200px",
-                      background: "#0f0f11",
-                      border: isCurrent ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                      background: "#1a1a1c",
+                      border: isCurrent ? "1px solid rgba(128,38,38,0.4)" : "1px solid rgba(255,255,255,0.06)",
                       borderRadius: 6,
                       padding: "14px 16px",
                       fontFamily: FONT_MONO,
@@ -786,8 +786,8 @@ export default function SignalTrace() {
                         width: 8,
                         height: 8,
                         borderRadius: "50%",
-                        background: isCurrent ? "#ef4444" : "rgba(255,255,255,0.15)",
-                        border: "2px solid #0f0f11",
+                        background: isCurrent ? "#802626" : "rgba(255,255,255,0.15)",
+                        border: "2px solid #1a1a1c",
                       }}
                     />
                     <div style={{ marginBottom: 6 }}>
@@ -853,7 +853,7 @@ export default function SignalTrace() {
                     <div
                       key={r.date}
                       style={{
-                        background: "#0f0f11",
+                        background: "#1a1a1c",
                         border: "1px solid rgba(255,255,255,0.06)",
                         borderLeft: `3px solid ${EVENT_COLORS.reddit}`,
                         borderRadius: 4,
@@ -881,7 +881,7 @@ export default function SignalTrace() {
             </h2>
             <div
               style={{
-                background: "#0f0f11",
+                background: "#1a1a1c",
                 border: "1px solid rgba(255,255,255,0.06)",
                 borderRadius: 8,
                 padding: "24px",
@@ -894,7 +894,7 @@ export default function SignalTrace() {
                     fontFamily: FONT_MONO,
                     fontSize: 56,
                     fontWeight: 700,
-                    color: latestOps >= 60 ? "#22c55e" : latestOps >= 30 ? "#facc15" : "#ef4444",
+                    color: latestOps >= 60 ? "#22c55e" : latestOps >= 30 ? "#bb7125" : "#802626",
                     lineHeight: 1,
                   }}
                 >
@@ -913,13 +913,13 @@ export default function SignalTrace() {
                       type="monotone"
                       dataKey="ops_score"
                       fill="url(#opsGradMini)"
-                      stroke="#ef4444"
+                      stroke="#802626"
                       strokeWidth={1.5}
                     />
                     <defs>
                       <linearGradient id="opsGradMini" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#802626" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#802626" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                   </ComposedChart>
@@ -937,7 +937,7 @@ export default function SignalTrace() {
                   marginBottom: 16,
                 }}
               >
-                <span style={{ color: "#facc15" }}>Peak: {opsPeak.ops_score}</span>
+                <span style={{ color: "#bb7125" }}>Peak: {opsPeak.ops_score}</span>
                 <span style={{ color: "rgba(255,255,255,0.35)" }}>
                   {" "}
                   &mdash; Day {opsPeak.day_index - 92}
@@ -947,7 +947,7 @@ export default function SignalTrace() {
 
               {/* Momentum */}
               <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#ef4444" }}>{"\u2193"}</span> Declining &mdash; post-breakout stabilization
+                <span style={{ color: "#802626" }}>{"\u2193"}</span> Declining &mdash; post-breakout stabilization
               </div>
 
               {/* Component breakdown bars */}
@@ -995,7 +995,7 @@ function CreatorCard({ creator }: { creator: CreatorImpact }) {
   return (
     <div
       style={{
-        background: "#0f0f11",
+        background: "#1a1a1c",
         border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 6,
         padding: "14px 18px",
@@ -1012,8 +1012,8 @@ function CreatorCard({ creator }: { creator: CreatorImpact }) {
               fontSize: 9,
               padding: "1px 6px",
               borderRadius: 3,
-              background: creator.covers === "demo" ? "rgba(34,211,238,0.12)" : "rgba(239,68,68,0.12)",
-              color: creator.covers === "demo" ? "#22d3ee" : "#ef4444",
+              background: creator.covers === "demo" ? "rgba(163,106,165,0.12)" : "rgba(128,38,38,0.12)",
+              color: creator.covers === "demo" ? "#a36aa5" : "#802626",
               textTransform: "uppercase",
               letterSpacing: 0.5,
             }}
@@ -1037,7 +1037,7 @@ function CreatorCard({ creator }: { creator: CreatorImpact }) {
             style={{
               height: "100%",
               width: `${creator.impact_score}%`,
-              background: creator.impact_score >= 70 ? "#ef4444" : creator.impact_score >= 40 ? "#facc15" : "rgba(255,255,255,0.2)",
+              background: creator.impact_score >= 70 ? "#802626" : creator.impact_score >= 40 ? "#bb7125" : "rgba(255,255,255,0.2)",
               borderRadius: 3,
               transition: "width 0.4s ease",
             }}

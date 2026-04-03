@@ -41,9 +41,9 @@ const CHAPTERS: ChapterConfig[] = [
     phaseId: "demo",
     number: "I",
     title: "The Demo",
-    accent: "#a78bfa",
+    accent: "#a36aa5",
     series: [
-      { key: "demo_review_count", label: "Demo Reviews", color: "#a78bfa" },
+      { key: "demo_review_count", label: "Demo Reviews", color: "#a36aa5" },
       { key: "peak_ccu", label: "Demo CCU", color: "#6d5dba" },
     ],
     statLabel: "Demo Reviews",
@@ -53,11 +53,11 @@ const CHAPTERS: ChapterConfig[] = [
     phaseId: "launch_week",
     number: "II",
     title: "The Launch",
-    accent: "#c0392b",
+    accent: "#802626",
     series: [
-      { key: "review_count", label: "Reviews", color: "#c0392b" },
-      { key: "peak_ccu", label: "Peak CCU", color: "#e74c3c" },
-      { key: "ops_score", label: "OPS", color: "#ef4444" },
+      { key: "review_count", label: "Reviews", color: "#802626" },
+      { key: "peak_ccu", label: "Peak CCU", color: "#802626" },
+      { key: "ops_score", label: "OPS", color: "#802626" },
     ],
     statLabel: "Peak CCU",
     statKey: "peak_ccu",
@@ -66,9 +66,9 @@ const CHAPTERS: ChapterConfig[] = [
     phaseId: "crisis",
     number: "III",
     title: "The Crisis",
-    accent: "#facc15",
+    accent: "#bb7125",
     series: [
-      { key: "review_score_pct", label: "Review Score %", color: "#facc15" },
+      { key: "review_score_pct", label: "Review Score %", color: "#bb7125" },
       { key: "peak_ccu", label: "CCU", color: "#ca8a04" },
     ],
     statLabel: "Review Score Low",
@@ -92,11 +92,11 @@ const CHAPTERS: ChapterConfig[] = [
     phaseId: "breakout",
     number: "V",
     title: "The IGP Effect",
-    accent: "#ef4444",
+    accent: "#802626",
     series: [
-      { key: "ops_score", label: "OPS", color: "#ef4444" },
-      { key: "yt_cumulative_views", label: "YouTube Views", color: "#38bdf8" },
-      { key: "review_count", label: "Reviews", color: "#e2e2e2" },
+      { key: "ops_score", label: "OPS", color: "#802626" },
+      { key: "yt_cumulative_views", label: "YouTube Views", color: "#a36aa5" },
+      { key: "review_count", label: "Reviews", color: "#e8e0d4" },
     ],
     statLabel: "Peak OPS",
     statKey: "ops_score",
@@ -105,9 +105,9 @@ const CHAPTERS: ChapterConfig[] = [
     phaseId: "tail",
     number: "VI",
     title: "The Long Tail",
-    accent: "#888888",
+    accent: "#6b6058",
     series: [
-      { key: "review_count", label: "Reviews", color: "#888888" },
+      { key: "review_count", label: "Reviews", color: "#6b6058" },
       { key: "owners_estimate", label: "Owners", color: "#4ade80" },
     ],
     statLabel: "Total Owners",
@@ -205,13 +205,13 @@ function EventCard({ event }: { event: TimelineEvent }) {
             style={{
               fontFamily: "'Instrument Serif', serif",
               fontSize: 18,
-              color: "#e2e2e2",
+              color: "#e8e0d4",
               marginBottom: 6,
             }}
           >
             {event.title}
           </div>
-          <div style={{ fontSize: 13, color: "#888", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13, color: "#6b6058", lineHeight: 1.5 }}>
             {event.detail}
           </div>
           {isYouTube && event.channel_name && (
@@ -219,7 +219,7 @@ function EventCard({ event }: { event: TimelineEvent }) {
               style={{
                 marginTop: 12,
                 padding: "10px 14px",
-                background: "#0f0f11",
+                background: "#1a1a1c",
                 borderRadius: 8,
                 display: "flex",
                 alignItems: "center",
@@ -231,18 +231,18 @@ function EventCard({ event }: { event: TimelineEvent }) {
                   width: 48,
                   height: 48,
                   borderRadius: 8,
-                  background: "#1a1a1e",
+                  background: "#1f1f22",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#22d3ee",
+                  color: "#a36aa5",
                   fontSize: 20,
                 }}
               >
                 ▶
               </div>
               <div>
-                <div style={{ fontSize: 13, color: "#e2e2e2", fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: "#e8e0d4", fontWeight: 500 }}>
                   {event.channel_name}
                 </div>
                 <div style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', monospace" }}>
@@ -256,7 +256,7 @@ function EventCard({ event }: { event: TimelineEvent }) {
               style={{
                 marginTop: 10,
                 fontSize: 12,
-                color: "#f97316",
+                color: "#bb7125",
                 fontFamily: "'JetBrains Mono', monospace",
               }}
             >
@@ -294,7 +294,7 @@ function ChapterChart({
               <stop offset="100%" stopColor={primarySeries.color} stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2420" />
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, fill: "#555", fontFamily: "'JetBrains Mono', monospace" }}
@@ -302,13 +302,13 @@ function ChapterChart({
               const d = new Date(v + "T00:00:00");
               return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
             }}
-            stroke="#1e1e1e"
+            stroke="#2a2420"
             interval="preserveStartEnd"
           />
           <YAxis
             yAxisId="left"
             tick={{ fontSize: 10, fill: "#555", fontFamily: "'JetBrains Mono', monospace" }}
-            stroke="#1e1e1e"
+            stroke="#2a2420"
             width={50}
             tickFormatter={(v: number) => formatNum(v)}
           />
@@ -317,15 +317,15 @@ function ChapterChart({
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 10, fill: "#555", fontFamily: "'JetBrains Mono', monospace" }}
-              stroke="#1e1e1e"
+              stroke="#2a2420"
               width={50}
               tickFormatter={(v: number) => formatNum(v)}
             />
           )}
           <Tooltip
             contentStyle={{
-              background: "#111114",
-              border: "1px solid #1e1e1e",
+              background: "#1f1f22",
+              border: "1px solid #2a2420",
               borderRadius: 8,
               fontSize: 12,
               fontFamily: "'JetBrains Mono', monospace",
@@ -377,7 +377,7 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
             style={{
               fontFamily: "'Instrument Serif', serif",
               fontSize: 22,
-              color: "#e2e2e2",
+              color: "#e8e0d4",
             }}
           >
             {creator.channel_name}
@@ -396,8 +396,8 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
               fontSize: 10,
               padding: "2px 6px",
               borderRadius: 4,
-              background: creator.covers === "demo" ? "#a78bfa18" : "#c0392b18",
-              color: creator.covers === "demo" ? "#a78bfa" : "#c0392b",
+              background: creator.covers === "demo" ? "#a36aa518" : "#80262618",
+              color: creator.covers === "demo" ? "#a36aa5" : "#802626",
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
@@ -433,13 +433,13 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
               style={{
                 width: 20,
                 height: Math.max(4, (creator.reviews_after_7d / maxReview) * 32),
-                background: reviewDelta > 0 ? "#4ade80" : "#ef4444",
+                background: reviewDelta > 0 ? "#4ade80" : "#802626",
                 borderRadius: 2,
               }}
               title={`After: ${creator.reviews_after_7d}`}
             />
           </div>
-          <div style={{ fontSize: 10, color: reviewDelta > 0 ? "#4ade80" : "#ef4444", fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: reviewDelta > 0 ? "#4ade80" : "#802626", fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
             {reviewDelta > 0 ? "+" : ""}{formatNum(reviewDelta)}
           </div>
         </div>
@@ -463,13 +463,13 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
               style={{
                 width: 20,
                 height: Math.max(4, (creator.ccu_after_7d / maxCcu) * 32),
-                background: ccuDelta > 0 ? "#4ade80" : "#ef4444",
+                background: ccuDelta > 0 ? "#4ade80" : "#802626",
                 borderRadius: 2,
               }}
               title={`After: ${creator.ccu_after_7d}`}
             />
           </div>
-          <div style={{ fontSize: 10, color: ccuDelta > 0 ? "#4ade80" : "#ef4444", fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: ccuDelta > 0 ? "#4ade80" : "#802626", fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
             {ccuDelta > 0 ? "+" : ""}{formatNum(ccuDelta)}
           </div>
         </div>
@@ -484,7 +484,7 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: 28,
               fontWeight: 700,
-              color: creator.impact_score >= 70 ? "#ef4444" : creator.impact_score >= 40 ? "#facc15" : "#888",
+              color: creator.impact_score >= 70 ? "#802626" : creator.impact_score >= 40 ? "#bb7125" : "#888",
             }}
           >
             {creator.impact_score}
@@ -614,9 +614,9 @@ export default function ConceptC() {
         }
 
         .chapter-view {
-          background: #080809;
+          background: #111314;
           min-height: 100vh;
-          color: #e2e2e2;
+          color: #e8e0d4;
           position: relative;
         }
 
@@ -669,10 +669,10 @@ export default function ConceptC() {
           font-family: 'JetBrains Mono', monospace;
           font-size: 10px;
           color: #888;
-          background: #111114;
+          background: #1f1f22;
           padding: 3px 8px;
           border-radius: 4px;
-          border: 1px solid #1e1e1e;
+          border: 1px solid #2a2420;
         }
 
         .chapter-section {
@@ -712,8 +712,8 @@ export default function ConceptC() {
         }
 
         .chapter-event-card {
-          background: #111114;
-          border: 1px solid #1e1e1e;
+          background: #1f1f22;
+          border: 1px solid #2a2420;
           border-left: 3px solid;
           border-radius: 8px;
           padding: 20px 24px;
@@ -745,8 +745,8 @@ export default function ConceptC() {
           align-items: center;
           gap: 24px;
           padding: 20px 24px;
-          background: #0a0a0c;
-          border: 1px solid #1e1e1e;
+          background: #1a1a1c;
+          border: 1px solid #2a2420;
           border-radius: 8px;
           margin-bottom: 12px;
         }
@@ -762,8 +762,8 @@ export default function ConceptC() {
           padding: 20px 16px;
           text-align: center;
           border-radius: 6px;
-          background: #0a0a0c;
-          border: 1px solid #1e1e1e;
+          background: #1a1a1c;
+          border: 1px solid #2a2420;
         }
 
         .ops-ghost-toggle {
@@ -772,7 +772,7 @@ export default function ConceptC() {
           gap: 8px;
           padding: 6px 14px;
           border-radius: 6px;
-          border: 1px solid #1e1e1e;
+          border: 1px solid #2a2420;
           background: transparent;
           color: #888;
           font-family: 'JetBrains Mono', monospace;
@@ -789,7 +789,7 @@ export default function ConceptC() {
         .ops-ghost-toggle.active {
           border-color: #ffffff30;
           background: #ffffff08;
-          color: #e2e2e2;
+          color: #e8e0d4;
         }
 
         @media (max-width: 768px) {
@@ -851,7 +851,7 @@ export default function ConceptC() {
                     fontSize: 10,
                     padding: "3px 10px",
                     borderRadius: 4,
-                    border: "1px solid #1e1e1e",
+                    border: "1px solid #2a2420",
                     color: "#666",
                     fontFamily: "'JetBrains Mono', monospace",
                     textTransform: "uppercase",
@@ -870,7 +870,7 @@ export default function ConceptC() {
               fontSize: 64,
               fontWeight: 400,
               margin: "0 0 8px 0",
-              color: "#e2e2e2",
+              color: "#e8e0d4",
             }}
           >
             {HOLLOWFIELD.title}
@@ -920,7 +920,7 @@ export default function ConceptC() {
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 22,
                     fontWeight: 700,
-                    color: "#e2e2e2",
+                    color: "#e8e0d4",
                   }}
                 >
                   {stat.value}
@@ -935,11 +935,11 @@ export default function ConceptC() {
               fontFamily: "'Instrument Serif', serif",
               fontSize: 22,
               fontStyle: "italic",
-              color: "#888",
+              color: "#6b6058",
               maxWidth: 700,
               margin: "0 auto",
               lineHeight: 1.6,
-              borderLeft: "3px solid #c0392b",
+              borderLeft: "3px solid #802626",
               paddingLeft: 24,
               textAlign: "left",
             }}
@@ -995,9 +995,9 @@ export default function ConceptC() {
             {/* Focused chart */}
             <div
               style={{
-                background: "#0a0a0c",
+                background: "#1a1a1c",
                 borderRadius: 10,
-                border: "1px solid #1e1e1e",
+                border: "1px solid #2a2420",
                 padding: "16px 16px 8px 8px",
                 marginBottom: 24,
               }}
@@ -1072,7 +1072,7 @@ export default function ConceptC() {
                 fontFamily: "'Instrument Serif', serif",
                 fontSize: 32,
                 fontWeight: 400,
-                color: "#e2e2e2",
+                color: "#e8e0d4",
                 margin: 0,
               }}
             >
@@ -1099,7 +1099,7 @@ export default function ConceptC() {
                   style={{
                     fontFamily: "'Instrument Serif', serif",
                     fontSize: 16,
-                    color: "#e2e2e2",
+                    color: "#e8e0d4",
                     marginBottom: 4,
                   }}
                 >
@@ -1164,7 +1164,7 @@ export default function ConceptC() {
                 fontFamily: "'Instrument Serif', serif",
                 fontSize: 32,
                 fontWeight: 400,
-                color: "#e2e2e2",
+                color: "#e8e0d4",
                 margin: 0,
               }}
             >
@@ -1184,7 +1184,7 @@ export default function ConceptC() {
                   fontFamily: "'Instrument Serif', serif",
                   fontSize: 24,
                   fontWeight: 400,
-                  color: "#f97316",
+                  color: "#bb7125",
                   marginBottom: 20,
                 }}
               >
@@ -1221,7 +1221,7 @@ export default function ConceptC() {
                 fontFamily: "'Instrument Serif', serif",
                 fontSize: 32,
                 fontWeight: 400,
-                color: "#e2e2e2",
+                color: "#e8e0d4",
                 margin: "0 0 16px 0",
               }}
             >
@@ -1241,9 +1241,9 @@ export default function ConceptC() {
           {/* Full OPS timeline chart */}
           <div
             style={{
-              background: "#0a0a0c",
+              background: "#1a1a1c",
               borderRadius: 10,
-              border: "1px solid #1e1e1e",
+              border: "1px solid #2a2420",
               padding: "16px 16px 8px 8px",
               marginBottom: 32,
             }}
@@ -1256,8 +1256,8 @@ export default function ConceptC() {
                 >
                   <defs>
                     <linearGradient id="ops-full-grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="#802626" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#802626" stopOpacity={0.02} />
                     </linearGradient>
                     {/* Phase band backgrounds */}
                     {CHAPTERS.map((ch) => (
@@ -1267,7 +1267,7 @@ export default function ConceptC() {
                       </linearGradient>
                     ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2420" />
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 10, fill: "#555", fontFamily: "'JetBrains Mono', monospace" }}
@@ -1275,19 +1275,19 @@ export default function ConceptC() {
                       const d = new Date(v + "T00:00:00");
                       return d.toLocaleDateString("en-US", { month: "short" });
                     }}
-                    stroke="#1e1e1e"
+                    stroke="#2a2420"
                     interval={29}
                   />
                   <YAxis
                     domain={[0, 100]}
                     tick={{ fontSize: 10, fill: "#555", fontFamily: "'JetBrains Mono', monospace" }}
-                    stroke="#1e1e1e"
+                    stroke="#2a2420"
                     width={40}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#111114",
-                      border: "1px solid #1e1e1e",
+                      background: "#1f1f22",
+                      border: "1px solid #2a2420",
                       borderRadius: 8,
                       fontSize: 12,
                       fontFamily: "'JetBrains Mono', monospace",
@@ -1300,13 +1300,13 @@ export default function ConceptC() {
                   />
                   <ReferenceLine
                     y={peakOps}
-                    stroke="#ef4444"
+                    stroke="#802626"
                     strokeDasharray="3 3"
                     strokeOpacity={0.4}
                     label={{
                       value: `Peak: ${peakOps}`,
                       position: "right",
-                      fill: "#ef4444",
+                      fill: "#802626",
                       fontSize: 10,
                       fontFamily: "'JetBrains Mono', monospace",
                     }}
@@ -1315,7 +1315,7 @@ export default function ConceptC() {
                     type="monotone"
                     dataKey="ops_score"
                     name="OPS Score"
-                    stroke="#ef4444"
+                    stroke="#802626"
                     fill="url(#ops-full-grad)"
                     strokeWidth={2}
                     dot={false}
@@ -1393,8 +1393,8 @@ export default function ConceptC() {
                     HOLLOWFIELD.current_ops >= 60
                       ? "#4ade80"
                       : HOLLOWFIELD.current_ops >= 30
-                      ? "#facc15"
-                      : "#ef4444",
+                      ? "#bb7125"
+                      : "#802626",
                 }}
               >
                 {HOLLOWFIELD.current_ops}
@@ -1413,10 +1413,10 @@ export default function ConceptC() {
 
             {/* Component breakdown */}
             {[
-              { label: "Review", value: latest.review_component, color: "#e2e2e2" },
-              { label: "Velocity", value: latest.velocity_component, color: "#facc15" },
-              { label: "CCU", value: latest.ccu_component, color: "#c0392b" },
-              { label: "YouTube", value: latest.youtube_component, color: "#38bdf8" },
+              { label: "Review", value: latest.review_component, color: "#e8e0d4" },
+              { label: "Velocity", value: latest.velocity_component, color: "#bb7125" },
+              { label: "CCU", value: latest.ccu_component, color: "#802626" },
+              { label: "YouTube", value: latest.youtube_component, color: "#a36aa5" },
             ].map((comp) => (
               <div key={comp.label} style={{ textAlign: "center", minWidth: 70 }}>
                 <div
@@ -1446,7 +1446,7 @@ export default function ConceptC() {
                   style={{
                     width: 50,
                     height: 3,
-                    background: "#1e1e1e",
+                    background: "#2a2420",
                     borderRadius: 2,
                     margin: "6px auto 0",
                     overflow: "hidden",
@@ -1478,7 +1478,7 @@ export default function ConceptC() {
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 13,
-                    color: isUp ? "#4ade80" : delta < 0 ? "#ef4444" : "#555",
+                    color: isUp ? "#4ade80" : delta < 0 ? "#802626" : "#555",
                   }}
                 >
                   {isUp ? "▲" : delta < 0 ? "▼" : "—"} {Math.abs(delta)} pts 7-day momentum

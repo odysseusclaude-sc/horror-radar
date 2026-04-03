@@ -19,14 +19,14 @@ import type { InsightGame, InsightPastGem, InsightsResponse } from "../../types"
 
 /* ── palette (matched to Horror Radar front page) ── */
 const C = {
-  void: "#080809",      // background-dark
-  primary: "#c0392b",   // horror red — accent, branding, UI chrome
+  void: "#111314",      // background-dark
+  primary: "#802626",   // horror red — accent, branding, UI chrome
   green: "#4ade80",     // positive data signals (scores, up-trends)
-  dim: "#888888",       // text-dim — secondary labels, info
-  white: "#e2e2e2",     // text-main
-  red: "#ef4444",       // warnings, negative signals
-  grid: "#0f0f11",      // surface-dark
-  line: "#1e1e1e",      // border-dark
+  dim: "#6b6058",       // text-dim — secondary labels, info
+  white: "#e8e0d4",     // text-main
+  red: "#802626",       // warnings, negative signals
+  grid: "#1a1a1c",      // surface-dark
+  line: "#2a2420",      // border-dark
 } as const;
 
 /* ── shared inline styles ── */
@@ -42,9 +42,9 @@ const heading: React.CSSProperties = { fontFamily: "'Outfit', sans-serif" };
 /* ── keyframes injected once ── */
 const styleTag = `
 @keyframes signalPing {
-  0%   { box-shadow: 0 0 0 0 rgba(192,57,43,0.4); }
-  70%  { box-shadow: 0 0 0 20px rgba(192,57,43,0); }
-  100% { box-shadow: 0 0 0 0 rgba(192,57,43,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(128,38,38,0.4); }
+  70%  { box-shadow: 0 0 0 20px rgba(128,38,38,0); }
+  100% { box-shadow: 0 0 0 0 rgba(128,38,38,0); }
 }
 @keyframes signalReveal {
   from { opacity:0; transform:translateX(-16px); }
@@ -89,7 +89,7 @@ function RadarTooltip({ active, payload }: any) {
       <div style={{ color: C.primary, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
         {d.title}
         {d.has_demo && (
-          <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(34,211,238,0.15)", color: "#22d3ee", fontWeight: 800, letterSpacing: 1 }}>
+          <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(163,106,165,0.15)", color: "#a36aa5", fontWeight: 800, letterSpacing: 1 }}>
             DEMO
           </span>
         )}
@@ -97,7 +97,7 @@ function RadarTooltip({ active, payload }: any) {
       <div>VIS: {d.visibility} &nbsp; QUA: {d.quality}</div>
       <div>GEM: {d.gem_score} &nbsp; REV: {d.review_count}</div>
       {d.demo_review_count != null && d.demo_review_count > 0 && (
-        <div style={{ color: "#22d3ee" }}>
+        <div style={{ color: "#a36aa5" }}>
           DEMO: {d.demo_review_count} reviews ({d.demo_review_score_pct?.toFixed(0)}%)
         </div>
       )}
@@ -184,7 +184,7 @@ export default function ConceptB() {
         <section
           className="relative overflow-hidden rounded-lg p-8"
           style={{
-            background: `radial-gradient(ellipse at center, rgba(192,57,43,0.08) 0%, ${C.grid} 60%, ${C.void} 100%)`,
+            background: `radial-gradient(ellipse at center, rgba(128,38,38,0.08) 0%, ${C.grid} 60%, ${C.void} 100%)`,
             border: `1px solid ${C.line}`,
             animation: "signalReveal 0.5s ease-out both",
             animationDelay: delay(0),
@@ -229,8 +229,8 @@ export default function ConceptB() {
                 {heroGem.has_demo && (
                   <span style={{
                     ...mono, fontSize: 9, padding: "2px 8px", borderRadius: 4,
-                    background: "rgba(34,211,238,0.12)", color: "#22d3ee",
-                    fontWeight: 800, letterSpacing: 1.5, border: "1px solid rgba(34,211,238,0.25)",
+                    background: "rgba(163,106,165,0.12)", color: "#a36aa5",
+                    fontWeight: 800, letterSpacing: 1.5, border: "1px solid rgba(163,106,165,0.25)",
                   }}>
                     DEMO
                   </span>
@@ -275,7 +275,7 @@ export default function ConceptB() {
             INTERCEPTED 6H AGO &nbsp;&bull;&nbsp; {heroGem.review_count} REVIEWS
             &nbsp;&bull;&nbsp; ${heroGem.price}
             {heroGem.demo_review_count != null && heroGem.demo_review_count > 0 && (
-              <span style={{ color: "#22d3ee" }}>
+              <span style={{ color: "#a36aa5" }}>
                 &nbsp;&bull;&nbsp; {heroGem.demo_review_count} DEMO REVIEWS ({heroGem.demo_review_score_pct?.toFixed(0)}%)
               </span>
             )}
@@ -362,7 +362,7 @@ export default function ConceptB() {
                       <g>
                         <circle cx={cx} cy={cy} r={r} fill={fill} fillOpacity={0.85} />
                         {payload.has_demo && (
-                          <circle cx={cx} cy={cy} r={r + 3} fill="none" stroke="#22d3ee" strokeWidth={1.5} strokeOpacity={0.6} />
+                          <circle cx={cx} cy={cy} r={r + 3} fill="none" stroke="#a36aa5" strokeWidth={1.5} strokeOpacity={0.6} />
                         )}
                       </g>
                     );
@@ -453,7 +453,7 @@ export default function ConceptB() {
                     {g.has_demo && (
                       <span style={{
                         ...mono, fontSize: 8, padding: "1px 5px", borderRadius: 3, flexShrink: 0,
-                        background: "rgba(34,211,238,0.12)", color: "#22d3ee",
+                        background: "rgba(163,106,165,0.12)", color: "#a36aa5",
                         fontWeight: 800, letterSpacing: 1,
                       }}>
                         DEMO
@@ -463,7 +463,7 @@ export default function ConceptB() {
                   <div style={{ ...mono, fontSize: 10, color: C.dim }}>
                     {g.dominant_signal || g.genre}
                     {g.demo_review_count != null && g.demo_review_count > 0 && (
-                      <span style={{ color: "#22d3ee", marginLeft: 8 }}>
+                      <span style={{ color: "#a36aa5", marginLeft: 8 }}>
                         {g.demo_review_count} demo reviews
                       </span>
                     )}
@@ -578,7 +578,7 @@ export default function ConceptB() {
                   {g.has_demo && (
                     <span style={{
                       ...mono, fontSize: 8, padding: "1px 4px", borderRadius: 3, flexShrink: 0,
-                      background: "rgba(34,211,238,0.12)", color: "#22d3ee",
+                      background: "rgba(163,106,165,0.12)", color: "#a36aa5",
                       fontWeight: 800, letterSpacing: 1,
                     }}>
                       DEMO
@@ -588,7 +588,7 @@ export default function ConceptB() {
                 <div style={{ ...mono, fontSize: 11, color: "#667788" }}>
                   {g.genre} &bull; {g.days_out}d active
                   {g.demo_review_count != null && g.demo_review_count > 0 && (
-                    <span style={{ color: "#22d3ee" }}> &bull; {g.demo_review_count} demo rev</span>
+                    <span style={{ color: "#a36aa5" }}> &bull; {g.demo_review_count} demo rev</span>
                   )}
                 </div>
                 <div
