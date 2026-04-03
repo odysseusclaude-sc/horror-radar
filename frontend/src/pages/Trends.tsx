@@ -82,7 +82,7 @@ export default function Trends() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("/api/trends")
+    fetch(`${import.meta.env.VITE_API_URL || "/api"}/trends`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load trends");
         return r.json();

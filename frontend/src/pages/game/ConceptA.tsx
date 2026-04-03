@@ -730,7 +730,7 @@ export default function TheAutopsy() {
     }
     setLoading(true);
     setError(null);
-    fetch(`/api/games/${appid}/timeline`)
+    fetch(`${import.meta.env.VITE_API_URL || "/api"}/games/${appid}/timeline`)
       .then((r) => {
         if (!r.ok) throw new Error("Game not found");
         return r.json();

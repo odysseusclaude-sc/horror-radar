@@ -1,6 +1,6 @@
 import type { PaginatedResponse } from "../types";
 
-const BASE_URL = "/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export async function fetchPaginated<T>(
   endpoint: string,
