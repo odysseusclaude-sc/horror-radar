@@ -33,6 +33,7 @@ MAJOR_PUBLISHER_TOKENS = frozenset({
     "warner bros", "bethesda", "blizzard", "riot games",
     "take-two", "thq nordic", "deep silver", "focus entertainment",
     "505 games", "paradox interactive", "techland",
+    "koei tecmo", "tecmo koei",
 })
 
 INDIE_PUBLISHERS = frozenset({
