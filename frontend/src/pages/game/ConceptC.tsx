@@ -203,7 +203,7 @@ function EventCard({ event }: { event: TimelineEvent }) {
           </div>
           <div
             style={{
-              fontFamily: "'Instrument Serif', serif",
+              fontFamily: "'Playfair Display', serif",
               fontSize: 18,
               color: "#e8e0d4",
               marginBottom: 6,
@@ -375,7 +375,7 @@ function CreatorRow({ creator }: { creator: (typeof CREATOR_IMPACTS)[0] }) {
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
           <span
             style={{
-              fontFamily: "'Instrument Serif', serif",
+              fontFamily: "'Playfair Display', serif",
               fontSize: 22,
               color: "#e8e0d4",
             }}
@@ -695,7 +695,7 @@ export default function ConceptC() {
         }
 
         .chapter-title {
-          font-family: 'Instrument Serif', serif;
+          font-family: 'Playfair Display', serif;
           font-size: 42px;
           font-weight: 400;
           line-height: 1.1;
@@ -703,7 +703,7 @@ export default function ConceptC() {
         }
 
         .chapter-narrative {
-          font-family: 'Instrument Serif', serif;
+          font-family: 'Playfair Display', serif;
           font-size: 18px;
           line-height: 1.7;
           color: #888;
@@ -866,7 +866,7 @@ export default function ConceptC() {
 
           <h1
             style={{
-              fontFamily: "'Instrument Serif', serif",
+              fontFamily: "'Playfair Display', serif",
               fontSize: 64,
               fontWeight: 400,
               margin: "0 0 8px 0",
@@ -932,7 +932,7 @@ export default function ConceptC() {
           {/* Story sentence as pull quote */}
           <blockquote
             style={{
-              fontFamily: "'Instrument Serif', serif",
+              fontFamily: "'Playfair Display', serif",
               fontSize: 22,
               fontStyle: "italic",
               color: "#6b6058",
@@ -1069,7 +1069,7 @@ export default function ConceptC() {
             </div>
             <h2
               style={{
-                fontFamily: "'Instrument Serif', serif",
+                fontFamily: "'Playfair Display', serif",
                 fontSize: 32,
                 fontWeight: 400,
                 color: "#e8e0d4",
@@ -1097,7 +1097,7 @@ export default function ConceptC() {
                 </div>
                 <div
                   style={{
-                    fontFamily: "'Instrument Serif', serif",
+                    fontFamily: "'Playfair Display', serif",
                     fontSize: 16,
                     color: "#e8e0d4",
                     marginBottom: 4,
@@ -1161,7 +1161,7 @@ export default function ConceptC() {
             </div>
             <h2
               style={{
-                fontFamily: "'Instrument Serif', serif",
+                fontFamily: "'Playfair Display', serif",
                 fontSize: 32,
                 fontWeight: 400,
                 color: "#e8e0d4",
@@ -1181,7 +1181,7 @@ export default function ConceptC() {
             <div style={{ marginTop: 48 }}>
               <h3
                 style={{
-                  fontFamily: "'Instrument Serif', serif",
+                  fontFamily: "'Playfair Display', serif",
                   fontSize: 24,
                   fontWeight: 400,
                   color: "#bb7125",
@@ -1218,7 +1218,7 @@ export default function ConceptC() {
             </div>
             <h2
               style={{
-                fontFamily: "'Instrument Serif', serif",
+                fontFamily: "'Playfair Display', serif",
                 fontSize: 32,
                 fontWeight: 400,
                 color: "#e8e0d4",
@@ -1498,7 +1498,7 @@ export default function ConceptC() {
         >
           <div
             style={{
-              fontFamily: "'Instrument Serif', serif",
+              fontFamily: "'Playfair Display', serif",
               fontSize: 18,
               fontStyle: "italic",
               color: "#444",

@@ -51,7 +51,7 @@ const STYLES = `
   z-index: 1;
 }
 .signal-trace-tooltip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: #1a1a1c;
   border: 1px solid rgba(255,255,255,0.12);
   padding: 10px 14px;
@@ -70,7 +70,7 @@ const STYLES = `
   line-height: 1.6;
 }
 .intercept-card {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: #1a1a1c;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 4px;
@@ -98,8 +98,8 @@ const STYLES = `
 
 // ─── Constants ─────────────────────────────────────────────────────
 
-const FONT_MONO = "'IBM Plex Mono', monospace";
-const FONT_SERIF = "'Instrument Serif', serif";
+const FONT_MONO = "'JetBrains Mono', monospace";
+const FONT_SERIF = "'Playfair Display', serif";
 
 type ZoomPreset = "all" | "90d" | "30d" | "launch";
 type SeriesKey = "ops" | "reviews" | "yt_views" | "peak_ccu" | "twitch";

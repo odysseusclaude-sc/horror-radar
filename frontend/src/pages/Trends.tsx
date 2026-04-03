@@ -118,7 +118,7 @@ export default function Trends() {
         <div style={{ ...mono, fontSize: 11, color: C.accent, textTransform: "uppercase", letterSpacing: 3, marginBottom: 4 }}>
           The Pulse
         </div>
-        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Outfit', sans-serif", color: C.text }}>
+        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Public Sans', sans-serif", color: C.text }}>
           Indie Horror Market Intelligence
         </h1>
 
