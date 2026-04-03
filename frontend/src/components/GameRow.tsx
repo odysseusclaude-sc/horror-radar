@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { GameListItem, YoutubeChannelBrief } from "../types";
 
 interface GameRowProps {
@@ -45,6 +45,7 @@ function tagColor(tag: string): string {
 }
 
 export default function GameRow({ game, even }: GameRowProps) {
+  const navigate = useNavigate();
   const days = daysSince(game.release_date);
   const snap = game.latest_snapshot;
   const reviewCount = snap?.review_count ?? null;
@@ -56,9 +57,14 @@ export default function GameRow({ game, even }: GameRowProps) {
 
   return (
     <tr
-      className={`h-14 hover:bg-primary/5 transition-colors group ${
+      className={`h-14 hover:bg-primary/5 transition-colors group cursor-pointer ${
         even ? "bg-surface-dark/40" : ""
       }`}
+      onClick={(e) => {
+        // Don't navigate if clicking a link or button
+        if ((e.target as HTMLElement).closest("a, button")) return;
+        navigate(`/game/${game.appid}`);
+      }}
     >
       {/* Game & Developer */}
       <td className="px-6 py-2">
@@ -190,7 +196,9 @@ export default function GameRow({ game, even }: GameRowProps) {
       {/* YouTube Visibility */}
       <td className="px-4 py-2">
         {channels.length === 0 ? (
-          <span className="text-text-dim italic text-xs">None tracked</span>
+          <span className="text-text-dim italic text-xs">
+            {days !== null && days <= 14 ? "No YouTube coverage yet" : "No YouTube coverage found"}
+          </span>
         ) : (
           <div className="flex flex-wrap gap-1">
             {channels.map((ch) => {
@@ -231,10 +239,10 @@ export default function GameRow({ game, even }: GameRowProps) {
             </span>
             <span className="text-[9px] uppercase tracking-widest text-text-dim font-bold">
               {game.latest_ops.confidence === "high"
-                ? "high conf"
+                ? "verified"
                 : game.latest_ops.confidence === "medium"
-                ? "med conf"
-                : "low conf"}
+                ? "strong signal"
+                : "early signal"}
             </span>
           </div>
         ) : (
