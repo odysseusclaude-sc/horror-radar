@@ -177,37 +177,33 @@ export default function Trends() {
                 {data.subgenre_narrative}
               </div>
             )}
-            {data.subgenres.map((sg, i) => {
-              const delta = sg.ops_delta_4w ?? 0;
-              const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
-              const maxDelta = Math.max(...data.subgenres.map((s) => Math.abs(s.ops_delta_4w ?? 0)), 1);
-              const barWidth = Math.min(100, (Math.abs(delta) / maxDelta) * 100);
-              return (
-                <div
-                  key={sg.name}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "140px 60px 1fr 50px 50px",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "7px 0",
-                    borderBottom: i < data.subgenres.length - 1 ? `1px solid ${C.border}` : "none",
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sg.name}</div>
-                  <div style={{ ...mono, fontSize: 10, color: C.textDim }}>{sg.game_count} games</div>
-                  <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 3, transition: "width 0.5s" }} />
-                  </div>
-                  <span style={{ ...mono, fontSize: 11, color: barColor, textAlign: "right", fontWeight: 600 }}>
-                    {delta > 0 ? "+" : ""}{delta.toFixed(1)}
-                  </span>
-                  <div style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right" }}>
-                    OPS {sg.avg_ops?.toFixed(0) ?? "--"}
-                  </div>
-                </div>
-              );
-            })}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <tbody>
+                {data.subgenres.map((sg, i) => {
+                  const delta = sg.ops_delta_4w ?? 0;
+                  const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
+                  const maxDelta = Math.max(...data.subgenres.map((s) => Math.abs(s.ops_delta_4w ?? 0)), 1);
+                  const barWidth = Math.min(100, (Math.abs(delta) / maxDelta) * 100);
+                  return (
+                    <tr key={sg.name} style={{ borderBottom: i < data.subgenres.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                      <td style={{ fontSize: 13, color: C.text, fontWeight: 500, whiteSpace: "nowrap", padding: "8px 12px 8px 0" }}>{sg.name}</td>
+                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 12px 8px 0", whiteSpace: "nowrap" }}>{sg.game_count}</td>
+                      <td style={{ padding: "8px 12px 8px 0", width: "100%" }}>
+                        <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 3, transition: "width 0.5s" }} />
+                        </div>
+                      </td>
+                      <td style={{ ...mono, fontSize: 11, color: barColor, textAlign: "right", fontWeight: 600, padding: "8px 0 8px 0", whiteSpace: "nowrap" }}>
+                        {delta > 0 ? "+" : ""}{delta.toFixed(1)}
+                      </td>
+                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 0 8px 12px", whiteSpace: "nowrap" }}>
+                        OPS {sg.avg_ops?.toFixed(0) ?? "--"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
