@@ -171,8 +171,12 @@ export default function Trends() {
         {/* Subgenre Momentum */}
         <div className="flex flex-col">
           <SectionHeader label="Subgenre Momentum" sub="Where attention is flowing" />
-          <Narrative text={data.subgenre_narrative} />
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
+            {data.subgenre_narrative && (
+              <div style={{ fontSize: 12, color: C.textMid, fontStyle: "italic", marginBottom: 12, lineHeight: 1.5, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+                {data.subgenre_narrative}
+              </div>
+            )}
             {data.subgenres.map((sg, i) => {
               const delta = sg.ops_delta_4w ?? 0;
               const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
