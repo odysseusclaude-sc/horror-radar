@@ -63,16 +63,18 @@ export default function GameRow({ game, even }: GameRowProps) {
             rel="noopener noreferrer"
             title="View on Steam"
           >
-            {game.header_image_url ? (
-              <img
-                className="w-[72px] aspect-[460/215] object-cover rounded border border-white/5 grayscale-[30%] group-hover:grayscale-0 transition-all flex-shrink-0"
-                src={game.header_image_url}
-                alt={game.title}
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-[72px] aspect-[460/215] rounded border border-white/5 bg-border-dark flex-shrink-0" />
-            )}
+            <div className="w-[72px] h-[34px] rounded border border-white/5 overflow-hidden flex-shrink-0">
+              {game.header_image_url ? (
+                <img
+                  className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all"
+                  src={game.header_image_url}
+                  alt={game.title}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full bg-border-dark" />
+              )}
+            </div>
           </a>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1.5">
