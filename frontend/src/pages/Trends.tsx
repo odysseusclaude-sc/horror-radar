@@ -169,10 +169,10 @@ export default function Trends() {
       <section className="px-4 md:px-10 py-6 grid grid-cols-1 md:grid-cols-[1fr_380px] gap-6">
 
         {/* Subgenre Momentum */}
-        <div>
+        <div className="flex flex-col">
           <SectionHeader label="Subgenre Momentum" sub="Where attention is flowing" />
           <Narrative text={data.subgenre_narrative} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px" }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
             {data.subgenres.map((sg, i) => {
               const delta = sg.ops_delta_4w ?? 0;
               const barColor = delta > 2 ? C.green : delta < -2 ? C.red : C.amber;
@@ -208,9 +208,9 @@ export default function Trends() {
         </div>
 
         {/* Creator Radar */}
-        <div>
+        <div className="flex flex-col">
           <SectionHeader label="Creator Radar" sub={`YouTube attention leaders (${data.youtube_top.length} games tracked)`} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px" }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
             {data.youtube_top.length === 0 ? (
               <div style={{ ...mono, fontSize: 12, color: C.textDim, textAlign: "center", padding: 20 }}>No YouTube data yet</div>
             ) : (
