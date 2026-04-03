@@ -8,6 +8,7 @@ For each discovered AppID:
 3. Apply filters: is_indie, is_horror, not major_publisher
 4. Pass → games table; Fail → discarded_games table with reason
 """
+import asyncio
 import json
 import logging
 import re
@@ -18,7 +19,7 @@ import httpx
 from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
 from config import (
     CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS,
-    MAJOR_PUBLISHERS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
+    MAJOR_PUBLISHER_TOKENS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
     NON_HORROR_GENRE_TAGS,
 )
 from database import SessionLocal
@@ -50,6 +51,9 @@ def _parse_release_date(date_str: str) -> date | None:
 
 
 def _is_indie(genres: list[str], developer: str | None, publisher: str | None) -> bool:
+    # Major publishers are never indie, even if Steam genre says "Indie"
+    if _is_major_publisher(publisher, developer):
+        return False
     if "Indie" in genres:
         return True
     if developer and publisher and developer == publisher:
@@ -152,8 +156,16 @@ def _is_horror(
     return False
 
 
-def _is_major_publisher(publisher: str | None) -> bool:
-    return publisher in MAJOR_PUBLISHERS if publisher else False
+def _is_major_publisher(publisher: str | None, developer: str | None = None) -> bool:
+    """Substring match against known major publisher tokens (case-insensitive)."""
+    for field in (publisher, developer):
+        if not field:
+            continue
+        lower = field.lower()
+        for token in MAJOR_PUBLISHER_TOKENS:
+            if token in lower:
+                return True
+    return False
 
 
 MULTIPLAYER_TAGS = {
@@ -190,6 +202,12 @@ async def _fetch_and_classify(
 
     app_entry = steam_data.get(str(appid), {})
     if not app_entry.get("success"):
+        # Steam returns {"appid": {"success": false}} for both genuinely
+        # missing games AND rate-limited requests. If there's no "data" key
+        # at all, this is likely a rate-limit (real 404s still include data:{}).
+        # Signal as retriable rather than permanently discarding.
+        if "data" not in app_entry:
+            return None, "rate_limited"
         return None, "not_found"
 
     data = app_entry.get("data", {})
@@ -250,7 +268,7 @@ async def _fetch_and_classify(
     publisher = data.get("publishers", [None])[0] if data.get("publishers") else None
 
     # Apply filters
-    if _is_major_publisher(publisher):
+    if _is_major_publisher(publisher, developer):
         return None, "major_publisher"
 
     # Build combined description: short_description + about_the_game (HTML stripped)
@@ -353,12 +371,43 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
 
     processed = 0
     failed = 0
+    rate_limit_retries = 0  # Track consecutive rate limits for adaptive backoff
 
     try:
         async with httpx.AsyncClient() as client:
-            for appid in appids:
+            # Build work queue — each item gets up to 3 attempts
+            queue: list[tuple[int, int]] = [(appid, 0) for appid in appids]
+
+            while queue:
+                appid, attempt = queue.pop(0)
                 try:
                     game_data, discard_reason = await _fetch_and_classify(client, appid, trust_horror=trust_horror)
+
+                    # Transient failures: don't permanently discard, just skip
+                    if discard_reason in ("rate_limited", "fetch_failed"):
+                        if attempt < 3:
+                            # Put back in queue for retry
+                            queue.append((appid, attempt + 1))
+                            rate_limit_retries += 1
+                            # Adaptive backoff: longer pauses as rate limits pile up
+                            if rate_limit_retries <= 3:
+                                wait = 30
+                            elif rate_limit_retries <= 10:
+                                wait = 60
+                            else:
+                                wait = 90
+                            logger.warning(
+                                f"Steam rate-limited AppID {appid} (attempt {attempt + 1}/3), "
+                                f"pausing {wait}s ({rate_limit_retries} consecutive rate limits)"
+                            )
+                            await asyncio.sleep(wait)
+                        else:
+                            logger.warning(f"AppID {appid}: rate-limited after 3 attempts, skipping (will retry next run)")
+                            failed += 1
+                        continue
+
+                    # Successful API response (not rate-limited) — reset counter
+                    rate_limit_retries = 0
 
                     if game_data:
                         existing = db.query(Game).filter_by(appid=appid).first()

@@ -24,10 +24,15 @@ SEED_CHANNELS = [
     ChannelConfig(handle="@indiefuel", name="Indie Fuel"),        # 86K — FNaF fan-games + indie horror
 ]
 
-MAJOR_PUBLISHERS = frozenset({
-    "Konami", "Capcom", "Bandai Namco", "Sony Interactive Entertainment",
-    "Microsoft Studios", "Electronic Arts", "Ubisoft", "2K Games",
-    "Activision", "Square Enix", "Sega",
+# Substring tokens — matched case-insensitively against publisher AND developer fields.
+# E.g. "capcom" matches "CAPCOM Co., Ltd.", "Capcom U.S.A., Inc.", etc.
+MAJOR_PUBLISHER_TOKENS = frozenset({
+    "konami", "capcom", "bandai namco", "sony interactive",
+    "microsoft studios", "xbox game studios", "electronic arts",
+    "ubisoft", "2k games", "activision", "square enix", "sega",
+    "warner bros", "bethesda", "blizzard", "riot games",
+    "take-two", "thq nordic", "deep silver", "focus entertainment",
+    "505 games", "paradox interactive", "techland",
 })
 
 INDIE_PUBLISHERS = frozenset({
