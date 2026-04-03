@@ -4,9 +4,13 @@ __pycache__/
 *.pyo
 venv/
 *.db
+*.db-wal
+*.db-shm
 
 # Environment
 .env
+.env.local
+.env.production
 
 # Node
 node_modules/
@@ -14,3 +18,14 @@ dist/
 
 # OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+
+# Reports
+backend/reports/

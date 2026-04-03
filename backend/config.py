@@ -157,6 +157,9 @@ class Settings(BaseSettings):
     # Developer profiles
     dev_profile_interval_hours: int = 168  # weekly
 
+    # CORS — comma-separated additional origins (e.g. your Vercel URL)
+    cors_origins: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
