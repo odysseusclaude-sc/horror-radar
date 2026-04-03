@@ -85,6 +85,16 @@ function getISOWeek(d: Date): number {
   return Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
+function getWeekRange(d: Date): { start: string; end: string } {
+  const day = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((day + 6) % 7)); // Monday
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6); // Sunday
+  const fmt = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return { start: fmt(mon), end: fmt(sun) };
+}
+
 function sentimentLabel(pct: number): string {
   if (pct >= 90) return "Exceptional";
   if (pct >= 80) return "Very Positive";
@@ -332,8 +342,10 @@ export default function SignalFire() {
   }
 
   const d = data;
-  const weekNum = getISOWeek(new Date());
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const weekNum = getISOWeek(now);
+  const year = now.getFullYear();
+  const weekRange = getWeekRange(now);
   const evidenceBlocks = buildEvidenceBlocks(d);
   const activeComponents = d.ops?.components.filter(c => c.value != null) ?? [];
 
@@ -390,7 +402,7 @@ export default function SignalFire() {
             `}</style>
           </div>
           <span style={{ ...mono, fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: C.textDim }}>
-            Radar Pick — Week {weekNum}, {year}
+            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -446,7 +458,7 @@ export default function SignalFire() {
           paddingBottom: 48,
         }}>
           <div style={{ ...mono, fontSize: 11, color: C.accent, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 16, opacity: 0.8 }}>
-            Radar Pick — Week {weekNum}, {year}
+            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
           </div>
           <h1 style={{
             fontFamily: "'Playfair Display', Georgia, serif",
