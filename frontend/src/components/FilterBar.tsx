@@ -11,7 +11,6 @@ interface FilterBarProps {
   onSortChange: (v: string) => void;
   onSearchChange: (v: string) => void;
   onGameModeChange: (v: string) => void;
-  onApply: () => void;
 }
 
 export default function FilterBar({
@@ -25,7 +24,6 @@ export default function FilterBar({
   onSortChange,
   onSearchChange,
   onGameModeChange,
-  onApply,
 }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -46,13 +44,12 @@ export default function FilterBar({
             placeholder="Search games..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") onApply(); }}
           />
         </div>
         <select
           className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-2 focus:ring-primary outline-none text-text-main"
           value={sortBy}
-          onChange={(e) => { onSortChange(e.target.value); onApply(); }}
+          onChange={(e) => onSortChange(e.target.value)}
         >
           <option value="newest">Newest</option>
           <option value="velocity">Velocity</option>
@@ -68,12 +65,6 @@ export default function FilterBar({
           <span className="material-symbols-outlined text-text-dim" style={{ fontSize: 18 }}>
             {expanded ? "expand_less" : "tune"}
           </span>
-        </button>
-        <button
-          className="bg-primary hover:bg-primary-light text-white p-2 rounded transition-all shadow-lg"
-          onClick={onApply}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>filter_alt</span>
         </button>
       </div>
 
@@ -140,7 +131,7 @@ export default function FilterBar({
         </div>
       )}
 
-      {/* Desktop: original horizontal layout */}
+      {/* Desktop: horizontal layout */}
       <div className="hidden md:flex flex-wrap items-center gap-5">
         {/* Search */}
         <div className="flex flex-col gap-1">
@@ -160,7 +151,6 @@ export default function FilterBar({
               placeholder="Game or developer..."
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") onApply(); }}
             />
           </div>
         </div>
@@ -185,7 +175,7 @@ export default function FilterBar({
                     ? "bg-primary text-white"
                     : "bg-background-dark text-text-dim hover:bg-border-dark"
                 }`}
-                onClick={() => { onGameModeChange(opt.value); }}
+                onClick={() => onGameModeChange(opt.value)}
               >
                 {opt.label}
               </button>
@@ -248,18 +238,6 @@ export default function FilterBar({
             <option value="reviews">Most Reviews</option>
             <option value="ccu">Peak CCU</option>
           </select>
-        </div>
-
-        <div className="ml-auto flex gap-2">
-          <button
-            className="flex items-center gap-2 bg-primary hover:bg-primary-light text-white px-4 py-1.5 rounded text-xs font-bold transition-all shadow-lg hover:shadow-primary/20"
-            onClick={onApply}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              filter_alt
-            </span>
-            Apply Filters
-          </button>
         </div>
       </div>
     </section>

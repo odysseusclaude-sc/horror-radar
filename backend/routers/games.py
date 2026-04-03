@@ -186,6 +186,37 @@ def list_games(
                 if old is not None:
                     out.review_delta_7d = out.latest_snapshot.review_count - old
 
+    # Batch-compute 7-day OPS delta per game
+    if appids:
+        seven_days_ago_ops = date.today() - timedelta(days=7)
+        old_ops_date_sq = (
+            db.query(
+                OpsScore.appid,
+                func.max(OpsScore.score_date).label("old_ops_date"),
+            )
+            .filter(
+                OpsScore.appid.in_(appids),
+                OpsScore.score_date <= seven_days_ago_ops,
+            )
+            .group_by(OpsScore.appid)
+            .subquery()
+        )
+        old_ops_rows = (
+            db.query(OpsScore.appid, OpsScore.score)
+            .join(
+                old_ops_date_sq,
+                (OpsScore.appid == old_ops_date_sq.c.appid)
+                & (OpsScore.score_date == old_ops_date_sq.c.old_ops_date),
+            )
+            .all()
+        )
+        old_ops = {row.appid: row.score for row in old_ops_rows}
+        for out in results:
+            if out.latest_ops and out.latest_ops.score is not None:
+                old_score = old_ops.get(out.appid)
+                if old_score is not None:
+                    out.ops_delta_7d = round(out.latest_ops.score - old_score, 1)
+
     return PaginatedResponse(
         data=results,
         total=total,

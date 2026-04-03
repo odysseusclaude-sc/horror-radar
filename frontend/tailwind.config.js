@@ -27,6 +27,14 @@ module.exports = {
         "text-main":      "#e8e0d4",   // Warm parchment
         "text-mid":       "#a09080",   // Mid tone
         "text-dim":       "#6b6058",   // Dimmed
+
+        // Status colors — warm-shifted, high-chroma for dark bg scanning
+        // Hues pulled warm to harmonize with Occult Amber, contrast ≥4.5:1 vs #111314
+        "status-pos":     "#5ec269",   // fern green (hue ~130) — 8.3:1 contrast
+        "status-warn":    "#e8a832",   // deep gold — 8.9:1 contrast
+        "status-neg":     "#e25535",   // vermilion (orange-red, hue ~15) — 5.0:1, distinct from primary #802626
+        "status-info":    "#6b9ddb",   // warm blue — 6.6:1 contrast
+        "status-special": "#b07db2",   // soft violet — special/rare
       },
       fontFamily: {
         display: ["Public Sans", "sans-serif"],

@@ -45,6 +45,7 @@ export interface GameListItem extends Game {
   latest_ops: OpsScore | null;
   youtube_channels: YoutubeChannelBrief[];
   review_delta_7d: number | null;
+  ops_delta_7d: number | null;
 }
 
 export interface GameDetail extends Game {

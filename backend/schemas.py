@@ -99,6 +99,7 @@ class GameListOut(GameOut):
     latest_ops: OpsScoreOut | None = None
     youtube_channels: list[YoutubeChannelBrief] = []
     review_delta_7d: int | None = None
+    ops_delta_7d: float | None = None
 
 
 class TwitchSnapshotOut(BaseModel):

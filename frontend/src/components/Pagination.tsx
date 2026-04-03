@@ -83,7 +83,7 @@ export default function Pagination({
           <div className="h-4 w-[1px] bg-border-dark" />
           <p>
             Active Scrapers:{" "}
-            <span className={activeScrapers > 0 ? "text-green-400 font-mono" : "text-red-400 font-mono"}>
+            <span className={activeScrapers > 0 ? "text-status-pos font-mono" : "text-status-neg font-mono"}>
               {activeScrapers}/{totalScrapers}
             </span>
           </p>

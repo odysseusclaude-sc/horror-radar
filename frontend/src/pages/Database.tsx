@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchPaginated, fetchStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import GameTable from "../components/GameTable";
@@ -11,19 +11,13 @@ export default function Database() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Filter state
+  // Filter state — changes apply instantly (search is debounced)
   const [days, setDays] = useState(90);
   const [maxPrice, setMaxPrice] = useState(60);
   const [sortBy, setSortBy] = useState("ops");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [gameMode, setGameMode] = useState("all");
-
-  // Applied filters (only sent to API on "Apply")
-  const [appliedDays, setAppliedDays] = useState(90);
-  const [appliedMaxPrice, setAppliedMaxPrice] = useState(60);
-  const [appliedSortBy, setAppliedSortBy] = useState("ops");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedGameMode, setAppliedGameMode] = useState("all");
 
   // Status
   const [activeScrapers, setActiveScrapers] = useState(0);
@@ -32,17 +26,54 @@ export default function Database() {
 
   const pageSize = 20;
 
+  // Debounced values for search and sliders (avoid hammering API)
+  const [debouncedDays, setDebouncedDays] = useState(days);
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState(maxPrice);
+
+  // Debounce search input by 350ms
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    searchTimer.current = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  // Debounce sliders by 200ms
+  const sliderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    sliderTimer.current = setTimeout(() => {
+      setDebouncedDays(days);
+      setDebouncedMaxPrice(maxPrice);
+    }, 200);
+    return () => { if (sliderTimer.current) clearTimeout(sliderTimer.current); };
+  }, [days, maxPrice]);
+
+  // Reset to page 1 when any filter changes
+  const prevFilters = useRef({ debouncedDays, debouncedMaxPrice, sortBy, debouncedSearch, gameMode });
+  useEffect(() => {
+    const prev = prevFilters.current;
+    if (
+      prev.debouncedDays !== debouncedDays ||
+      prev.debouncedMaxPrice !== debouncedMaxPrice ||
+      prev.sortBy !== sortBy ||
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.gameMode !== gameMode
+    ) {
+      setPage(1);
+      prevFilters.current = { debouncedDays, debouncedMaxPrice, sortBy, debouncedSearch, gameMode };
+    }
+  }, [debouncedDays, debouncedMaxPrice, sortBy, debouncedSearch, gameMode]);
+
   const loadGames = useCallback(async () => {
     setLoading(true);
     try {
       const resp = await fetchPaginated<GameListItem>("/games", {
         page,
         page_size: pageSize,
-        days: appliedDays,
-        max_price: appliedMaxPrice < 60 ? appliedMaxPrice : undefined,
-        sort_by: appliedSortBy,
-        search: appliedSearch || undefined,
-        game_mode: appliedGameMode !== "all" ? appliedGameMode : undefined,
+        days: debouncedDays,
+        max_price: debouncedMaxPrice < 60 ? debouncedMaxPrice : undefined,
+        sort_by: sortBy,
+        search: debouncedSearch || undefined,
+        game_mode: gameMode !== "all" ? gameMode : undefined,
       });
       setGames(resp.data);
       setTotal(resp.total);
@@ -53,7 +84,7 @@ export default function Database() {
     } finally {
       setLoading(false);
     }
-  }, [page, appliedDays, appliedMaxPrice, appliedSortBy, appliedSearch, appliedGameMode]);
+  }, [page, debouncedDays, debouncedMaxPrice, sortBy, debouncedSearch, gameMode]);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -77,15 +108,6 @@ export default function Database() {
     return () => clearInterval(interval);
   }, [loadStatus]);
 
-  const handleApply = () => {
-    setAppliedDays(days);
-    setAppliedMaxPrice(maxPrice);
-    setAppliedSortBy(sortBy);
-    setAppliedSearch(search);
-    setAppliedGameMode(gameMode);
-    setPage(1);
-  };
-
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -104,7 +126,6 @@ export default function Database() {
         onSortChange={setSortBy}
         onSearchChange={setSearch}
         onGameModeChange={setGameMode}
-        onApply={handleApply}
       />
       <GameTable games={games} loading={loading} />
       <Pagination
