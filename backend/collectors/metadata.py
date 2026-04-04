@@ -121,10 +121,18 @@ def _is_horror(
         # dominate and the description doesn't confirm horror.
         if not has_vote_counts and not desc_confirms_horror and len(non_horror_matches) >= len(strong_matches) + 1:
             return False
+        # NON_HORROR_GENRE_TAGS (City Builder, Puzzle, Racing, etc.) are strong
+        # non-horror identity signals. When tags have real vote counts, the presence
+        # of these tags means the game's identity is primarily non-horror — reject
+        # unless description or genre confirms horror.
+        # E.g., "Beta Massage Parlor Simulator" with City Builder + Horror tags.
+        # Only applies to voted tags — unvoted tags are unreliable (handled below).
+        if has_vote_counts and non_horror_matches and not desc_confirms_horror and not genre_confirms_horror:
+            return False
         # Even with voted tags: if the combined weight of anti-horror + non-horror
         # genre tags exceeds horror tag votes, the game's identity is primarily
-        # non-horror (horror is just flavoring). Reject unless description confirms.
-        if has_vote_counts and not desc_confirms_horror:
+        # non-horror (horror is just flavoring). Reject unless description or genre confirms.
+        if has_vote_counts and not desc_confirms_horror and not genre_confirms_horror:
             all_non_horror = non_horror_matches | anti_matches
             if all_non_horror:
                 horror_votes = sum(tags.get(t, 0) for t in strong_matches)
