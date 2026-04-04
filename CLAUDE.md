@@ -292,3 +292,31 @@ All configurable intervals, OPS weights, and fuzzy matching thresholds in `.env`
 - **YouTube published_at timezone**: SQLite stores `published_at` as naive datetime. When comparing to `datetime.now(timezone.utc)`, must add tzinfo: `pub_at.replace(tzinfo=timezone.utc)`.
 - **Late-discovered games**: Games found well after release have no historical snapshot data. Use `review_backfill.py` to reconstruct from individual Steam reviews. Consider auto-triggering backfill in metadata pipeline for games discovered >7 days after release (not yet implemented).
 - **Estimated owners**: SteamSpy owners collector disabled. Frontend uses `reviews × 30` heuristic everywhere. The `estimated_owners` field is removed from frontend types.
+
+## Lessons Learned
+
+Append-only log of failed approaches and hard-won insights. Check here before attempting similar work.
+
+### 2026-04-04 — Classifier tightening (3 iterations)
+
+- **What happened**: Tightened `_is_horror()` three separate times across sessions. Each time required ad-hoc Python scripts to test against the DB, manually constructing tag dicts for edge cases.
+- **What went wrong**: No test harness. The new NON_HORROR_GENRE_TAGS check initially rejected 140 games because it applied to unvoted tags too — caught only by running a full DB scan after the fact.
+- **Do instead**: Create `tests/test_classifier.py` with known edge cases (Arksync, Whispers of the Eyeless, Beta Massage Parlor, Darkwater, etc.) BEFORE changing classifier logic. Run tests first, then verify DB impact.
+
+### 2026-04-04 — Trends page visual fixes (4 rounds)
+
+- **What happened**: Fixed colors, then table columns, then card alignment, then narrative text placement — each as a separate commit-push-deploy-feedback cycle.
+- **What went wrong**: Didn't read the full component before starting. Each fix revealed the next issue. Screenshots of dark UI were useless (JPEG compression).
+- **Do instead**: Read the entire component file first. List all issues before making the first edit. Use DOM inspection (`getComputedStyle`, `textContent`) instead of screenshots for dark themes.
+
+### 2026-04-04 — Git push failures after squash merge
+
+- **What happened**: After squash-merging PR #3, subsequent pushes to the same branch were rejected. `git rebase` caused conflicts because the squash commit already contained the incremental commits.
+- **What went wrong**: Tried `git rebase` which replayed already-merged commits. Had to `git rebase --abort`.
+- **Do instead**: After a squash merge, reset local branch to remote: `git checkout -B main horror-radar/main`, then cherry-pick any new commits. Or avoid squash merges when continuing work on the same branch.
+
+### 2026-04-04 — Font standardization file-by-file
+
+- **What happened**: Replaced 8 fonts with 3 across ~10 files by reading each file individually.
+- **What went wrong**: Slow and error-prone. Could have missed occurrences.
+- **Do instead**: `grep -r "Space Mono\|IBM Plex\|Instrument Serif\|Outfit\|Space Grotesk\|Inter" frontend/src/` to get all occurrences, then batch replace with `Edit replace_all`.
