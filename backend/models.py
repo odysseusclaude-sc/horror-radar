@@ -33,6 +33,7 @@ class Game(Base):
     demo_release_date = Column(Date)  # When the demo was released on Steam
     next_fest = Column(Boolean, default=False)
     is_multiplayer = Column(Boolean, default=False)
+    subgenre = Column(String)  # OPS v5 — e.g. "psychological", "supernatural", "cosmic"
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
@@ -174,6 +175,11 @@ class OpsScore(Base):
     price_modifier = Column(Float)
     youtube_breadth = Column(Float)
     formula_version = Column(Integer, default=2)
+    # OPS v5 additions
+    sentiment_component = Column(Float)
+    twitch_component = Column(Float)
+    forecast_7d = Column(Float)
+    forecast_confidence = Column(String)  # "high", "medium", "low"
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="ops_scores")

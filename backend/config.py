@@ -116,12 +116,14 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-    # OPS v4 formula weights (active components, redistribute on NULL)
-    ops_velocity_weight: float = 0.35       # age-adjusted velocity (primary signal)
+    # OPS v5 formula weights (active components, redistribute on NULL)
+    ops_velocity_weight: float = 0.30       # age-adjusted velocity (primary signal)
     ops_decay_weight: float = 0.20          # velocity decay rate
-    ops_review_weight: float = 0.15         # review volume vs peers
-    ops_youtube_weight: float = 0.15        # YT engagement (views/subs ratio + breadth)
-    ops_ccu_weight: float = 0.15            # peak CCU vs peers, with age decay
+    ops_review_weight: float = 0.13         # review volume vs peers
+    ops_youtube_weight: float = 0.13        # YT engagement (views/subs ratio + breadth)
+    ops_ccu_weight: float = 0.10            # peak CCU vs peers, with age decay
+    ops_sentiment_weight: float = 0.08      # review sentiment trend (NEW v5)
+    ops_twitch_weight: float = 0.06         # twitch viewer/streamer engagement (NEW v5)
     ops_ccu_decay_days: int = 14
     ops_score_multiplier: float = 24.0
 
@@ -162,6 +164,9 @@ class Settings(BaseSettings):
 
     # CORS — comma-separated additional origins (e.g. your Vercel URL)
     cors_origins: str = ""
+
+    # Sentry — leave empty to disable error tracking
+    sentry_dsn: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

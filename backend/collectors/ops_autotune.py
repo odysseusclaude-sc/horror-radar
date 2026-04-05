@@ -36,6 +36,8 @@ COMPONENTS = [
     ("review", "review_component"),
     ("youtube", "youtube_component"),
     ("ccu", "ccu_component"),
+    ("sentiment", "sentiment_component"),   # v5 new
+    ("twitch", "twitch_component"),          # v5 new
 ]
 
 # Minimum coverage to keep a component active (below this → weight 0)
