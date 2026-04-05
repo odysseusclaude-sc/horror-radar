@@ -1,0 +1,1 @@
+/Users/reaveur/Library/CloudStorage/GoogleDrive-aloysiusong.w.h@gmail.com/My Drive/Obsidian/Reaveur/10 - Projects/horrorindiegames/.claude/worktrees/hardcore-hugle/.claude/skills/gstack/cso/SKILL.md
