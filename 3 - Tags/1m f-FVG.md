@@ -1,0 +1,1 @@
+The first FVG created during the US AM session. Only can form after 0931.

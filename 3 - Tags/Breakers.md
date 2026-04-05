@@ -1,0 +1,1 @@
+Bearish breaker block is the most recent down close candle after a recent swing low has been broken prior to an old high being violated.

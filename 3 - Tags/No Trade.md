@@ -1,0 +1,1 @@
+No trade was taken.

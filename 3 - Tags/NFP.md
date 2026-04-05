@@ -1,0 +1,1 @@
+NFP Week. Only Monday and Tuesday can be traded. Wednesday to Friday has NFP.
