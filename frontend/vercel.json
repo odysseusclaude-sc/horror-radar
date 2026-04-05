@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.horror-radar.com/api/:path*"
+      "destination": "http://187.127.103.42/api/:path*"
     },
     {
       "source": "/(.*)",
