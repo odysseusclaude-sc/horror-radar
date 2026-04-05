@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,16 @@ if settings.database_url.startswith("sqlite"):
 
 engine = create_engine(settings.database_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# SQLite PRAGMA tuning — applied on every new connection
+if settings.database_url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_conn, _connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA busy_timeout=5000")   # wait up to 5s on write locks
+        cursor.execute("PRAGMA synchronous=NORMAL")  # safe + faster than FULL
+        cursor.execute("PRAGMA cache_size=-65536")   # 64MB page cache
+        cursor.close()
 
 
 class Base(DeclarativeBase):
@@ -79,6 +89,12 @@ def _run_migrations():
         "ALTER TABLE ops_scores ADD COLUMN creator_response_component REAL",
         # Multiplayer classification
         "ALTER TABLE games ADD COLUMN is_multiplayer INTEGER DEFAULT 0",
+        # OPS v5 — new scoring components and forecast
+        "ALTER TABLE games ADD COLUMN subgenre TEXT",
+        "ALTER TABLE ops_scores ADD COLUMN sentiment_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN twitch_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN forecast_7d REAL",
+        "ALTER TABLE ops_scores ADD COLUMN forecast_confidence TEXT",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:

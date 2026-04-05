@@ -203,6 +203,66 @@ def _is_multiplayer(tags: dict) -> bool:
     return bool(MULTIPLAYER_TAGS & set(tags.keys()))
 
 
+# Subgenre classification maps (OPS v5)
+# Keys are subgenre slugs; values are lists of Steam tags that vote for them.
+# Priority order matters for ties: first key in the dict wins.
+_SUBGENRE_TAG_MAP: dict[str, list[str]] = {
+    "psychological": ["Psychological Horror", "Psychological", "Atmospheric"],
+    "supernatural":  ["Ghosts", "Supernatural", "Paranormal", "Demons"],
+    "cosmic":        ["Lovecraftian", "Cosmic Horror"],
+    "survival":      ["Survival Horror", "Stealth", "Survival"],
+    "action_horror": ["Action", "Shooter", "Combat"],
+    "slasher":       ["Gore", "Violent"],
+}
+
+# Description keyword signals (contribute 30 synthetic votes each match)
+_SUBGENRE_KW_MAP: dict[str, list[str]] = {
+    "psychological": ["psychological", "sanity", "mind", "hallucin", "paranoia"],
+    "supernatural":  ["ghost", "supernatural", "paranormal", "demon", "possess"],
+    "cosmic":        ["lovecraft", "cosmic", "eldritch", "old one", "void"],
+    "survival":      ["survive", "survival", "stealth", "hide", "escape"],
+    "action_horror": ["action", "shoot", "combat", "fight", "weapon"],
+    "slasher":       ["slasher", "gore", "blood", "killer", "serial"],
+}
+_SUBGENRE_KW_VOTES = 30  # synthetic votes per keyword match
+
+
+def _classify_subgenre(tags: dict, description: str) -> str | None:
+    """Classify a horror game into a subgenre slug.
+
+    Uses tag vote counts + description keyword matches to score each subgenre.
+    The highest-scoring subgenre wins; ties resolved by priority order in
+    _SUBGENRE_TAG_MAP. Returns None if no signal is found.
+
+    Args:
+        tags:        SteamSpy tag dict {name: vote_count}.
+        description: Combined game description (HTML-stripped).
+
+    Returns:
+        Subgenre slug string or None.
+    """
+    scores: dict[str, int] = {slug: 0 for slug in _SUBGENRE_TAG_MAP}
+    lower_desc = description.lower() if description else ""
+
+    # Score from tag votes
+    for slug, tag_list in _SUBGENRE_TAG_MAP.items():
+        for tag in tag_list:
+            votes = tags.get(tag, 0)
+            scores[slug] += votes if isinstance(votes, int) else 0
+
+    # Score from description keywords (synthetic votes)
+    for slug, keywords in _SUBGENRE_KW_MAP.items():
+        for kw in keywords:
+            if kw in lower_desc:
+                scores[slug] += _SUBGENRE_KW_VOTES
+
+    # Pick the highest-scoring subgenre; None if all zero
+    best_slug = max(scores, key=lambda s: scores[s])
+    if scores[best_slug] == 0:
+        return None
+    return best_slug
+
+
 async def _fetch_and_classify(
     client: httpx.AsyncClient, appid: int, trust_horror: bool = False
 ) -> tuple[dict | None, str | None]:
@@ -366,6 +426,7 @@ async def _fetch_and_classify(
         "is_indie": indie,
         "is_horror": _is_horror(tags, genres, combined_desc),
         "is_multiplayer": _is_multiplayer(tags),
+        "subgenre": _classify_subgenre(tags, combined_desc),
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),
         "has_demo": has_demo,
@@ -474,3 +535,36 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
         logger.exception("Metadata fetch failed")
     finally:
         db.close()
+
+
+def backfill_subgenres() -> int:
+    """One-time backfill: classify subgenre for all games where subgenre IS NULL.
+
+    Uses existing tags JSON and short_description from the DB — no API calls.
+    Safe to call on every startup (idempotent, only touches NULL rows).
+
+    Returns the number of rows updated.
+    """
+    updated = 0
+    db = SessionLocal()
+    try:
+        games = db.query(Game).filter(Game.subgenre.is_(None)).all()
+        for game in games:
+            try:
+                tags = json.loads(game.tags) if game.tags else {}
+            except (ValueError, TypeError):
+                tags = {}
+            desc = game.short_description or ""
+            subgenre = _classify_subgenre(tags, desc)
+            if subgenre is not None:
+                game.subgenre = subgenre
+                updated += 1
+        db.commit()
+        if updated:
+            logger.info(f"Backfilled subgenre for {updated} existing games")
+    except Exception:
+        db.rollback()
+        logger.exception("subgenre backfill failed")
+    finally:
+        db.close()
+    return updated

@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { TrendsResponse } from "../types";
 
+// Palette constants used only in Recharts props and dynamic computed styles
 const C = {
   bg: "#111314",
   surface: "#1a1a1c",
@@ -30,7 +31,8 @@ const C = {
   ccu: "#b07db2",
 };
 
-const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
+// Recharts tick font-family prop (can't use Tailwind here)
+const monoFont = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
 
 function fmtK(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -40,25 +42,29 @@ function fmtK(n: number): string {
 
 function SectionHeader({ label, sub }: { label: string; sub?: string }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ ...mono, fontSize: 11, color: C.accent, textTransform: "uppercase", letterSpacing: 2, fontWeight: 600 }}>
+    <div className="mb-3">
+      <div className="font-mono text-[11px] text-primary uppercase tracking-[2px] font-semibold">
         {label}
       </div>
-      {sub && <div style={{ fontSize: 13, color: C.textDim, marginTop: 2, fontStyle: "italic" }}>{sub}</div>}
+      {sub && <div className="text-[13px] text-text-dim mt-0.5 italic">{sub}</div>}
     </div>
   );
 }
 
 function Narrative({ text }: { text: string }) {
   if (!text) return null;
-  return <div style={{ fontSize: 13, color: C.textMid, fontStyle: "italic", marginBottom: 16, lineHeight: 1.6 }}>{text}</div>;
+  return (
+    <div className="font-mono text-[13px] text-text-mid italic mb-4 leading-relaxed">
+      {text}
+    </div>
+  );
 }
 
 /* ── Mini velocity spark (inline bar chart) ── */
 function VelocitySpark({ data }: { data: number[] }) {
   const max = Math.max(...data, 1);
   return (
-    <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 24, width: 64 }}>
+    <div className="flex items-end gap-0.5" style={{ height: 24, width: 64 }}>
       {data.map((v, i) => (
         <div
           key={i}
@@ -94,16 +100,16 @@ export default function Trends() {
 
   if (loading) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: C.textDim }}>
-        <div style={{ ...mono, fontSize: 14 }}>Loading market intelligence...</div>
+      <div className="bg-background-dark min-h-screen flex items-center justify-center text-text-dim">
+        <div className="font-mono text-sm">Loading market intelligence...</div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>
-        <div style={{ ...mono, fontSize: 14 }}>{error || "No data"}</div>
+      <div className="bg-background-dark min-h-screen flex items-center justify-center text-primary">
+        <div className="font-mono text-sm">{error || "No data"}</div>
       </div>
     );
   }
@@ -111,30 +117,33 @@ export default function Trends() {
   const h = data.headline;
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.text, paddingBottom: 80 }}>
+    <div className="bg-background-dark min-h-screen text-text-main pb-20">
 
       {/* ═══ HEADLINE STRIP ═══ */}
       <section className="px-4 md:px-10 pt-6 md:pt-8">
-        <div style={{ ...mono, fontSize: 11, color: C.accent, textTransform: "uppercase", letterSpacing: 3, marginBottom: 4 }}>
+        <div className="font-mono text-[11px] text-primary uppercase tracking-[3px] mb-1">
           The Pulse
         </div>
-        <h1 className="text-xl md:text-[32px]" style={{ fontWeight: 700, margin: "0 0 20px", fontFamily: "'Public Sans', sans-serif", color: C.text }}>
+        <h1 className="font-display text-xl md:text-[32px] font-bold text-text-main mb-5">
           Indie Horror Market Intelligence
         </h1>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 md:gap-3 mb-4">
           {[
-            { label: "Games Tracked", value: fmtK(h.total_games), color: C.text },
-            { label: "New (30d)", value: String(h.new_last_30d), color: C.green },
-            { label: "Total Reviews", value: fmtK(h.total_reviews), color: C.text },
-            { label: "Avg Sentiment", value: `${h.avg_sentiment}%`, color: h.avg_sentiment >= 80 ? C.green : C.amber },
-            { label: "Breakouts", value: String(h.breakout_count), color: C.accent },
-            { label: "YT Videos", value: String(h.yt_videos_tracked), color: C.ccu },
-            { label: "Have Demos", value: `${h.demo_pct}%`, color: C.textMid },
+            { label: "Games Tracked", value: fmtK(h.total_games), colorClass: "text-text-main" },
+            { label: "New (30d)", value: String(h.new_last_30d), colorClass: "text-status-pos" },
+            { label: "Total Reviews", value: fmtK(h.total_reviews), colorClass: "text-text-main" },
+            { label: "Avg Sentiment", value: `${h.avg_sentiment}%`, colorClass: h.avg_sentiment >= 80 ? "text-status-pos" : "text-status-warn" },
+            { label: "Breakouts", value: String(h.breakout_count), colorClass: "text-primary" },
+            { label: "YT Videos", value: String(h.yt_videos_tracked), colorClass: "text-status-special" },
+            { label: "Have Demos", value: `${h.demo_pct}%`, colorClass: "text-text-mid" },
           ].map((t) => (
-            <div key={t.label} className="md:min-w-[110px]" style={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 14px" }}>
-              <div className="text-lg md:text-[22px]" style={{ ...mono, fontWeight: 700, color: t.color }}>{t.value}</div>
-              <div style={{ ...mono, fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{t.label}</div>
+            <div
+              key={t.label}
+              className="md:min-w-[110px] bg-[#1f1f22] border border-border-dark rounded-md px-[14px] py-[10px]"
+            >
+              <div className={`font-mono font-bold text-lg md:text-[22px] ${t.colorClass}`}>{t.value}</div>
+              <div className="font-mono text-[9px] text-text-dim uppercase tracking-[1px] mt-0.5">{t.label}</div>
             </div>
           ))}
         </div>
@@ -145,15 +154,15 @@ export default function Trends() {
       {/* ═══ MARKET PULSE ═══ */}
       <section className="px-4 md:px-10 py-6">
         <SectionHeader label="Market Pulse" sub="12-week review velocity, OPS trend & new releases" />
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "20px 16px 8px" }}>
+        <div className="bg-surface-dark border border-border-dark rounded-lg px-4 pt-5 pb-2">
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={data.market_pulse}>
               <CartesianGrid stroke={C.border} strokeDasharray="3 3" />
-              <XAxis dataKey="week_label" tick={{ fill: C.textDim, fontSize: 10, ...mono }} interval={1} />
-              <YAxis yAxisId="reviews" tick={{ fill: C.green, fontSize: 10, ...mono }} tickFormatter={(v: number) => fmtK(v)} width={50} />
-              <YAxis yAxisId="ops" orientation="right" tick={{ fill: C.textMid, fontSize: 10, ...mono }} domain={[0, 50]} width={35} />
+              <XAxis dataKey="week_label" tick={{ fill: C.textDim, fontSize: 10, ...monoFont }} interval={1} />
+              <YAxis yAxisId="reviews" tick={{ fill: C.green, fontSize: 10, ...monoFont }} tickFormatter={(v: number) => fmtK(v)} width={50} />
+              <YAxis yAxisId="ops" orientation="right" tick={{ fill: C.textMid, fontSize: 10, ...monoFont }} domain={[0, 50]} width={35} />
               <Tooltip
-                contentStyle={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, ...mono, fontSize: 11 }}
+                contentStyle={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, ...monoFont, fontSize: 11 }}
                 labelStyle={{ color: C.text }}
                 itemStyle={{ color: C.textMid }}
               />
@@ -171,13 +180,13 @@ export default function Trends() {
         {/* Subgenre Momentum */}
         <div className="flex flex-col">
           <SectionHeader label="Subgenre Momentum" sub="Where attention is flowing" />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
+          <div className="bg-surface-dark border border-border-dark rounded-lg px-4 py-3 flex-1">
             {data.subgenre_narrative && (
-              <div style={{ fontSize: 12, color: C.textMid, fontStyle: "italic", marginBottom: 12, lineHeight: 1.5, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+              <div className="text-[12px] text-text-mid italic mb-3 pb-2.5 border-b border-border-dark leading-[1.5]">
                 {data.subgenre_narrative}
               </div>
             )}
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table className="w-full border-collapse">
               <tbody>
                 {data.subgenres.map((sg, i) => {
                   const delta = sg.ops_delta_4w ?? 0;
@@ -185,18 +194,27 @@ export default function Trends() {
                   const maxDelta = Math.max(...data.subgenres.map((s) => Math.abs(s.ops_delta_4w ?? 0)), 1);
                   const barWidth = Math.min(100, (Math.abs(delta) / maxDelta) * 100);
                   return (
-                    <tr key={sg.name} style={{ borderBottom: i < data.subgenres.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                      <td style={{ fontSize: 13, color: C.text, fontWeight: 500, whiteSpace: "nowrap", padding: "8px 12px 8px 0" }}>{sg.name}</td>
-                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 12px 8px 0", whiteSpace: "nowrap" }}>{sg.game_count}</td>
-                      <td style={{ padding: "8px 12px 8px 0", width: "100%" }}>
-                        <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 3, transition: "width 0.5s" }} />
+                    <tr
+                      key={sg.name}
+                      className={i < data.subgenres.length - 1 ? "border-b border-border-dark" : ""}
+                    >
+                      <td className="text-[13px] text-text-main font-medium whitespace-nowrap py-2 pr-3">{sg.name}</td>
+                      <td className="font-mono text-[10px] text-text-dim text-right py-2 pr-3 whitespace-nowrap">{sg.game_count}</td>
+                      <td className="py-2 pr-3 w-full">
+                        <div className="h-[6px] bg-border-dark rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-[width] duration-500"
+                            style={{ width: `${barWidth}%`, background: barColor }}
+                          />
                         </div>
                       </td>
-                      <td style={{ ...mono, fontSize: 11, color: barColor, textAlign: "right", fontWeight: 600, padding: "8px 0 8px 0", whiteSpace: "nowrap" }}>
+                      <td
+                        className="font-mono text-[11px] text-right font-semibold py-2 whitespace-nowrap"
+                        style={{ color: barColor }}
+                      >
                         {delta > 0 ? "+" : ""}{delta.toFixed(1)}
                       </td>
-                      <td style={{ ...mono, fontSize: 10, color: C.textDim, textAlign: "right", padding: "8px 0 8px 12px", whiteSpace: "nowrap" }}>
+                      <td className="font-mono text-[10px] text-text-dim text-right py-2 pl-3 whitespace-nowrap">
                         OPS {sg.avg_ops?.toFixed(0) ?? "--"}
                       </td>
                     </tr>
@@ -210,32 +228,33 @@ export default function Trends() {
         {/* Creator Radar */}
         <div className="flex flex-col">
           <SectionHeader label="Creator Radar" sub={`YouTube attention leaders (${data.youtube_top.length} games tracked)`} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", flex: 1 }}>
+          <div className="bg-surface-dark border border-border-dark rounded-lg px-4 py-3 flex-1">
             {data.youtube_top.length === 0 ? (
-              <div style={{ ...mono, fontSize: 12, color: C.textDim, textAlign: "center", padding: 20 }}>No YouTube data yet</div>
+              <div className="font-mono text-[12px] text-text-dim text-center p-5">No YouTube data yet</div>
             ) : (
               data.youtube_top.map((yt, i) => (
                 <div
                   key={yt.appid}
                   onClick={() => navigate(`/game/${yt.appid}`)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "8px 0",
-                    borderBottom: i < data.youtube_top.length - 1 ? `1px solid ${C.border}` : "none",
-                    cursor: "pointer",
-                  }}
-                  className="hover:opacity-80 transition-opacity"
+                  className={`flex items-center gap-2.5 py-2 cursor-pointer hover:opacity-80 transition-opacity ${
+                    i < data.youtube_top.length - 1 ? "border-b border-border-dark" : ""
+                  }`}
                 >
-                  <span style={{ ...mono, fontSize: 18, color: C.textDim, width: 22, fontWeight: 700, textAlign: "center", flexShrink: 0 }}>{i + 1}</span>
+                  <span className="font-mono text-lg text-text-dim w-[22px] font-bold text-center flex-shrink-0">
+                    {i + 1}
+                  </span>
                   {yt.header_image_url && (
-                    <div style={{ width: 48, height: 22, borderRadius: 3, overflow: "hidden", flexShrink: 0, border: `1px solid rgba(255,255,255,0.05)` }}>
-                      <img src={yt.header_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div className="w-12 h-[22px] rounded-sm overflow-hidden flex-shrink-0 border border-white/5">
+                      <img src={yt.header_image_url} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{yt.title}</div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
-                      <span style={{ ...mono, fontSize: 10, color: C.ccu, fontWeight: 600 }}>{fmtK(yt.total_views)} views</span>
-                      <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{yt.unique_channels} {yt.unique_channels === 1 ? "channel" : "channels"}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] text-text-main font-medium overflow-hidden text-ellipsis whitespace-nowrap">
+                      {yt.title}
+                    </div>
+                    <div className="flex gap-2.5 mt-0.5">
+                      <span className="font-mono text-[10px] text-status-special font-semibold">{fmtK(yt.total_views)} views</span>
+                      <span className="font-mono text-[10px] text-text-dim">{yt.unique_channels} {yt.unique_channels === 1 ? "channel" : "channels"}</span>
                     </div>
                   </div>
                 </div>
@@ -251,14 +270,14 @@ export default function Trends() {
         {/* Price Tiers */}
         <div>
           <SectionHeader label="Price Intelligence" sub="Performance by price tier" />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "20px 16px 8px" }}>
+          <div className="bg-surface-dark border border-border-dark rounded-lg px-4 pt-5 pb-2">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={data.price_buckets}>
                 <CartesianGrid stroke={C.border} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fill: C.textDim, fontSize: 10, ...mono }} />
-                <YAxis tick={{ fill: C.textDim, fontSize: 10, ...mono }} />
+                <XAxis dataKey="label" tick={{ fill: C.textDim, fontSize: 10, ...monoFont }} />
+                <YAxis tick={{ fill: C.textDim, fontSize: 10, ...monoFont }} />
                 <Tooltip
-                  contentStyle={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, ...mono, fontSize: 11 }}
+                  contentStyle={{ background: C.tile, border: `1px solid ${C.border}`, borderRadius: 6, ...monoFont, fontSize: 11 }}
                   formatter={(value: number, name: string) => {
                     if (name === "avg_ops") return [value?.toFixed(1), "Avg OPS"];
                     return [value, name];
@@ -271,7 +290,7 @@ export default function Trends() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <div style={{ ...mono, fontSize: 9, color: C.textDim, textAlign: "center", marginTop: 4 }}>
+            <div className="font-mono text-[9px] text-text-dim text-center mt-1">
               Bar color = avg OPS (green &gt; 25, amber &gt; 15)
             </div>
           </div>
@@ -281,13 +300,13 @@ export default function Trends() {
         <div>
           <SectionHeader label="Demo Impact" sub="Performance with vs without demo" />
           <Narrative text={data.price_narrative} />
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 }}>
+          <div className="bg-surface-dark border border-border-dark rounded-lg p-5">
             <div className="grid grid-cols-2 gap-4">
               {data.demo_cohorts.map((c) => {
                 const isDemo = c.label === "With Demo";
                 return (
-                  <div key={c.label} style={{ textAlign: "center" }}>
-                    <div style={{ ...mono, fontSize: 11, color: isDemo ? C.green : C.textDim, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12, fontWeight: 600 }}>
+                  <div key={c.label} className="text-center">
+                    <div className={`font-mono text-[11px] ${isDemo ? "text-status-pos" : "text-text-dim"} uppercase tracking-[1px] mb-3 font-semibold`}>
                       {c.label}
                     </div>
                     {[
@@ -297,9 +316,9 @@ export default function Trends() {
                       { label: "Avg OPS", value: c.avg_ops?.toFixed(1) ?? "--" },
                       { label: "Med. Peak CCU", value: String(Math.round(c.median_peak_ccu)) },
                     ].map((row) => (
-                      <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                        <span style={{ fontSize: 12, color: C.textDim }}>{row.label}</span>
-                        <span style={{ ...mono, fontSize: 13, color: C.text, fontWeight: 500 }}>{row.value}</span>
+                      <div key={row.label} className="flex justify-between py-1.5 border-b border-border-dark">
+                        <span className="text-[12px] text-text-dim">{row.label}</span>
+                        <span className="font-mono text-[13px] text-text-main font-medium">{row.value}</span>
                       </div>
                     ))}
                   </div>
@@ -313,22 +332,17 @@ export default function Trends() {
       {/* ═══ SURGING NOW ═══ */}
       <section className="px-4 md:px-10 py-6">
         <SectionHeader label="Surging Now" sub="Games gaining the most momentum this week" />
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+        <div className="bg-surface-dark border border-border-dark rounded-lg overflow-hidden">
           {data.surgers.map((s, i) => (
             <div
               key={s.appid}
               onClick={() => navigate(`/game/${s.appid}`)}
-              className="flex items-center gap-3 md:gap-4 px-3 md:px-5 py-3"
-              style={{
-                borderBottom: i < data.surgers.length - 1 ? `1px solid ${C.border}` : "none",
-                cursor: "pointer",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = C.tile; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              className={`flex items-center gap-3 md:gap-4 px-3 md:px-5 py-3 cursor-pointer hover:bg-[#1f1f22] transition-colors ${
+                i < data.surgers.length - 1 ? "border-b border-border-dark" : ""
+              }`}
             >
               {/* Rank */}
-              <span style={{ ...mono, fontWeight: 700, color: C.accent }} className="text-base md:text-xl w-6 md:w-8 text-center flex-shrink-0">
+              <span className="font-mono font-bold text-primary text-base md:text-xl w-6 md:w-8 text-center flex-shrink-0">
                 {i + 1}
               </span>
 
@@ -337,28 +351,30 @@ export default function Trends() {
                 <img
                   src={s.header_image_url}
                   alt=""
-                  className="hidden md:block"
-                  style={{ width: 120, height: 45, objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
+                  className="hidden md:block rounded flex-shrink-0"
+                  style={{ width: 120, height: 45, objectFit: "cover" }}
                 />
               )}
 
               {/* Title + Developer */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="text-xs md:text-sm" style={{ fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs md:text-sm font-semibold text-text-main overflow-hidden text-ellipsis whitespace-nowrap">
                   {s.title}
                 </div>
-                <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
+                <div className="text-[11px] text-text-dim mt-0.5">
                   {s.developer || "Unknown"} · {s.subgenre}
                 </div>
               </div>
 
               {/* OPS + Delta */}
               <div className="flex-shrink-0 text-center w-12 md:w-[70px]">
-                <div style={{ ...mono, fontWeight: 700, color: (s.ops_score ?? 0) >= 60 ? C.green : (s.ops_score ?? 0) >= 30 ? C.amber : C.textDim }} className="text-base md:text-lg">
+                <div className={`font-mono font-bold text-base md:text-lg ${
+                  (s.ops_score ?? 0) >= 60 ? "text-status-pos" : (s.ops_score ?? 0) >= 30 ? "text-status-warn" : "text-text-dim"
+                }`}>
                   {s.ops_score?.toFixed(0) ?? "--"}
                 </div>
                 {s.ops_delta != null && (
-                  <div style={{ ...mono, fontSize: 10, color: s.ops_delta > 0 ? C.green : C.red }}>
+                  <div className={`font-mono text-[10px] ${s.ops_delta > 0 ? "text-status-pos" : "text-status-neg"}`}>
                     {s.ops_delta > 0 ? "+" : ""}{s.ops_delta.toFixed(1)}
                   </div>
                 )}
@@ -370,15 +386,15 @@ export default function Trends() {
               </div>
 
               {/* Reviews */}
-              <div className="hidden md:block" style={{ textAlign: "right", width: 80 }}>
-                <div style={{ ...mono, fontSize: 13, color: C.text }}>{fmtK(s.review_count)}</div>
+              <div className="hidden md:block text-right w-20">
+                <div className="font-mono text-[13px] text-text-main">{fmtK(s.review_count)}</div>
                 {s.review_delta_7d > 0 && (
-                  <div style={{ ...mono, fontSize: 10, color: C.green }}>+{s.review_delta_7d}</div>
+                  <div className="font-mono text-[10px] text-status-pos">+{s.review_delta_7d}</div>
                 )}
               </div>
 
               {/* Price */}
-              <div className="hidden md:block" style={{ ...mono, fontSize: 12, color: C.textDim, width: 50, textAlign: "right" }}>
+              <div className="hidden md:block font-mono text-[12px] text-text-dim w-[50px] text-right">
                 {s.price != null && s.price > 0 ? `$${s.price.toFixed(0)}` : "Free"}
               </div>
             </div>

@@ -3,6 +3,14 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    _SENTRY_AVAILABLE = True
+except ImportError:
+    _SENTRY_AVAILABLE = False
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,14 +31,24 @@ from collectors.reddit import run_reddit_scan
 from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
+from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
-from routers import games, channels, videos, runs, insights, radar, trends
+from routers import games, channels, videos, runs, insights, radar, trends, health
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Sentry — only initialise if DSN is configured and SDK is installed
+if _SENTRY_AVAILABLE and settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate=0.1,
+    )
+    logger.info("Sentry error tracking enabled")
 
 # Maximum time (seconds) to wait for daily_snapshots to complete before
 # firing OPS anyway with a warning. Prevents OPS from being starved
@@ -54,7 +72,10 @@ async def stale_run_watchdog():
         ), {"msg": f"Watchdog: running for >{max_age_hours}h", "cutoff": cutoff})
         conn.commit()
         if result.rowcount > 0:
-            logger.warning(f"Watchdog marked {result.rowcount} stale jobs")
+            msg = f"Watchdog marked {result.rowcount} stale jobs"
+            logger.warning(msg)
+            if _SENTRY_AVAILABLE and settings.sentry_dsn:
+                sentry_sdk.capture_message(msg, level="warning")
 
 
 def _get_latest_run_status(job_name: str) -> str | None:
@@ -153,6 +174,13 @@ async def daily_snapshots_job():
     except Exception as e:
         # OPS failure is isolated — do not propagate to snapshot job status.
         logger.error(f"Chained OPS calculation failed (isolated): {e}", exc_info=True)
+        if _SENTRY_AVAILABLE and settings.sentry_dsn:
+            sentry_sdk.capture_exception(e)
+
+    # Invalidate API cache after OPS scores are updated
+    from cache import cache as _cache
+    evicted = _cache.invalidate_all()
+    logger.info(f"Cache invalidated after daily snapshots ({evicted} entries cleared)")
 
 
 async def youtube_pipeline_job():
@@ -168,6 +196,9 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized")
 
+    # One-time backfill: classify subgenre for games discovered before OPS v5
+    backfill_subgenres()
+
     scheduler = AsyncIOScheduler()
 
     # Steam pipeline (discovery + metadata): every 6h at fixed anchors
@@ -179,10 +210,13 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="steam_pipeline",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Daily snapshots → OPS chain: 04:00 UTC = 12:00 SGT
     # After US overnight tapers, before next day's activity builds.
+    # misfire_grace_time=300: if server restarts within 5min of scheduled time,
+    # still run the job rather than silently skipping it.
     scheduler.add_job(
         daily_snapshots_job,
         "cron",
@@ -190,6 +224,8 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="daily_snapshots",
         replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
     )
 
     # YouTube pipeline: daily 05:00 UTC = 13:00 SGT
@@ -201,6 +237,7 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="youtube_pipeline",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Twitch: every 6h at fixed anchors — 01:00 run hits US prime time peak
@@ -212,6 +249,7 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="twitch_pipeline",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Reddit: daily at 02:00 UTC = 10:00 SGT
@@ -223,6 +261,7 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="reddit_pipeline",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Steam extras (update tracking → achievement stats): daily at 03:00 UTC = 11:00 SGT
@@ -234,9 +273,10 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="steam_extras_job",
         replace_existing=True,
+        max_instances=1,
     )
 
-    # Developer profiles: weekly on Monday at 05:00 UTC = 13:00 SGT
+    # Developer profiles: weekly on Monday at 05:30 UTC = 13:30 SGT
     scheduler.add_job(
         run_dev_profiles,
         "cron",
@@ -245,6 +285,7 @@ async def lifespan(app: FastAPI):
         minute=30,
         id="dev_profiles_job",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Watchdog: mark stale jobs every hour
@@ -254,6 +295,7 @@ async def lifespan(app: FastAPI):
         hours=1,
         id="stale_run_watchdog",
         replace_existing=True,
+        max_instances=1,
     )
 
     # OPS diagnostics: Monday at 06:00 UTC = 14:00 SGT (after dev profiles)
@@ -265,6 +307,7 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="ops_diagnostics_job",
         replace_existing=True,
+        max_instances=1,
     )
 
     # Weekly analysis report: Monday at 04:00 UTC = 12:00 SGT
@@ -277,9 +320,11 @@ async def lifespan(app: FastAPI):
         minute=0,
         id="weekly_analysis_job",
         replace_existing=True,
+        max_instances=1,
     )
 
     scheduler.start()
+    health.set_scheduler(scheduler)
     logger.info("Scheduler started")
 
     yield
@@ -296,14 +341,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "https://indie-horror-radar.vercel.app",
+    "https://horror-radar.vercel.app",
+]
+if settings.cors_origins:
+    _cors_origins.extend([o.strip() for o in settings.cors_origins.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(health.router)
 app.include_router(games.router)
 app.include_router(channels.router)
 app.include_router(videos.router)

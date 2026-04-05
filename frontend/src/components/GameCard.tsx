@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 import type { GameListItem } from "../types";
+import OpsBadge from "./OpsBadge";
+import DaysBadge from "./DaysBadge";
+import ChannelBadges from "./ChannelBadges";
 
 interface GameCardProps {
   game: GameListItem;
@@ -12,10 +15,10 @@ function daysSince(dateStr: string | null): number | null {
   return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function daysBadgeColor(d: number): string {
-  if (d <= 7) return "bg-status-pos/10 text-status-pos border-status-pos/20";
-  if (d <= 30) return "bg-status-warn/10 text-status-warn border-status-warn/20";
-  return "bg-status-neg/10 text-status-neg border-status-neg/20";
+function scorePctColor(pct: number): string {
+  if (pct >= 80) return "text-status-pos";
+  if (pct >= 60) return "text-status-warn";
+  return "text-status-neg";
 }
 
 export default function GameCard({ game }: GameCardProps) {
@@ -26,11 +29,15 @@ export default function GameCard({ game }: GameCardProps) {
   const peakCcu = snap?.peak_ccu ?? null;
   const reviewDelta = game.review_delta_7d ?? null;
   const ops = game.latest_ops;
+  const channels = game.youtube_channels ?? [];
+  const hasBreakout = ops?.score != null && ops.score >= 60;
 
   return (
     <Link
       to={`/game/${game.appid}`}
-      className="block px-4 py-3 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+      className={`block px-4 py-3 hover:bg-primary/5 active:bg-primary/10 transition-colors ${
+        hasBreakout ? "border-l-2 border-status-pos" : "border-l-2 border-transparent"
+      }`}
     >
       {/* Top row: image + title + OPS */}
       <div className="flex items-start gap-3">
@@ -52,8 +59,8 @@ export default function GameCard({ game }: GameCardProps) {
               {game.title}
             </span>
             {game.has_demo && (
-              <span className="px-1 py-0.5 rounded text-[7px] font-black tracking-widest bg-status-info/10 text-status-info border border-status-info/20 flex-shrink-0">
-                DEMO
+              <span className="px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-status-info/10 text-status-info border border-status-info/20 flex-shrink-0">
+                &#x2713; DEMO
               </span>
             )}
           </div>
@@ -61,46 +68,10 @@ export default function GameCard({ game }: GameCardProps) {
             {game.developer || "Unknown"}
           </span>
         </div>
-        {/* OPS badge — 3-layer */}
+        {/* OPS badge */}
         {ops?.score != null && ops.score > 0 ? (
-          <div className="flex-shrink-0 text-right">
-            <div className="flex items-baseline gap-1 justify-end">
-              <span
-                className={`text-lg font-black tabular-nums ${
-                  ops.score >= 60
-                    ? "text-status-pos"
-                    : ops.score >= 30
-                    ? "text-status-warn"
-                    : "text-status-neg"
-                }`}
-              >
-                {Math.round(ops.score)}
-              </span>
-              {game.ops_delta_7d != null && Math.abs(game.ops_delta_7d) >= 2 && (
-                <span
-                  className={`text-[9px] font-bold tabular-nums ${
-                    game.ops_delta_7d > 0 ? "text-status-pos" : "text-status-neg"
-                  }`}
-                >
-                  {game.ops_delta_7d > 0 ? "↑" : "↓"}
-                  {Math.abs(Math.round(game.ops_delta_7d))}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-0.5 justify-end mt-0.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className={`inline-block w-1 h-1 rounded-full ${
-                    (ops.confidence === "high" && i <= 2) ||
-                    (ops.confidence === "medium" && i <= 1) ||
-                    (ops.confidence === "low" && i === 0)
-                      ? "bg-text-mid"
-                      : "bg-border-dark"
-                  }`}
-                />
-              ))}
-            </div>
+          <div className="flex-shrink-0">
+            <OpsBadge ops={ops} delta={game.ops_delta_7d} dotSize="w-[5px] h-[5px]" />
           </div>
         ) : (
           <div className="flex-shrink-0 text-text-dim italic text-xs">--</div>
@@ -108,39 +79,37 @@ export default function GameCard({ game }: GameCardProps) {
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-3 mt-2 text-[11px] font-mono">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] font-mono">
         {/* Days badge */}
-        {days !== null && (
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${daysBadgeColor(days)}`}>
-            {days}d
-          </span>
-        )}
+        {days !== null && <DaysBadge days={days} />}
 
         {/* Price */}
-        <span className="text-text-dim">
+        <span>
           {game.price_usd === 0 ? (
             <span className="text-status-pos font-bold">Free</span>
           ) : game.price_usd != null ? (
-            `$${game.price_usd.toFixed(2)}`
+            <span className="text-text-dim">${game.price_usd.toFixed(2)}</span>
           ) : (
-            "--"
+            <span className="text-text-dim">--</span>
           )}
         </span>
 
-        {/* Reviews */}
+        {/* Reviews + delta */}
         {reviewCount != null && reviewCount > 0 && (
           <span className="flex items-center gap-0.5">
             <span className="text-text-main font-bold">{reviewCount.toLocaleString()}</span>
             <span className="text-text-dim">rev</span>
-            {reviewDelta != null && reviewDelta > 0 && (
-              <span className="text-status-pos">+{reviewDelta}</span>
+            {reviewDelta != null && (
+              <span className={reviewDelta > 0 ? "text-status-pos" : reviewDelta < 0 ? "text-status-neg" : "text-text-dim"}>
+                {reviewDelta > 0 ? `+${reviewDelta}` : reviewDelta < 0 ? `${reviewDelta}` : ""}
+              </span>
             )}
           </span>
         )}
 
-        {/* Score */}
+        {/* Score % */}
         {scorePct != null && (
-          <span className={scorePct >= 80 ? "text-status-pos" : scorePct >= 60 ? "text-status-warn" : "text-status-neg"}>
+          <span className={`font-bold ${scorePctColor(scorePct)}`}>
             {Math.round(scorePct)}%
           </span>
         )}
@@ -153,17 +122,10 @@ export default function GameCard({ game }: GameCardProps) {
         )}
       </div>
 
-      {/* YouTube channels */}
-      {game.youtube_channels && game.youtube_channels.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          {game.youtube_channels.map((ch) => (
-            <span
-              key={ch.channel_id}
-              className="px-1.5 py-0.5 rounded text-[9px] font-bold border bg-surface-dark text-text-dim border-border-dark"
-            >
-              {ch.name.toUpperCase()}
-            </span>
-          ))}
+      {/* YouTube channel badges with VIRAL/HIGH REACH */}
+      {channels.length > 0 && (
+        <div className="mt-1.5">
+          <ChannelBadges channels={channels} maxVisible={3} daysSince={days} />
         </div>
       )}
     </Link>
