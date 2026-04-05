@@ -351,6 +351,54 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What went wrong**: Embedding credentials in git remote URLs causes them to appear in plain text in any output that shows the remote. Token was immediately invalidated and rotated.
 - **Do instead**: Use SSH keys for VPS git authentication, or a credential helper that stores the token outside the URL. Never embed tokens in remote URLs on shared/logged systems.
 
+### 2026-04-05 — Compare page used wrong API response shape
+
+- **What happened**: Built `Compare.tsx` assuming `/games/{appid}` returns flat fields (`latest_snapshot`, `latest_ops`, `review_delta_7d`, `ops_delta_7d`) — the shape used by `GameListOut` on the paginated `/games` list endpoint. The actual `GameDetailOut` returns `snapshots[]` and `ops_history[]` arrays. Every field was `undefined`, so the Compare page showed no data.
+- **What went wrong**: Built the UI consumer without checking the actual backend schema. `GameListOut` and `GameDetailOut` have fundamentally different shapes for the same entity — one precomputes for list views, the other provides raw history for detail views.
+- **Do instead**: Before building any frontend page that calls an API endpoint, read the backend `schemas.py` response model (or hit the endpoint with curl) to confirm the exact response shape. When two endpoints serve the same entity, never assume they return the same fields.
+
+### 2026-04-05 — Cherry-pick is the only safe cross-remote sync strategy
+
+- **What happened**: After pushing Phase 3 to `horror-radar/main`, the local branch `add-gstack-docs` (tracking `origin/main`) diverged. Direct `git push horror-radar HEAD:main` was rejected (non-fast-forward). Rebase would replay already-merged commits from the squash-merge history.
+- **What went wrong**: The two remotes (`horror-radar` and `origin`) have different commit histories due to earlier squash merges. Any rebase or merge between them creates conflicts from already-applied content.
+- **Do instead**: Always use `git checkout -B <temp> <remote>/main && git cherry-pick <hash>` to sync individual commits across diverged remotes. Never attempt rebase when remotes share content but not history.
+
+### 2026-04-05 — Google Drive + git worktrees cause spurious index.lock
+
+- **What happened**: `git commit` repeatedly failed with `fatal: Unable to create '.../index.lock': File exists`, but `ls` on the lock file showed "No such file or directory".
+- **What went wrong**: The repo lives on Google Drive, which syncs files in the background. Google Drive's sync process likely creates transient lock contention that appears and disappears between commands.
+- **Do instead**: Always `rm -f <index.lock>` before git operations in Google Drive worktrees. Accept that this is a recurring issue in this environment. Consider moving the working repo to local disk and only syncing via git push.
+
+### 2026-04-05 — Context window exhaustion on multi-phase implementations
+
+- **What happened**: Implementing Phase 3 (6 new components, ConceptA redesign, watchlist hook, compare hook, CompareBar, Compare page, FilterBar/GameTable/GameRow/GameCard wiring, EmptyState, App.tsx routing) consumed the entire context window. The session had to be resumed from a compressed summary, losing fine-grained state.
+- **What went wrong**: Attempted to implement all of Phase 3 in a single session. Each component touched multiple files, and the accumulation of reads + writes + builds + git operations filled the context.
+- **Do instead**: Break multi-file implementation phases into sub-sessions of 3-4 files max. Commit and push at each natural boundary (e.g., "shared components done", "hooks done", "wiring done"). Starting a fresh session from a clean commit is cheaper than resuming from a compressed summary.
+
+### 2026-04-06 — Multi-agent consensus produces better plans than single-agent
+
+- **What happened**: Ran three rounds of 4-agent parallel consensus (product, pipeline, frontend, platform) for full-stack planning, color palette design, and OPS scoring optimization.
+- **What went wrong**: Nothing failed, but each round consumed significant context. Synthesis (writing the output document) must happen in the same session as the agents, or the summaries lose nuance.
+- **Do instead**: Structure consensus sessions as: launch agents in parallel → wait for all results → immediately synthesize into a document before context fills. The synthesis is the deliverable; don't let agents finish and then defer writing.
+
+### 2026-04-06 — Scheduled tasks need 5-hour gaps for rate limit recovery
+
+- **What happened**: Scheduled 8 development sessions with 2.5-3 hour gaps. User correctly pointed out the rate limit refreshes every 5 hours, meaning back-to-back sessions would fire into an exhausted budget.
+- **What went wrong**: Assumed session runtime (~90 min) was the only constraint. Rate limit recovery window is a separate, longer constraint.
+- **Do instead**: When scheduling sequential Claude sessions, always gap them by `max(session_runtime + buffer, rate_limit_recovery)`. For Claude's 5-hour rate limit, minimum gap = 5 hours.
+
+### 2026-04-06 — OPS review collinearity: 3 components from one data stream
+
+- **What happened**: Full audit of OPS v5 formula revealed velocity (0.30), volume (0.13), and decay retention (0.20) all derive from `review_count`. Effective combined weight = 0.63 — two-thirds of the score from one API source.
+- **What went wrong**: Formula grew incrementally without a collinearity audit. Each component felt distinct conceptually (rate vs. scale vs. retention) but they share a single failure mode.
+- **Do instead**: When adding a new scoring component, check correlation with existing components first. If two components share a data source, they should be merged into one with internal sub-weights rather than treated as independent signals.
+
+### 2026-04-06 — Dependency chains in scheduled tasks require prerequisite guards
+
+- **What happened**: Scheduled 8 sessions where S2 depends on S1's schema changes, S3 depends on S2's OPS v6 code, etc. If a session fails silently, the next one runs against wrong state.
+- **What went wrong**: Scheduled task system has no native dependency chains.
+- **Do instead**: Build prerequisite checks into each session's prompt (e.g., `git log --oneline -10 | grep "v6"` before running backtesting). Sessions should self-abort with a clear notification if predecessor output is missing rather than proceeding on stale state.
+
 ## gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.

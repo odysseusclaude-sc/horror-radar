@@ -370,11 +370,21 @@ async def _fetch_and_classify(
 
     # Extract price
     price_usd = None
+    original_price_usd = None
     price_overview = data.get("price_overview")
     if price_overview:
         price_usd = price_overview.get("final", 0) / 100
+        original_price_usd = price_overview.get("initial", 0) / 100
     elif data.get("is_free"):
         price_usd = 0.0
+        original_price_usd = 0.0
+
+    # Multiplayer detection via Steam category IDs (supplement tag-based detection)
+    # IDs: 1=Multi-player, 36=Online Multi-Player, 38=Online Co-Op, 9=Co-op
+    _MULTIPLAYER_CATEGORY_IDS = {1, 9, 36, 38}
+    is_multiplayer_by_category = any(
+        cat.get("id") in _MULTIPLAYER_CATEGORY_IDS for cat in categories
+    )
 
     # Demo flag + AppID: Steam appdetails includes a "demos" list when a demo exists
     demos = data.get("demos")
@@ -425,7 +435,8 @@ async def _fetch_and_classify(
         "tags": json.dumps(tags),
         "is_indie": indie,
         "is_horror": _is_horror(tags, genres, combined_desc),
-        "is_multiplayer": _is_multiplayer(tags),
+        "is_multiplayer": _is_multiplayer(tags) or is_multiplayer_by_category,
+        "original_price_usd": original_price_usd,
         "subgenre": _classify_subgenre(tags, combined_desc),
         "header_image_url": data.get("header_image"),
         "short_description": data.get("short_description"),

@@ -19,6 +19,7 @@ if settings.database_url.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_conn, _connection_record):
         cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")    # write-ahead logging — allows concurrent reads
         cursor.execute("PRAGMA busy_timeout=5000")   # wait up to 5s on write locks
         cursor.execute("PRAGMA synchronous=NORMAL")  # safe + faster than FULL
         cursor.execute("PRAGMA cache_size=-65536")   # 64MB page cache
@@ -89,6 +90,8 @@ def _run_migrations():
         "ALTER TABLE ops_scores ADD COLUMN creator_response_component REAL",
         # Multiplayer classification
         "ALTER TABLE games ADD COLUMN is_multiplayer INTEGER DEFAULT 0",
+        # Original (pre-discount) price in USD
+        "ALTER TABLE games ADD COLUMN original_price_usd REAL",
         # OPS v5 — new scoring components and forecast
         "ALTER TABLE games ADD COLUMN subgenre TEXT",
         "ALTER TABLE ops_scores ADD COLUMN sentiment_component REAL",

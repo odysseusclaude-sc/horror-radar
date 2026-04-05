@@ -22,6 +22,7 @@ class Game(Base):
     publisher = Column(String)
     release_date = Column(Date, index=True)
     price_usd = Column(Float)
+    original_price_usd = Column(Float)  # pre-discount price (price_overview.initial / 100)
     genres = Column(Text)  # JSON string, e.g. '["Indie","Action"]'
     tags = Column(Text)    # JSON string with vote counts, e.g. '{"Horror":142,"Indie":98}'
     is_indie = Column(Boolean, default=False)

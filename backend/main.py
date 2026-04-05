@@ -211,11 +211,12 @@ async def lifespan(app: FastAPI):
         id="steam_pipeline",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Daily snapshots → OPS chain: 04:00 UTC = 12:00 SGT
     # After US overnight tapers, before next day's activity builds.
-    # misfire_grace_time=300: if server restarts within 5min of scheduled time,
+    # misfire_grace_time=3600: if server restarts within 1h of scheduled time,
     # still run the job rather than silently skipping it.
     scheduler.add_job(
         daily_snapshots_job,
@@ -225,7 +226,7 @@ async def lifespan(app: FastAPI):
         id="daily_snapshots",
         replace_existing=True,
         max_instances=1,
-        misfire_grace_time=300,
+        misfire_grace_time=3600,
     )
 
     # YouTube pipeline: daily 05:00 UTC = 13:00 SGT
@@ -238,6 +239,7 @@ async def lifespan(app: FastAPI):
         id="youtube_pipeline",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Twitch: every 6h at fixed anchors — 01:00 run hits US prime time peak
@@ -250,6 +252,7 @@ async def lifespan(app: FastAPI):
         id="twitch_pipeline",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Reddit: daily at 02:00 UTC = 10:00 SGT
@@ -262,6 +265,7 @@ async def lifespan(app: FastAPI):
         id="reddit_pipeline",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Steam extras (update tracking → achievement stats): daily at 03:00 UTC = 11:00 SGT
@@ -274,6 +278,7 @@ async def lifespan(app: FastAPI):
         id="steam_extras_job",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Developer profiles: weekly on Monday at 05:30 UTC = 13:30 SGT
@@ -286,6 +291,7 @@ async def lifespan(app: FastAPI):
         id="dev_profiles_job",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Watchdog: mark stale jobs every hour
@@ -296,6 +302,7 @@ async def lifespan(app: FastAPI):
         id="stale_run_watchdog",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # OPS diagnostics: Monday at 06:00 UTC = 14:00 SGT (after dev profiles)
@@ -308,6 +315,7 @@ async def lifespan(app: FastAPI):
         id="ops_diagnostics_job",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     # Weekly analysis report: Monday at 04:00 UTC = 12:00 SGT
@@ -321,6 +329,7 @@ async def lifespan(app: FastAPI):
         id="weekly_analysis_job",
         replace_existing=True,
         max_instances=1,
+        misfire_grace_time=3600,
     )
 
     scheduler.start()
