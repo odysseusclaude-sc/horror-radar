@@ -6,11 +6,14 @@ interface FilterBarProps {
   sortBy: string;
   search: string;
   gameMode: string;
+  showWatchlistOnly: boolean;
+  watchlistCount: number;
   onDaysChange: (v: number) => void;
   onMaxPriceChange: (v: number) => void;
   onSortChange: (v: string) => void;
   onSearchChange: (v: string) => void;
   onGameModeChange: (v: string) => void;
+  onToggleWatchlistOnly: () => void;
 }
 
 export default function FilterBar({
@@ -19,11 +22,14 @@ export default function FilterBar({
   sortBy,
   search,
   gameMode,
+  showWatchlistOnly,
+  watchlistCount,
   onDaysChange,
   onMaxPriceChange,
   onSortChange,
   onSearchChange,
   onGameModeChange,
+  onToggleWatchlistOnly,
 }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -239,6 +245,24 @@ export default function FilterBar({
             <option value="ccu">Peak CCU</option>
           </select>
         </div>
+
+        <div className="h-8 w-[1px] bg-border-dark" />
+
+        {/* Watchlist toggle */}
+        <button
+          onClick={onToggleWatchlistOnly}
+          title={showWatchlistOnly ? "Show all games" : "Show watchlist only"}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-bold transition-colors ${
+            showWatchlistOnly
+              ? "bg-status-warn/10 border-status-warn/30 text-status-warn"
+              : "border-border-dark text-text-dim hover:border-text-dim hover:text-text-main"
+          }`}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: showWatchlistOnly ? "'FILL' 1" : "'FILL' 0" }}>
+            bookmark
+          </span>
+          Watchlist{watchlistCount > 0 && <span className="ml-0.5">({watchlistCount})</span>}
+        </button>
       </div>
     </section>
   );
