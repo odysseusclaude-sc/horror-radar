@@ -10,7 +10,37 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 
-/* ── Types ── */
+/* ── API shape: matches GameDetailOut from /api/games/{appid} ── */
+interface GameSnapshot {
+  snapshot_date: string;
+  review_count: number | null;
+  review_score_pct: number | null;
+  peak_ccu: number | null;
+}
+
+interface OpsScore {
+  score_date: string;
+  score: number | null;
+  confidence: string | null;
+  velocity_component: number | null;
+  decay_component: number | null;
+  review_component: number | null;
+  youtube_component: number | null;
+  ccu_component: number | null;
+}
+
+interface GameDetail {
+  appid: number;
+  title: string;
+  developer: string | null;
+  header_image_url: string | null;
+  price_usd: number | null;
+  release_date: string | null;
+  snapshots: GameSnapshot[];
+  ops_history: OpsScore[];
+}
+
+/* ── Derived comparison shape ── */
 interface CompareGame {
   appid: number;
   title: string;
@@ -18,25 +48,61 @@ interface CompareGame {
   header_image_url: string | null;
   price_usd: number | null;
   release_date: string | null;
-  latest_snapshot: {
-    review_count: number | null;
-    review_score_pct: number | null;
-    peak_ccu: number | null;
-  } | null;
-  latest_ops: {
-    score: number | null;
-    confidence: string | null;
-    velocity_component: number | null;
-    decay_component: number | null;
-    review_component: number | null;
-    youtube_component: number | null;
-    ccu_component: number | null;
-  } | null;
+  latest_snapshot: GameSnapshot | null;
+  latest_ops: OpsScore | null;
   review_delta_7d: number | null;
   ops_delta_7d: number | null;
 }
 
-/* ── Palette (shared with autopsy) ── */
+function deriveCompareGame(d: GameDetail): CompareGame {
+  // snapshots come back desc from API — reverse to get oldest-first for delta logic
+  const snapsDesc = d.snapshots; // already newest-first from API
+  const latestSnap = snapsDesc.find((s) => s.review_count != null) ?? snapsDesc[0] ?? null;
+
+  // 7-day review delta
+  let reviewDelta7d: number | null = null;
+  if (latestSnap?.review_count != null) {
+    const latestTime = new Date(latestSnap.snapshot_date).getTime();
+    const sevenDaysAgo = latestTime - 7 * 86400000;
+    const older = snapsDesc.find(
+      (s) => new Date(s.snapshot_date).getTime() <= sevenDaysAgo && s.review_count != null
+    );
+    if (older?.review_count != null) {
+      reviewDelta7d = latestSnap.review_count - older.review_count;
+    }
+  }
+
+  // latest OPS (ops_history comes back desc from API)
+  const latestOps = d.ops_history.length > 0 ? d.ops_history[0] : null;
+
+  // 7-day OPS delta
+  let opsDelta7d: number | null = null;
+  if (latestOps?.score != null) {
+    const latestTime = new Date(latestOps.score_date).getTime();
+    const sevenDaysAgo = latestTime - 7 * 86400000;
+    const older = d.ops_history.find(
+      (o) => new Date(o.score_date).getTime() <= sevenDaysAgo && o.score != null
+    );
+    if (older?.score != null) {
+      opsDelta7d = latestOps.score - older.score;
+    }
+  }
+
+  return {
+    appid: d.appid,
+    title: d.title,
+    developer: d.developer,
+    header_image_url: d.header_image_url,
+    price_usd: d.price_usd,
+    release_date: d.release_date,
+    latest_snapshot: latestSnap ?? null,
+    latest_ops: latestOps,
+    review_delta_7d: reviewDelta7d,
+    ops_delta_7d: opsDelta7d,
+  };
+}
+
+/* ── Palette ── */
 const C = {
   bg: "#111314",
   surface: "#1a1a1c",
@@ -47,7 +113,6 @@ const C = {
 };
 const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 
-/* ── Component colours by index ── */
 const GAME_COLORS = ["#802626", "#38bdf8", "#5ec269"];
 
 function fmtNum(n: number): string {
@@ -77,28 +142,35 @@ function buildRadar(game: CompareGame): Record<string, number> {
 export default function Compare() {
   const [params] = useSearchParams();
   const ids = (params.get("ids") ?? "").split(",").map(Number).filter(Boolean).slice(0, 3);
-  const [games, setGames] = useState<(CompareGame | null)[]>([]);
+  const [games, setGames] = useState<CompareGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (ids.length === 0) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
     Promise.all(
       ids.map((id) =>
-        fetchOne<CompareGame>(`/api/games/${id}`).catch(() => null)
+        fetchOne<GameDetail>(`/games/${id}`).catch(() => null)
       )
     ).then((results) => {
-      setGames(results);
+      const loaded = results
+        .filter((r): r is GameDetail => r != null)
+        .map(deriveCompareGame);
+      setGames(loaded);
+      setLoading(false);
+    }).catch((e) => {
+      setError(String(e));
       setLoading(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.get("ids")]);
 
-  const loaded = games.filter((g): g is CompareGame => g != null);
-
-  // Build radar data (one row per axis, one key per game)
   const radarAxes = ["Velocity", "Decay", "Reviews", "YouTube", "CCU"];
   const radarData = radarAxes.map((axis) => {
     const row: Record<string, number | string> = { axis };
-    loaded.forEach((g, i) => {
+    games.forEach((g, i) => {
       const r = buildRadar(g);
       row[`g${i}`] = r[axis] ?? 0;
     });
@@ -122,11 +194,21 @@ export default function Compare() {
     );
   }
 
-  /* ── Stat rows ── */
+  if (error || games.length === 0) {
+    return (
+      <div style={{ background: C.bg, minHeight: "100vh", color: C.white, padding: "60px 40px", textAlign: "center" }}>
+        <div style={{ ...mono, fontSize: 11, color: "#e25535", marginBottom: 12 }}>
+          {error ?? "Could not load game data"}
+        </div>
+        <Link to="/" style={{ ...mono, fontSize: 11, color: C.ops }}>← Back to database</Link>
+      </div>
+    );
+  }
+
   const statRows = [
     {
       label: "OPS Score",
-      values: loaded.map((g) => ({
+      values: games.map((g) => ({
         display: g.latest_ops?.score != null ? String(Math.round(g.latest_ops.score)) : "—",
         color: g.latest_ops?.score != null ? opsColor(g.latest_ops.score) : C.dim,
         numeric: g.latest_ops?.score ?? -1,
@@ -134,7 +216,7 @@ export default function Compare() {
     },
     {
       label: "Reviews",
-      values: loaded.map((g) => ({
+      values: games.map((g) => ({
         display: g.latest_snapshot?.review_count != null ? fmtNum(g.latest_snapshot.review_count) : "—",
         color: C.white,
         numeric: g.latest_snapshot?.review_count ?? -1,
@@ -142,7 +224,7 @@ export default function Compare() {
     },
     {
       label: "Score %",
-      values: loaded.map((g) => ({
+      values: games.map((g) => ({
         display: g.latest_snapshot?.review_score_pct != null ? Math.round(g.latest_snapshot.review_score_pct) + "%" : "—",
         color: g.latest_snapshot?.review_score_pct != null ? opsColor(g.latest_snapshot.review_score_pct) : C.dim,
         numeric: g.latest_snapshot?.review_score_pct ?? -1,
@@ -150,15 +232,16 @@ export default function Compare() {
     },
     {
       label: "Peak CCU",
-      values: loaded.map((g) => ({
-        display: g.latest_snapshot?.peak_ccu != null && g.latest_snapshot.peak_ccu > 0 ? fmtNum(g.latest_snapshot.peak_ccu) : "—",
+      values: games.map((g) => ({
+        display: g.latest_snapshot?.peak_ccu != null && g.latest_snapshot.peak_ccu > 0
+          ? fmtNum(g.latest_snapshot.peak_ccu) : "—",
         color: C.white,
         numeric: g.latest_snapshot?.peak_ccu ?? -1,
       })),
     },
     {
       label: "Price",
-      values: loaded.map((g) => ({
+      values: games.map((g) => ({
         display: g.price_usd === 0 ? "Free" : g.price_usd != null ? `$${g.price_usd.toFixed(2)}` : "—",
         color: g.price_usd === 0 ? "#5ec269" : C.white,
         numeric: g.price_usd ?? -1,
@@ -166,23 +249,28 @@ export default function Compare() {
     },
     {
       label: "Δ Rev 7D",
-      values: loaded.map((g) => ({
-        display: g.review_delta_7d != null ? (g.review_delta_7d > 0 ? "+" : "") + g.review_delta_7d.toLocaleString() : "—",
-        color: g.review_delta_7d != null ? (g.review_delta_7d > 0 ? "#5ec269" : g.review_delta_7d < 0 ? "#e25535" : C.dim) : C.dim,
+      values: games.map((g) => ({
+        display: g.review_delta_7d != null
+          ? (g.review_delta_7d > 0 ? "+" : "") + g.review_delta_7d.toLocaleString()
+          : "—",
+        color: g.review_delta_7d != null
+          ? (g.review_delta_7d > 0 ? "#5ec269" : g.review_delta_7d < 0 ? "#e25535" : C.dim)
+          : C.dim,
         numeric: g.review_delta_7d ?? -999,
       })),
     },
     {
       label: "OPS Δ 7D",
-      values: loaded.map((g) => ({
-        display: g.ops_delta_7d != null && Math.abs(g.ops_delta_7d) >= 1 ? (g.ops_delta_7d > 0 ? "↑" : "↓") + Math.abs(Math.round(g.ops_delta_7d)) : "—",
+      values: games.map((g) => ({
+        display: g.ops_delta_7d != null && Math.abs(g.ops_delta_7d) >= 1
+          ? (g.ops_delta_7d > 0 ? "↑" : "↓") + Math.abs(Math.round(g.ops_delta_7d))
+          : "—",
         color: g.ops_delta_7d != null ? (g.ops_delta_7d > 0 ? "#5ec269" : "#e25535") : C.dim,
         numeric: g.ops_delta_7d ?? -999,
       })),
     },
   ];
 
-  // Highlight best value per row
   function isBest(row: typeof statRows[0], idx: number): boolean {
     const best = Math.max(...row.values.map((v) => v.numeric));
     return best > 0 && row.values[idx].numeric === best;
@@ -192,7 +280,6 @@ export default function Compare() {
     <div style={{ background: C.bg, minHeight: "100vh", color: C.white, padding: "32px 40px 80px" }}
       className="page-enter"
     >
-      {/* Header */}
       <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }}>
         <Link to="/" style={{ color: C.dim, textDecoration: "none" }}>← Database</Link>
         <span style={{ margin: "0 8px" }}>|</span>
@@ -203,8 +290,8 @@ export default function Compare() {
       </h1>
 
       {/* Game header cards */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${loaded.length}, 1fr)`, gap: 12, marginBottom: 28 }}>
-        {loaded.map((g, i) => (
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${games.length}, 1fr)`, gap: 12, marginBottom: 28 }}>
+        {games.map((g, i) => (
           <div key={g.appid} style={{ background: C.surface, border: `1px solid ${GAME_COLORS[i]}40`, borderRadius: 6, overflow: "hidden" }}>
             {g.header_image_url && (
               <img src={g.header_image_url} alt={g.title} style={{ width: "100%", height: 80, objectFit: "cover" }} />
@@ -222,40 +309,32 @@ export default function Compare() {
         ))}
       </div>
 
-      {/* Stat comparison table */}
+      {/* Stat table */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, marginBottom: 28, overflow: "hidden" }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: `160px repeat(${loaded.length}, 1fr)`,
+          gridTemplateColumns: `160px repeat(${games.length}, 1fr)`,
           borderBottom: `1px solid ${C.border}`,
           padding: "10px 16px",
           background: "#111314",
         }}>
           <div style={{ ...mono, fontSize: 9, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5 }}>Metric</div>
-          {loaded.map((g, i) => (
+          {games.map((g, i) => (
             <div key={g.appid} style={{ ...mono, fontSize: 9, color: GAME_COLORS[i], textTransform: "uppercase", letterSpacing: 1.5 }}>
-              Game {i + 1}
+              {g.title.length > 20 ? g.title.slice(0, 18) + "…" : g.title}
             </div>
           ))}
         </div>
         {statRows.map((row) => (
           <div key={row.label} style={{
             display: "grid",
-            gridTemplateColumns: `160px repeat(${loaded.length}, 1fr)`,
+            gridTemplateColumns: `160px repeat(${games.length}, 1fr)`,
             padding: "12px 16px",
             borderBottom: `1px solid ${C.border}`,
           }}>
             <div style={{ ...mono, fontSize: 10, color: C.dim }}>{row.label}</div>
             {row.values.map((v, i) => (
-              <div key={i} style={{
-                ...mono,
-                fontSize: 16,
-                fontWeight: 700,
-                color: v.color,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}>
+              <div key={i} style={{ ...mono, fontSize: 16, fontWeight: 700, color: v.color, display: "flex", alignItems: "center", gap: 4 }}>
                 {v.display}
                 {isBest(row, i) && (
                   <span style={{ fontSize: 9, color: "#5ec269", background: "#5ec26920", border: "1px solid #5ec26940", borderRadius: 3, padding: "1px 4px" }}>
@@ -268,43 +347,45 @@ export default function Compare() {
         ))}
       </div>
 
-      {/* Radar overlay */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 20px" }}>
-        <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 16 }}>
-          OPS Component Radar Overlay
-        </div>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height={280}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                <PolarGrid stroke={C.border} />
-                <PolarAngleAxis dataKey="axis" tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                {loaded.map((g, i) => (
-                  <Radar
-                    key={g.appid}
-                    name={g.title}
-                    dataKey={`g${i}`}
-                    stroke={GAME_COLORS[i]}
-                    fill={`${GAME_COLORS[i]}20`}
-                    strokeWidth={2}
-                    dot={{ fill: GAME_COLORS[i], r: 3 }}
-                    isAnimationActive={false}
-                  />
-                ))}
-              </RadarChart>
-            </ResponsiveContainer>
+      {/* Radar — only when OPS data exists */}
+      {games.some((g) => g.latest_ops != null) && (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 20px" }}>
+          <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 16 }}>
+            OPS Component Radar Overlay
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {loaded.map((g, i) => (
-              <div key={g.appid} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 12, height: 3, background: GAME_COLORS[i], borderRadius: 2 }} />
-                <div style={{ ...mono, fontSize: 11, color: C.white }}>{g.title}</div>
-              </div>
-            ))}
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                  <PolarGrid stroke={C.border} />
+                  <PolarAngleAxis dataKey="axis" tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} />
+                  <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                  {games.map((g, i) => (
+                    <Radar
+                      key={g.appid}
+                      name={g.title}
+                      dataKey={`g${i}`}
+                      stroke={GAME_COLORS[i]}
+                      fill={`${GAME_COLORS[i]}20`}
+                      strokeWidth={2}
+                      dot={{ fill: GAME_COLORS[i], r: 3 }}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {games.map((g, i) => (
+                <div key={g.appid} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 12, height: 3, background: GAME_COLORS[i], borderRadius: 2 }} />
+                  <div style={{ ...mono, fontSize: 11, color: C.white }}>{g.title}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
