@@ -160,23 +160,23 @@ interface CreatorImpact {
 /* ── Palette ──────────────────────────────────────────────────────── */
 
 const C = {
-  bg: "#080809",
-  surface: "#0f0f11",
-  border: "#1e1e1e",
-  white: "#e2e2e2",
-  dim: "#888888",
-  ops: "#ef4444",
-  reviews: "#e2e2e2",
-  ccu: "#c0392b",
-  score: "#facc15",
-  twitch: "#a855f7",
-  ghost: "rgba(255,255,255,0.08)",
-  ghostStroke: "rgba(255,255,255,0.18)",
+  bg: "#111314",
+  surface: "#1a1a1c",
+  border: "#2a2420",
+  white: "#e8e0d4",
+  dim: "#6b6058",
+  ops: "#802626",
+  reviews: "#e8e0d4",
+  ccu: "#802626",
+  score: "#bb7125",
+  twitch: "#a36aa5",
+  ghost: "rgba(255,255,255,0.06)",
+  ghostStroke: "rgba(255,255,255,0.12)",
   green: "#4ade80",
 } as const;
 
-const mono: React.CSSProperties = { fontFamily: "'Space Mono', monospace" };
-const heading: React.CSSProperties = { fontFamily: "'Outfit', sans-serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 /* ── Keyframes ────────────────────────────────────────────────────── */
 
@@ -190,8 +190,8 @@ const styleTag = `
   to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes pulseGlow {
-  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
-  50%     { box-shadow: 0 0 12px 4px rgba(239,68,68,0.15); }
+  0%,100% { box-shadow: 0 0 0 0 rgba(128,38,38,0.3); }
+  50%     { box-shadow: 0 0 12px 4px rgba(128,38,38,0.15); }
 }
 .autopsy-stagger-1 { animation: autopsyFadeIn 0.5s ease-out 0.1s both; }
 .autopsy-stagger-2 { animation: autopsyFadeIn 0.5s ease-out 0.25s both; }
@@ -208,29 +208,29 @@ const styleTag = `
 /* ── Phase band colors (translucent) ──────────────────────────────── */
 
 const PHASE_BAND_COLORS: Record<string, string> = {
-  pre_launch: "rgba(167,139,250,0.06)",
-  launch_week: "rgba(192,57,43,0.08)",
-  discovery: "rgba(250,204,21,0.07)",
+  pre_launch: "rgba(163,106,165,0.06)",
+  launch_week: "rgba(128,38,38,0.08)",
+  discovery: "rgba(187,113,37,0.07)",
   settling: "rgba(74,222,128,0.06)",
-  long_tail: "rgba(136,136,136,0.03)",
+  long_tail: "rgba(107,96,88,0.03)",
 };
 
 const PHASE_ACCENT_COLORS: Record<string, string> = {
-  pre_launch: "#a78bfa",
-  launch_week: "#c0392b",
-  discovery: "#facc15",
+  pre_launch: "#a36aa5",
+  launch_week: "#802626",
+  discovery: "#bb7125",
   settling: "#4ade80",
-  long_tail: "#888888",
+  long_tail: "#6b6058",
 };
 
 /* ── Event constants ─────────────────────────────────────────────── */
 
 const EVENT_COLORS: Record<string, string> = {
-  demo_launch: "#a78bfa",
-  game_launch: "#c0392b",
-  youtube_demo: "#22d3ee",
-  youtube_game: "#22d3ee",
-  reddit: "#f97316",
+  demo_launch: "#a36aa5",
+  game_launch: "#802626",
+  youtube_demo: "#a36aa5",
+  youtube_game: "#a36aa5",
+  reddit: "#bb7125",
   steam_update: "#4ade80",
 };
 
@@ -945,7 +945,7 @@ export default function TheAutopsy() {
 
   const xAxisProps = {
     dataKey: "date",
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'Space Mono', monospace" },
+    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
     tickLine: false,
     axisLine: { stroke: C.border },
     tickFormatter: (v: string) => fmtDate(v),
@@ -953,7 +953,7 @@ export default function TheAutopsy() {
   };
 
   const yAxisStyle = {
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'Space Mono', monospace" },
+    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
     tickLine: false,
     axisLine: false,
     width: 50,
@@ -988,7 +988,7 @@ export default function TheAutopsy() {
                 position: "top",
                 fill: EVENT_COLORS[e.type] || C.dim,
                 fontSize: 14,
-                fontFamily: "'Space Mono', monospace",
+                fontFamily: "'JetBrains Mono', monospace",
               }
             : undefined
         }
@@ -1359,8 +1359,8 @@ export default function TheAutopsy() {
                   <ReferenceArea yAxisId="score" y1={80} y2={95} fill="#22c55e" fillOpacity={0.03} />
                   <ReferenceArea yAxisId="score" y1={70} y2={80} fill="#86efac" fillOpacity={0.02} />
                   <ReferenceArea yAxisId="score" y1={40} y2={70} fill="#facc15" fillOpacity={0.02} />
-                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
-                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'Space Mono', monospace" }} />
+                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
+                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
                 </>
               )}
               {renderEventLines(false)}
@@ -1649,7 +1649,7 @@ export default function TheAutopsy() {
                         value: `Day ${opsPeak.day}: OPS ${opsPeak.score}`,
                         fill: C.ops,
                         fontSize: 10,
-                        fontFamily: "'Space Mono', monospace",
+                        fontFamily: "'JetBrains Mono', monospace",
                         position: "insideTopRight",
                       }}
                     />

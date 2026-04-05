@@ -1,4 +1,6 @@
-# Horror Radar — Context Brief
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What This Is
 
@@ -12,6 +14,24 @@ The target user is someone scouting for emerging horror indie hits within the fi
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS 3
 - **No ORM migrations**: Schema changes use `ALTER TABLE` in `database.py init_db()`
 - **Runs on Google Drive** (Obsidian vault) — paths are long; DB is local SQLite
+- **Deployed**: Frontend on Vercel (static SPA), backend on separate server. `frontend/vercel.json` rewrites `/api/*` to the backend host.
+- **Git remotes**: `horror-radar` (GitHub deploy repo), `origin` (second-brain/Obsidian vault). Push to `horror-radar` for deployment.
+- **No tests**: No test suite exists for either backend or frontend.
+
+## Development Commands
+
+```bash
+# Backend — run from backend/
+pip install -r requirements.txt          # one-time setup
+python3 -m uvicorn main:app --reload     # dev server on :8000
+
+# Frontend — run from frontend/
+npm install                               # one-time setup
+npm run dev                               # Vite dev server on :5173
+npm run build                             # production build (no tsc — TS errors don't block)
+```
+
+No lint, format, or test scripts are configured.
 
 ### Key Paths
 
@@ -125,30 +145,37 @@ Layer 1: Strong horror tags (Horror, Survival Horror, Psychological Horror, etc.
            - Anti-horror tags outnumber strong tags by 3+ (Cartoon, Cute, Comedy, etc.)
            - Unvoted tags + NON_HORROR_GENRE_TAGS dominate (Romance, Dating Sim, etc.)
              AND description doesn't confirm horror
-Layer 2: Ambiguous tags (Zombies, Dark, Violent, etc.)
-         → Pass only if no anti-horror tags and no dominant non-horror genre tags
+           - Voted NON_HORROR_GENRE_TAGS present AND no desc/genre confirmation
+           - Combined anti-horror + non-horror vote weight > horror vote weight
+           - Horror tags rank in bottom third by votes (weak signal)
+Layer 2: Ambiguous tags (Zombies, Dark, Lovecraftian, Gothic, Cosmic Horror, etc.)
+         → Pass only if description confirms horror OR Steam genre confirms horror
 Layer 3: Steam genre categories (Horror, Psychological Horror, Survival Horror)
 Layer 4: Description keyword scan (short_description + about_the_game HTML-stripped)
 ```
 
-**NON_HORROR_GENRE_TAGS**: Romance, Dating Sim, Visual Novel, Sexual Content, Farming Sim, City Builder, Tower Defense, Puzzle, Sports, Racing, Card Game, Board Game, Education, Music, Rhythm. These only reject when tags are unvoted AND description doesn't mention horror keywords.
+**AMBIGUOUS_HORROR_TAGS**: Zombies, Dark, Violent, Gore, Demons, Supernatural, Ghosts, Lovecraftian, Cosmic Horror, Gothic, Creepy. These require description or genre confirmation to classify as horror.
+
+**NON_HORROR_GENRE_TAGS**: Romance, Dating Sim, Visual Novel, Sexual Content, Farming Sim, City Builder, Tower Defense, Puzzle, Sports, Racing, Card Game, Board Game, Education, Music, Rhythm. With voted tags, any presence rejects unless description or genre confirms horror. With unvoted tags, must outnumber strong horror tags.
 
 Scope: **MAX_AGE_DAYS = 90** (3 months from release)
 
 ## Scheduler Jobs
 
-| Job | Schedule | Pipeline |
+All times UTC. System is UTC+8 (SGT).
+
+| Job | Schedule (UTC) | Pipeline |
 |---|---|---|
-| steam_pipeline | Every 6h | discovery → metadata |
-| daily_snapshots | Every 24h | reviews → CCU → OPS |
-| youtube_pipeline | Every 24h | scan → stats refresh |
-| twitch_pipeline | Every 6h | twitch snapshots |
+| steam_pipeline | Every 6h (00/06/12/18:00) | discovery → metadata |
+| daily_snapshots | Daily 04:00 | reviews → CCU → OPS chain |
+| youtube_pipeline | Daily 05:00 | scan → stats refresh |
+| twitch_pipeline | Every 6h (01/07/13/19:00) | twitch snapshots |
 | reddit_pipeline | Daily 02:00 | reddit scan |
 | steam_extras | Daily 03:00 | update tracking → achievement stats |
-| dev_profiles | Monday 05:00 | developer profile aggregation |
+| dev_profiles | Monday 05:30 | developer profile aggregation |
 | ops_diagnostics | Monday 06:00 | signal quality report (coverage, discrimination, correlations) |
 | stale_run_watchdog | Every 1h | mark jobs stuck >2h as "stale" |
-| weekly_analysis | Sunday 06:00 | markdown summary report |
+| weekly_analysis | Monday 04:00 | markdown summary report (moved to Mon to capture full weekend) |
 
 ### Pipeline Reliability Guardrails
 
@@ -174,7 +201,21 @@ Key implementation details:
 
 ## Frontend
 
-Dark horror theme: `primary: #c0392b` (deep red), `background: #080809`, `surface: #0f0f11`
+### Typography (3-font system)
+
+| Tailwind Class | Font | Usage |
+|---|---|---|
+| `font-display` | Public Sans | Body text, UI labels, headings |
+| `font-mono` | JetBrains Mono | Data values, numbers, stats, code |
+| `font-serif` | Playfair Display | Editorial titles (Radar Pick only) |
+
+Type scale: Major fourths (1.333 ratio, base 16px). Loaded via Google Fonts in `index.html`.
+
+### Theme
+
+Wada Sanzo "Occult Amber" palette: `primary: #802626` (dried-blood red), `background-dark: #111314`, `surface-dark: #1a1a1c`
+
+Status colors: `status-pos: #5ec269` (green), `status-warn: #e8a832` (amber), `status-neg: #e25535` (vermilion), `status-special: #b07db2` (violet)
 
 ### Pages
 
@@ -202,6 +243,8 @@ Filter Bar: Days Since Launch slider (1-90), Max Price slider (0-60), Sort by (N
 - Trajectory chart (Recharts with tooltips) showing OPS history
 - Previous picks (runners-up with climbing/steady/peaked status)
 - `buildVerdict()` generates editorial prose dynamically from data signals
+
+**Trends** (`/trends`) — Aggregated insights page with subgenre breakdown, momentum charts, creator radar.
 
 **Game Detail** (`/game/:appid`) — Autopsy page with timeline charts, stat cards, YouTube coverage.
 
@@ -249,4 +292,37 @@ All configurable intervals, OPS weights, and fuzzy matching thresholds in `.env`
 - **YouTube published_at timezone**: SQLite stores `published_at` as naive datetime. When comparing to `datetime.now(timezone.utc)`, must add tzinfo: `pub_at.replace(tzinfo=timezone.utc)`.
 - **Late-discovered games**: Games found well after release have no historical snapshot data. Use `review_backfill.py` to reconstruct from individual Steam reviews. Consider auto-triggering backfill in metadata pipeline for games discovered >7 days after release (not yet implemented).
 - **Estimated owners**: SteamSpy owners collector disabled. Frontend uses `reviews × 30` heuristic everywhere. The `estimated_owners` field is removed from frontend types.
-- **Start commands**: Backend: `python3 -m uvicorn main:app --reload` from `backend/`. Frontend: `npm run dev` from `frontend/`.
+
+## Lessons Learned
+
+Append-only log of failed approaches and hard-won insights. Check here before attempting similar work.
+
+### 2026-04-04 — Classifier tightening (3 iterations)
+
+- **What happened**: Tightened `_is_horror()` three separate times across sessions. Each time required ad-hoc Python scripts to test against the DB, manually constructing tag dicts for edge cases.
+- **What went wrong**: No test harness. The new NON_HORROR_GENRE_TAGS check initially rejected 140 games because it applied to unvoted tags too — caught only by running a full DB scan after the fact.
+- **Do instead**: Create `tests/test_classifier.py` with known edge cases (Arksync, Whispers of the Eyeless, Beta Massage Parlor, Darkwater, etc.) BEFORE changing classifier logic. Run tests first, then verify DB impact.
+
+### 2026-04-04 — Trends page visual fixes (4 rounds)
+
+- **What happened**: Fixed colors, then table columns, then card alignment, then narrative text placement — each as a separate commit-push-deploy-feedback cycle.
+- **What went wrong**: Didn't read the full component before starting. Each fix revealed the next issue. Screenshots of dark UI were useless (JPEG compression).
+- **Do instead**: Read the entire component file first. List all issues before making the first edit. Use DOM inspection (`getComputedStyle`, `textContent`) instead of screenshots for dark themes.
+
+### 2026-04-04 — Git push failures after squash merge
+
+- **What happened**: After squash-merging PR #3, subsequent pushes to the same branch were rejected. `git rebase` caused conflicts because the squash commit already contained the incremental commits.
+- **What went wrong**: Tried `git rebase` which replayed already-merged commits. Had to `git rebase --abort`.
+- **Do instead**: After a squash merge, reset local branch to remote: `git checkout -B main horror-radar/main`, then cherry-pick any new commits. Or avoid squash merges when continuing work on the same branch.
+
+### 2026-04-04 — Font standardization file-by-file
+
+- **What happened**: Replaced 8 fonts with 3 across ~10 files by reading each file individually.
+- **What went wrong**: Slow and error-prone. Could have missed occurrences.
+- **Do instead**: `grep -r "Space Mono\|IBM Plex\|Instrument Serif\|Outfit\|Space Grotesk\|Inter" frontend/src/` to get all occurrences, then batch replace with `Edit replace_all`.
+
+## gstack
+
+Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.

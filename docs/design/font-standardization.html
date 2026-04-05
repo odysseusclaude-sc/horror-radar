@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Font Standardization — Horror Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@400;700&family=Public+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #111314;
+    --surface: #1a1a1c;
+    --border: #2a2420;
+    --text-main: #e8e0d4;
+    --text-mid: #a09080;
+    --text-dim: #6b6058;
+    --primary: #802626;
+    --primary-light: #9a3333;
+    --secondary: #bb7125;
+    --tertiary: #a36aa5;
+    --status-pos: #5ec269;
+    --status-warn: #e8a832;
+    --status-neg: #e25535;
+    --status-info: #6b9ddb;
+    --status-special: #b07db2;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: "Public Sans", sans-serif;
+    padding: 60px;
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .section-desc {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 48px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+
+  /* ── Font Cards Row ── */
+  .font-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  .font-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .font-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .font-card-name {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-mid);
+  }
+
+  .font-card-role {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .role-body { background: rgba(94,194,105,0.1); color: var(--status-pos); border: 1px solid rgba(94,194,105,0.2); }
+  .role-data { background: rgba(107,157,219,0.1); color: var(--status-info); border: 1px solid rgba(107,157,219,0.2); }
+  .role-editorial { background: rgba(176,125,178,0.1); color: var(--status-special); border: 1px solid rgba(176,125,178,0.2); }
+
+  .font-card-sample-large {
+    font-size: 38px;
+    line-height: 1.2;
+    color: var(--text-main);
+  }
+
+  .font-card-sample-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-mid);
+  }
+
+  .font-card-uses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .use-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(42,36,32,0.6);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Type Scale ── */
+  .type-scale {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .scale-row {
+    display: grid;
+    grid-template-columns: 80px 100px 1fr;
+    align-items: baseline;
+    gap: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(42,36,32,0.4);
+  }
+
+  .scale-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .scale-size {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+  }
+
+  /* ── Before/After ── */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  .comparison-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+  }
+
+  .comparison-panel.before { border-color: rgba(226,85,53,0.3); }
+  .comparison-panel.after { border-color: rgba(94,194,105,0.3); }
+
+  .comparison-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .comparison-label.before-label { color: var(--status-neg); }
+  .comparison-label.after-label { color: var(--status-pos); }
+
+  .font-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .font-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-mid);
+  }
+
+  .font-list-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .font-list-item .remove { background: var(--status-neg); }
+  .font-list-item .keep { background: var(--status-pos); }
+
+  .font-strike { text-decoration: line-through; opacity: 0.5; }
+
+  /* ── Sample UI Cards ── */
+  .sample-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  .sample-ui {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sample-ui-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ── Game Row Sample ── */
+  .game-row-sample {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .game-thumb {
+    width: 72px;
+    aspect-ratio: 460/215;
+    background: var(--border);
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .game-info { flex: 1; }
+
+  .game-title {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+  }
+
+  .game-dev {
+    font-family: "Public Sans", sans-serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .game-stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .stat-value {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+  }
+
+  .stat-label {
+    font-family: "Public Sans", sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .ops-score {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 22px;
+  }
+
+  .ops-high { color: var(--status-pos); }
+  .ops-mid { color: var(--status-warn); }
+
+  .ops-delta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .delta-pos { color: var(--status-pos); }
+
+  /* ── Radar Pick Sample ── */
+  .radar-sample {
+    background: linear-gradient(180deg, rgba(128,38,38,0.15) 0%, var(--surface) 60%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 32px;
+    text-align: center;
+  }
+
+  .radar-title {
+    font-family: "Playfair Display", serif;
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--text-main);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .radar-subtitle {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 300;
+    font-size: 14px;
+    color: var(--text-mid);
+    margin-bottom: 24px;
+  }
+
+  .radar-verdict {
+    font-family: "Public Sans", sans-serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .radar-ops-inline {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    color: var(--status-pos);
+    font-style: normal;
+  }
+
+  /* ── Chart Label Sample ── */
+  .chart-sample {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .chart-title {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    margin-bottom: 20px;
+  }
+
+  .chart-area {
+    height: 120px;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 29px,
+      rgba(42,36,32,0.3) 29px,
+      rgba(42,36,32,0.3) 30px
+    );
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  .chart-y-labels {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .chart-y-labels span {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    transform: translateX(-100%);
+    padding-right: 8px;
+  }
+
+  .chart-x-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+
+  .chart-x-labels span {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ── Rules ── */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .rule-number {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--secondary);
+    margin-bottom: 8px;
+  }
+
+  .rule-title {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+    margin-bottom: 6px;
+  }
+
+  .rule-desc {
+    font-family: "Public Sans", sans-serif;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .serif { font-family: "Playfair Display", serif; }
+  .sans { font-family: "Public Sans", sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ══════ TITLE ══════ -->
+<p class="section-label">Font Standardization &middot; 3-Font System</p>
+<p class="section-desc">Consolidating 8 fonts down to 3 purposeful families. Each font earns its place.</p>
+
+<div class="divider"></div>
+
+<!-- ══════ THE 3 FONTS ══════ -->
+<p class="section-label">The Three Families</p>
+
+<div class="font-cards">
+  <!-- Public Sans -->
+  <div class="font-card">
+    <div class="font-card-header">
+      <span class="font-card-name">Public Sans</span>
+      <span class="font-card-role role-body">Body &amp; UI</span>
+    </div>
+    <div class="font-card-sample-large sans" style="font-weight: 700;">
+      Aa Bb Cc 123
+    </div>
+    <div class="font-card-sample-body sans">
+      The workhorse. Clean, geometric sans-serif with excellent readability at small sizes. Handles everything from nav labels to card descriptions.
+    </div>
+    <div class="font-card-uses">
+      <span class="use-tag">Navigation</span>
+      <span class="use-tag">Headings</span>
+      <span class="use-tag">Body text</span>
+      <span class="use-tag">Labels</span>
+      <span class="use-tag">Buttons</span>
+      <span class="use-tag">Filter controls</span>
+    </div>
+  </div>
+
+  <!-- JetBrains Mono -->
+  <div class="font-card">
+    <div class="font-card-header">
+      <span class="font-card-name">JetBrains Mono</span>
+      <span class="font-card-role role-data">Data &amp; Numbers</span>
+    </div>
+    <div class="font-card-sample-large mono" style="font-weight: 700;">
+      87 +12 94%
+    </div>
+    <div class="font-card-sample-body sans">
+      The data voice. Tabular figures, distinctive zero, clear digit separation. Every number in the app uses this — OPS scores, review counts, prices, chart labels.
+    </div>
+    <div class="font-card-uses">
+      <span class="use-tag">OPS scores</span>
+      <span class="use-tag">Review counts</span>
+      <span class="use-tag">Prices</span>
+      <span class="use-tag">Chart axes</span>
+      <span class="use-tag">Deltas</span>
+      <span class="use-tag">Percentages</span>
+    </div>
+  </div>
+
+  <!-- Playfair Display -->
+  <div class="font-card">
+    <div class="font-card-header">
+      <span class="font-card-name">Playfair Display</span>
+      <span class="font-card-role role-editorial">Editorial Only</span>
+    </div>
+    <div class="font-card-sample-large serif" style="font-weight: 700;">
+      Signal Fire
+    </div>
+    <div class="font-card-sample-body sans">
+      The signature. Reserved exclusively for the Radar Pick hero headline. Its rarity makes it impactful — if used everywhere, it loses its editorial gravitas.
+    </div>
+    <div class="font-card-uses">
+      <span class="use-tag">Radar Pick hero title</span>
+      <span class="use-tag" style="opacity: 0.4">Nothing else</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════ BEFORE / AFTER ══════ -->
+<p class="section-label">Before vs After</p>
+
+<div class="comparison">
+  <div class="comparison-panel before">
+    <p class="comparison-label before-label">Current: 8 Fonts Loaded</p>
+    <div class="font-list">
+      <div class="font-list-item"><span class="dot keep"></span> Public Sans <span style="color:var(--text-dim)">&mdash; body, UI</span></div>
+      <div class="font-list-item"><span class="dot keep"></span> JetBrains Mono <span style="color:var(--text-dim)">&mdash; some data</span></div>
+      <div class="font-list-item"><span class="dot keep"></span> Playfair Display <span style="color:var(--text-dim)">&mdash; radar hero</span></div>
+      <div class="font-list-item font-strike"><span class="dot remove"></span> Space Mono <span style="color:var(--text-dim)">&mdash; competing mono</span></div>
+      <div class="font-list-item font-strike"><span class="dot remove"></span> IBM Plex Mono <span style="color:var(--text-dim)">&mdash; competing mono</span></div>
+      <div class="font-list-item font-strike"><span class="dot remove"></span> Instrument Serif <span style="color:var(--text-dim)">&mdash; competing serif</span></div>
+      <div class="font-list-item font-strike"><span class="dot remove"></span> Outfit <span style="color:var(--text-dim)">&mdash; competing sans</span></div>
+      <div class="font-list-item font-strike"><span class="dot remove"></span> Space Grotesk <span style="color:var(--text-dim)">&mdash; competing sans</span></div>
+    </div>
+    <p style="font-size: 12px; color: var(--status-neg); font-weight: 600;">
+      3 monospace families &middot; 3 sans-serif families &middot; 2 serif families
+    </p>
+    <p style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+      ~420 KB font payload &middot; No clear hierarchy &middot; Visual inconsistency
+    </p>
+  </div>
+
+  <div class="comparison-panel after">
+    <p class="comparison-label after-label">Proposed: 3 Fonts, 3 Roles</p>
+    <div class="font-list">
+      <div class="font-list-item"><span class="dot keep"></span> <strong>Public Sans</strong> <span style="color:var(--status-pos)">&mdash; ALL UI text</span></div>
+      <div class="font-list-item"><span class="dot keep"></span> <strong>JetBrains Mono</strong> <span style="color:var(--status-info)">&mdash; ALL data values</span></div>
+      <div class="font-list-item"><span class="dot keep"></span> <strong>Playfair Display</strong> <span style="color:var(--status-special)">&mdash; Radar hero ONLY</span></div>
+    </div>
+    <p style="font-size: 12px; color: var(--status-pos); font-weight: 600; margin-top: 12px;">
+      1 monospace &middot; 1 sans-serif &middot; 1 serif
+    </p>
+    <p style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+      ~180 KB font payload &middot; Clear hierarchy &middot; Consistent voice
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════ TYPE SCALE ══════ -->
+<p class="section-label">Major Fourths Type Scale (1.333 ratio, 16px base)</p>
+<p class="section-desc">Every size in the app maps to this scale. No arbitrary pixel values.</p>
+
+<div class="type-scale">
+  <div class="scale-row">
+    <span class="scale-label">4xl</span>
+    <span class="scale-size">67px / 4.209rem</span>
+    <span class="serif" style="font-size: 42px; font-weight: 700; color: var(--text-main); line-height: 1.1;">Signal Fire</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">3xl</span>
+    <span class="scale-size">51px / 3.157rem</span>
+    <span class="sans" style="font-size: 36px; font-weight: 700; color: var(--text-main); line-height: 1.1;">Market Pulse</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">2xl</span>
+    <span class="scale-size">38px / 2.369rem</span>
+    <span class="mono" style="font-size: 30px; font-weight: 700; color: var(--status-pos); line-height: 1.1;">87</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">xl</span>
+    <span class="scale-size">28px / 1.777rem</span>
+    <span class="sans" style="font-size: 24px; font-weight: 700; color: var(--text-main); line-height: 1.2;">Fears to Fathom: Ironbark Lookout</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">lg</span>
+    <span class="scale-size">21px / 1.333rem</span>
+    <span class="mono" style="font-size: 21px; font-weight: 700; color: var(--status-warn); line-height: 1.2;">1,247 reviews</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">base</span>
+    <span class="scale-size">16px / 1rem</span>
+    <span class="sans" style="font-size: 16px; color: var(--text-main); line-height: 1.5;">Body text, descriptions, filter labels, tooltips</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">sm</span>
+    <span class="scale-size">14px / 0.875rem</span>
+    <span class="sans" style="font-size: 14px; color: var(--text-mid); line-height: 1.4;">Game title in table row &middot; Secondary info</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">xs</span>
+    <span class="scale-size">12px / 0.75rem</span>
+    <span class="sans" style="font-size: 12px; color: var(--text-dim); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.5px;">DEVELOPER NAME &middot; COLUMN LABELS &middot; BADGES</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════ SAMPLE UI CONTEXTS ══════ -->
+<p class="section-label">In Context: How Each Font Appears</p>
+<p class="section-desc">Three real UI contexts showing the font system working together.</p>
+
+<div class="sample-cards">
+  <!-- Database Row -->
+  <div class="sample-ui">
+    <span class="sample-ui-label">Database Table Row</span>
+    <div class="game-row-sample">
+      <div class="game-thumb"></div>
+      <div class="game-info">
+        <div class="game-title">Fears to Fathom: Ironbark Lookout</div>
+        <div class="game-dev">Rayll Studio &middot; 3d &middot; $9.99</div>
+      </div>
+      <div class="game-stats">
+        <div class="stat">
+          <span class="stat-value">1,247</span>
+          <span class="stat-label">Reviews</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" style="color: var(--status-pos);">94%</span>
+          <span class="stat-label">Score</span>
+        </div>
+        <div class="stat">
+          <div style="display: flex; align-items: baseline; gap: 4px;">
+            <span class="ops-score ops-high">87</span>
+            <span class="ops-delta delta-pos">&#8593;12</span>
+          </div>
+          <span class="stat-label">OPS</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;">
+      <span style="color: var(--status-pos);">Public Sans</span> for title &amp; labels &middot;
+      <span style="color: var(--status-info);">JetBrains Mono</span> for all numbers
+    </p>
+  </div>
+
+  <!-- Radar Pick -->
+  <div class="sample-ui">
+    <span class="sample-ui-label">Radar Pick Hero</span>
+    <div class="radar-sample">
+      <div class="radar-title">Fears to Fathom:<br/>Ironbark Lookout</div>
+      <div class="radar-subtitle">Rayll Studio &middot; Released 3 days ago</div>
+      <div class="radar-verdict">
+        With an OPS of <span class="radar-ops-inline">87</span>, this title is surging past every peer in its first week. Review velocity suggests genuine word-of-mouth momentum.
+      </div>
+    </div>
+    <p style="font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;">
+      <span style="color: var(--status-special);">Playfair Display</span> for hero title &middot;
+      <span style="color: var(--status-pos);">Public Sans</span> for verdict &middot;
+      <span style="color: var(--status-info);">JetBrains Mono</span> for inline score
+    </p>
+  </div>
+
+  <!-- Chart -->
+  <div class="sample-ui">
+    <span class="sample-ui-label">Chart with Data Labels</span>
+    <div class="chart-sample">
+      <div class="chart-title">Market Pulse &mdash; 12 Weeks</div>
+      <div class="chart-area" style="padding-left: 50px;">
+        <div class="chart-y-labels">
+          <span>500</span>
+          <span>375</span>
+          <span>250</span>
+          <span>125</span>
+          <span>0</span>
+        </div>
+      </div>
+      <div class="chart-x-labels">
+        <span>W1</span>
+        <span>W4</span>
+        <span>W8</span>
+        <span>W12</span>
+      </div>
+    </div>
+    <p style="font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;">
+      <span style="color: var(--status-pos);">Public Sans</span> for chart title &middot;
+      <span style="color: var(--status-info);">JetBrains Mono</span> for axis labels &amp; values
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════ RULES ══════ -->
+<p class="section-label">Font Rules</p>
+<p class="section-desc">Four simple rules that cover every design decision.</p>
+
+<div class="rules-grid">
+  <div class="rule-card">
+    <div class="rule-number">RULE 01</div>
+    <div class="rule-title">All UI text is Public Sans</div>
+    <div class="rule-desc">Headings, labels, descriptions, buttons, navigation, tooltips, filter controls. If it's not a number or the Radar hero, it's Public Sans.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-number">RULE 02</div>
+    <div class="rule-title">All data values are JetBrains Mono</div>
+    <div class="rule-desc">OPS scores, review counts, prices, percentages, deltas, chart axis labels. Use <span class="mono" style="color: var(--status-info);">font-mono</span> in Tailwind. Tabular figures align columns perfectly.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-number">RULE 03</div>
+    <div class="rule-title">Only Radar Pick uses Playfair Display</div>
+    <div class="rule-desc">The SignalFire hero headline is the sole consumer of Playfair Display. No other page uses a serif. This scarcity is what gives it editorial weight.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-number">RULE 04</div>
+    <div class="rule-title">Never mix families within a data cluster</div>
+    <div class="rule-desc">A stat card showing "1,247 reviews" should use mono for "1,247" and sans for "reviews" — but never sans for the number or mono for the label.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════ IMPACT ══════ -->
+<p class="section-label">Impact Summary</p>
+
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 16px;">
+  <div class="rule-card" style="text-align: center;">
+    <div class="mono" style="font-size: 32px; font-weight: 700; color: var(--status-neg);">8</div>
+    <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">fonts before</div>
+  </div>
+  <div class="rule-card" style="text-align: center;">
+    <div class="mono" style="font-size: 32px; font-weight: 700; color: var(--status-pos);">3</div>
+    <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">fonts after</div>
+  </div>
+  <div class="rule-card" style="text-align: center;">
+    <div class="mono" style="font-size: 32px; font-weight: 700; color: var(--status-pos);">-57%</div>
+    <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">font payload</div>
+  </div>
+  <div class="rule-card" style="text-align: center;">
+    <div class="mono" style="font-size: 32px; font-weight: 700; color: var(--secondary);">4</div>
+    <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">simple rules</div>
+  </div>
+</div>
+
+</body>
+</html>

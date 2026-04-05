@@ -57,10 +57,13 @@ CORE_HORROR_TAGS = frozenset({
 })
 
 # Tags that are horror-adjacent but ambiguous — they appear in non-horror games.
-# These only count as horror if paired with at least one STRONG horror tag.
+# These only count as horror if description confirms or paired with a strong tag.
+# Includes thematic tags (Lovecraftian, Gothic, etc.) that describe aesthetic, not
+# gameplay — many strategy/RPG/card games use these without being horror.
 AMBIGUOUS_HORROR_TAGS = frozenset({
     "Zombies", "Dark", "Violent", "Gore",
     "Demons", "Supernatural", "Ghosts",
+    "Lovecraftian", "Cosmic Horror", "Gothic", "Creepy",
 })
 
 # Strong horror tags — unambiguously horror-focused.

@@ -15,25 +15,25 @@ import type { RadarPickResponse, RadarOpsComponent } from "../../types";
 
 // ─── Palette ────────────────────────────────────────────────────
 const C = {
-  bg: "#080809",
-  surface: "#0f0f11",
-  tile: "#131315",
-  accent: "#c0392b",
-  accentDim: "rgba(192,57,43,0.25)",
-  text: "#f0ece6",
-  textMid: "#a09890",
-  textDim: "#7a756e",
-  textFaint: "#3d3a37",
-  border: "#2a2725",
+  bg: "#111314",
+  surface: "#1a1a1c",
+  tile: "#1f1f22",
+  accent: "#802626",
+  accentDim: "rgba(128,38,38,0.25)",
+  text: "#e8e0d4",
+  textMid: "#a09080",
+  textDim: "#6b6058",
+  textFaint: "#3d3530",
+  border: "#2a2420",
   green: "#22c55e",
-  amber: "#f59e0b",
+  amber: "#bb7125",
   greenDim: "#1a5c3a",
-  amberDim: "#8b6914",
+  amberDim: "#5c3a12",
 };
 
-const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter', -apple-system, sans-serif" };
-const heading: React.CSSProperties = { fontFamily: "'Outfit', 'Inter', sans-serif" };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const sans: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
+const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
 
 // ─── Helpers ───────────────────────────────────────────────────
 function fmt(n: number): string { return n.toLocaleString(); }
@@ -83,6 +83,16 @@ function getISOWeek(d: Date): number {
   tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
   const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
   return Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function getWeekRange(d: Date): { start: string; end: string } {
+  const day = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((day + 6) % 7)); // Monday
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6); // Sunday
+  const fmt = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return { start: fmt(mon), end: fmt(sun) };
 }
 
 function sentimentLabel(pct: number): string {
@@ -332,8 +342,10 @@ export default function SignalFire() {
   }
 
   const d = data;
-  const weekNum = getISOWeek(new Date());
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const weekNum = getISOWeek(now);
+  const year = now.getFullYear();
+  const weekRange = getWeekRange(now);
   const evidenceBlocks = buildEvidenceBlocks(d);
   const activeComponents = d.ops?.components.filter(c => c.value != null) ?? [];
 
@@ -390,7 +402,7 @@ export default function SignalFire() {
             `}</style>
           </div>
           <span style={{ ...mono, fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: C.textDim }}>
-            Radar Pick — Week {weekNum}, {year}
+            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -446,7 +458,7 @@ export default function SignalFire() {
           paddingBottom: 48,
         }}>
           <div style={{ ...mono, fontSize: 11, color: C.accent, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 16, opacity: 0.8 }}>
-            Radar Pick — Week {weekNum}, {year}
+            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
           </div>
           <h1 style={{
             fontFamily: "'Playfair Display', Georgia, serif",
