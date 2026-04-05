@@ -350,3 +350,9 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What happened**: Running `git remote -v` on the VPS printed the full remote URL including the embedded PAT (`ghp_...`). The output was pasted into the chat.
 - **What went wrong**: Embedding credentials in git remote URLs causes them to appear in plain text in any output that shows the remote. Token was immediately invalidated and rotated.
 - **Do instead**: Use SSH keys for VPS git authentication, or a credential helper that stores the token outside the URL. Never embed tokens in remote URLs on shared/logged systems.
+
+## gstack
+
+Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.
