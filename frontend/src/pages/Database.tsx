@@ -3,6 +3,9 @@ import { fetchPaginated, fetchStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import GameTable from "../components/GameTable";
 import Pagination from "../components/Pagination";
+import { useWatchlist } from "../hooks/useWatchlist";
+import { useCompare } from "../hooks/useCompare";
+import CompareBar from "../components/CompareBar";
 import type { GameListItem } from "../types";
 
 export default function Database() {
@@ -10,6 +13,12 @@ export default function Database() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Watchlist
+  const { watchlist, toggle: toggleWatch } = useWatchlist();
+  // Compare
+  const { compareList, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, canAdd: canAddToCompare } = useCompare();
+  const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
 
   // Filter state — changes apply instantly (search is debounced)
   const [days, setDays] = useState(90);
@@ -121,13 +130,25 @@ export default function Database() {
         sortBy={sortBy}
         search={search}
         gameMode={gameMode}
+        showWatchlistOnly={showWatchlistOnly}
+        watchlistCount={watchlist.length}
         onDaysChange={setDays}
         onMaxPriceChange={setMaxPrice}
         onSortChange={setSortBy}
         onSearchChange={setSearch}
         onGameModeChange={setGameMode}
+        onToggleWatchlistOnly={() => setShowWatchlistOnly((v) => !v)}
       />
-      <GameTable games={games} loading={loading} />
+      <GameTable
+        games={showWatchlistOnly ? games.filter((g) => watchlist.includes(g.appid)) : games}
+        loading={loading}
+        watchlist={watchlist}
+        onToggleWatch={toggleWatch}
+        compareList={compareList}
+        onToggleCompare={toggleCompare}
+        canAddToCompare={canAddToCompare}
+        emptyVariant={showWatchlistOnly ? "watchlist-empty" : "no-results"}
+      />
       <Pagination
         page={page}
         pageSize={pageSize}
@@ -136,6 +157,12 @@ export default function Database() {
         activeScrapers={activeScrapers}
         totalScrapers={totalScrapers}
         lastSync={lastSync}
+      />
+      <CompareBar
+        compareList={compareList}
+        games={games}
+        onRemove={removeCompare}
+        onClear={clearCompare}
       />
     </>
   );

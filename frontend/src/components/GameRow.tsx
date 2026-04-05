@@ -4,6 +4,11 @@ import type { GameListItem, YoutubeChannelBrief } from "../types";
 interface GameRowProps {
   game: GameListItem;
   even: boolean;
+  isWatched?: boolean;
+  onToggleWatch?: (appid: number) => void;
+  isInCompare?: boolean;
+  onToggleCompare?: (appid: number) => void;
+  canAddToCompare?: boolean;
 }
 
 function daysSince(dateStr: string | null): number | null {
@@ -32,7 +37,7 @@ function channelBadgeTag(ch: YoutubeChannelBrief): string | null {
   return null;
 }
 
-export default function GameRow({ game, even }: GameRowProps) {
+export default function GameRow({ game, even, isWatched = false, onToggleWatch, isInCompare = false, onToggleCompare, canAddToCompare = true }: GameRowProps) {
   const navigate = useNavigate();
   const days = daysSince(game.release_date);
   const snap = game.latest_snapshot;
@@ -57,6 +62,29 @@ export default function GameRow({ game, even }: GameRowProps) {
       {/* Game & Developer + YouTube badges */}
       <td className="px-6 py-2">
         <div className="flex items-center gap-3">
+          {onToggleWatch && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleWatch(game.appid); }}
+              title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+              className={`flex-shrink-0 transition-colors ${isWatched ? "text-status-warn" : "text-border-dark hover:text-text-dim"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: isWatched ? "'FILL' 1" : "'FILL' 0" }}>
+                bookmark
+              </span>
+            </button>
+          )}
+          {onToggleCompare && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleCompare(game.appid); }}
+              title={isInCompare ? "Remove from compare" : canAddToCompare ? "Add to compare" : "Compare is full (max 3)"}
+              disabled={!isInCompare && !canAddToCompare}
+              className={`flex-shrink-0 transition-colors ${isInCompare ? "text-status-pos" : canAddToCompare ? "text-border-dark hover:text-text-dim" : "text-border-dark opacity-40 cursor-not-allowed"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                {isInCompare ? "check_box" : "check_box_outline_blank"}
+              </span>
+            </button>
+          )}
           <a
             href={`https://store.steampowered.com/app/${game.appid}`}
             target="_blank"
