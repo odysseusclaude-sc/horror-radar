@@ -32,12 +32,26 @@ async def health() -> JSONResponse:
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+
+        recent_anomalies = 0
+        try:
+            with engine.connect() as conn:
+                row = conn.execute(text(
+                    "SELECT COUNT(*) FROM data_anomalies "
+                    "WHERE resolved = 0 "
+                    "AND detected_at >= datetime('now', '-24 hours')"
+                )).fetchone()
+                recent_anomalies = row[0] if row else 0
+        except Exception:
+            pass  # table may not exist on first boot
+
         return JSONResponse(
             status_code=200,
             content={
                 "status": "ok",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "0.1.0",
+                "data_anomalies_24h": recent_anomalies,
             },
         )
     except Exception as e:

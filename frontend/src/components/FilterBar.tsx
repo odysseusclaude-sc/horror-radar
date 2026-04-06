@@ -64,6 +64,22 @@ export default function FilterBar({
           <option value="ccu">CCU</option>
         </select>
         <button
+          onClick={onToggleWatchlistOnly}
+          title={showWatchlistOnly ? "Show all games" : "Show watchlist only"}
+          className={`p-2 rounded border flex-shrink-0 transition-colors ${
+            showWatchlistOnly
+              ? "bg-status-warn/10 border-status-warn/30 text-status-warn"
+              : "border-border-dark text-text-dim hover:bg-background-dark"
+          }`}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 16, fontVariationSettings: showWatchlistOnly ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            bookmark
+          </span>
+        </button>
+        <button
           className="p-2 rounded border border-border-dark hover:bg-background-dark transition-colors"
           onClick={() => setExpanded(!expanded)}
           aria-label="Toggle filters"

@@ -11,7 +11,7 @@ import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip,
 } from "recharts";
 import { fetchOne } from "../../api/client";
-import type { RadarPickResponse, RadarOpsComponent } from "../../types";
+import type { RadarPickResponse, RadarOpsComponent, RadarPickSummary } from "../../types";
 
 // ─── Palette ────────────────────────────────────────────────────
 const C = {
@@ -770,6 +770,76 @@ export default function SignalFire() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* ═══ SECTION 6B: RUNNER-UP CARDS ═══ */}
+      {d.runners_up && d.runners_up.length > 0 && (
+        <section style={{ maxWidth: 780, margin: "0 auto", padding: "48px 20px 0" }}>
+          <div style={{ ...mono, fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: C.textDim, marginBottom: 16 }}>
+            Others Watching
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+            {d.runners_up.map((pick: RadarPickSummary) => (
+              <div
+                key={pick.appid}
+                style={{ background: C.tile, borderRadius: 8, overflow: "hidden", cursor: "pointer", border: `1px solid ${C.border}` }}
+                onClick={() => navigate(`/game/${pick.appid}`)}
+              >
+                {pick.header_image_url && (
+                  <div style={{ height: 72, overflow: "hidden", position: "relative" }}>
+                    <img
+                      src={pick.header_image_url}
+                      alt={pick.title}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.7) brightness(0.55)" }}
+                    />
+                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent, ${C.bg}99)` }} />
+                  </div>
+                )}
+                <div style={{ padding: "12px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ ...heading, fontWeight: 600, fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {pick.title}
+                      </div>
+                      {pick.developer && (
+                        <div style={{ ...mono, fontSize: 10, color: C.textDim, marginTop: 2 }}>{pick.developer}</div>
+                      )}
+                    </div>
+                    {pick.ops_score != null && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, marginLeft: 10 }}>
+                        <span style={{ ...mono, fontSize: 16, fontWeight: 700, color: C.accent }}>{Math.round(pick.ops_score)}</span>
+                        {pick.ops_delta_14d != null && pick.ops_delta_14d !== 0 && (
+                          <span style={{ ...mono, fontSize: 10, color: pick.ops_delta_14d > 0 ? C.green : C.amber }}>
+                            {pick.ops_delta_14d > 0 ? "+" : ""}{pick.ops_delta_14d.toFixed(0)} / 14d
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", ...mono, fontSize: 10, color: C.textDim }}>
+                    {pick.days_since_launch != null && <span>Day {pick.days_since_launch}</span>}
+                    {pick.review_count != null && (
+                      <span>
+                        <span style={{ color: C.text }}>{pick.review_count.toLocaleString()}</span> rev
+                        {pick.velocity_7d != null && pick.velocity_7d > 0 && (
+                          <span style={{ color: C.green }}> +{pick.velocity_7d}/7d</span>
+                        )}
+                      </span>
+                    )}
+                    {pick.sentiment_pct != null && (
+                      <span style={{ color: pick.sentiment_pct >= 80 ? C.green : pick.sentiment_pct >= 60 ? C.amber : C.accent }}>
+                        {pick.sentiment_pct.toFixed(0)}%
+                      </span>
+                    )}
+                    {pick.price_usd != null && (
+                      <span>{pick.price_usd > 0 ? `$${pick.price_usd.toFixed(2)}` : "Free"}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

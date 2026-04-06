@@ -14,6 +14,7 @@ from schemas import (
     RadarOpsComponent,
     RadarOpsHistoryPoint,
     RadarPickResponse,
+    RadarPickSummary,
     RadarPreviousPick,
     RadarVelocitySpark,
     RadarYoutube,
@@ -388,6 +389,63 @@ def get_radar_pick(db: Session = Depends(get_db)):
             )
         )
 
+    # --- 10. Runners-up cards (top 4 other games with snapshot data) ---
+    runners_up: list[RadarPickSummary] = []
+    for other_game, other_ops in other_picks_rows:
+        other_snap = (
+            db.query(GameSnapshot)
+            .filter_by(appid=other_game.appid)
+            .order_by(GameSnapshot.snapshot_date.desc())
+            .first()
+        )
+        other_snap_7d = (
+            db.query(GameSnapshot)
+            .filter(
+                GameSnapshot.appid == other_game.appid,
+                GameSnapshot.snapshot_date <= today - timedelta(days=7),
+            )
+            .order_by(GameSnapshot.snapshot_date.desc())
+            .first()
+        )
+        other_v7d = None
+        if (
+            other_snap and other_snap_7d
+            and other_snap.review_count is not None
+            and other_snap_7d.review_count is not None
+        ):
+            other_v7d = other_snap.review_count - other_snap_7d.review_count
+
+        other_ops_14d = (
+            db.query(OpsScore)
+            .filter(
+                OpsScore.appid == other_game.appid,
+                OpsScore.score_date <= today - timedelta(days=14),
+            )
+            .order_by(OpsScore.score_date.desc())
+            .first()
+        )
+        other_delta = None
+        if other_ops_14d and other_ops.score is not None and other_ops_14d.score is not None:
+            other_delta = round(other_ops.score - other_ops_14d.score, 2)
+
+        other_days = None
+        if other_game.release_date:
+            other_days = (today - other_game.release_date).days
+
+        runners_up.append(RadarPickSummary(
+            appid=other_game.appid,
+            title=other_game.title,
+            developer=other_game.developer,
+            header_image_url=other_game.header_image_url,
+            price_usd=other_game.price_usd,
+            days_since_launch=other_days,
+            review_count=other_snap.review_count if other_snap else None,
+            velocity_7d=other_v7d,
+            ops_score=other_ops.score,
+            ops_delta_14d=other_delta,
+            sentiment_pct=other_snap.review_score_pct if other_snap else None,
+        ))
+
     # --- Build response ---
     return RadarPickResponse(
         appid=game.appid,
@@ -411,4 +469,5 @@ def get_radar_pick(db: Session = Depends(get_db)):
         ops_history=ops_history,
         velocity_spark=velocity_spark,
         previous_picks=previous_picks,
+        runners_up=runners_up,
     )

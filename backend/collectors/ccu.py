@@ -16,6 +16,7 @@ from sqlalchemy import func
 from collectors._http import fetch_with_retry, steam_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
+from validators import validate_ccu
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ async def run_ccu_snapshots():
                         continue
 
                     current_ccu = data["response"].get("player_count", 0)
+                    current_ccu = validate_ccu(db, game.appid, current_ccu)
 
                     # Compute peak CCU using aggregate
                     historical_peak = (

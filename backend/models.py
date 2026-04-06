@@ -248,3 +248,15 @@ class DeveloperProfile(Base):
     best_game_reviews = Column(Integer)
     scope = Column(String, default="db_only")  # "db_only" — future: "steam_full"
     computed_at = Column(DateTime, default=_utcnow)
+
+
+class DataAnomaly(Base):
+    __tablename__ = "data_anomalies"
+
+    id = Column(Integer, primary_key=True)
+    appid = Column(Integer, nullable=False, index=True, default=0)
+    field_name = Column(String, nullable=False)
+    expected_range = Column(String, nullable=False)
+    actual_value = Column(Float, nullable=False)
+    detected_at = Column(DateTime, nullable=False, default=_utcnow)
+    resolved = Column(Integer, default=0)

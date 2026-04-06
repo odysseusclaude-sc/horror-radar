@@ -349,6 +349,20 @@ class RadarVelocitySpark(BaseModel):
     label: str
     value: int
 
+class RadarPickSummary(BaseModel):
+    appid: int
+    title: str
+    developer: str | None = None
+    header_image_url: str | None = None
+    price_usd: float | None = None
+    days_since_launch: int | None = None
+    review_count: int | None = None
+    velocity_7d: int | None = None
+    ops_score: float | None = None
+    ops_delta_14d: float | None = None
+    sentiment_pct: float | None = None
+
+
 class RadarPickResponse(BaseModel):
     appid: int
     title: str
@@ -374,6 +388,7 @@ class RadarPickResponse(BaseModel):
     ops_history: list[RadarOpsHistoryPoint] = []
     velocity_spark: list[RadarVelocitySpark] = []
     previous_picks: list[RadarPreviousPick] = []
+    runners_up: list[RadarPickSummary] = []
 
 
 # --- Health check ---

@@ -13,6 +13,7 @@ from collectors._http import fetch_with_retry, youtube_limiter
 from config import settings
 from database import SessionLocal
 from models import CollectionRun, YoutubeVideo, YoutubeVideoSnapshot
+from validators import validate_youtube_views
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,9 @@ async def run_youtube_stats_refresh():
 
                     try:
                         stats = item.get("statistics", {})
-                        video.view_count = int(stats.get("viewCount", 0))
+                        prev_views = video.view_count
+                        new_views = int(stats.get("viewCount", 0))
+                        video.view_count = validate_youtube_views(db, vid_id, new_views, prev_views)
                         video.like_count = int(stats.get("likeCount", 0))
                         video.comment_count = int(stats.get("commentCount", 0))
 

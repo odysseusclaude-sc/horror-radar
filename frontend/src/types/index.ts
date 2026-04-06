@@ -212,6 +212,20 @@ export interface RadarVelocitySpark {
   value: number;
 }
 
+export interface RadarPickSummary {
+  appid: number;
+  title: string;
+  developer: string | null;
+  header_image_url: string | null;
+  price_usd: number | null;
+  days_since_launch: number | null;
+  review_count: number | null;
+  velocity_7d: number | null;
+  ops_score: number | null;
+  ops_delta_14d: number | null;
+  sentiment_pct: number | null;
+}
+
 export interface RadarPickResponse {
   appid: number;
   title: string;
@@ -233,6 +247,7 @@ export interface RadarPickResponse {
   ops_history: RadarOpsHistoryPoint[];
   velocity_spark: RadarVelocitySpark[];
   previous_picks: RadarPreviousPick[];
+  runners_up: RadarPickSummary[];
 }
 
 export interface InsightsResponse {

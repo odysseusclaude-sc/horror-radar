@@ -1046,7 +1046,7 @@ export default function TheAutopsy() {
   /* ── No snapshots state ── */
   if (snapshots.length === 0) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.white, padding: "32px 40px 60px" }}>
+      <div className="bg-background-dark min-h-screen text-text-main px-4 md:px-10 pt-8 pb-16">
         <style>{styleTag}</style>
         <header className="autopsy-stagger-1" style={{ marginBottom: 36 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
@@ -1118,14 +1118,14 @@ export default function TheAutopsy() {
   }, [latestWithOps, sandboxWeights]);
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.white }}>
+    <div className="bg-background-dark min-h-screen text-text-main">
       <style>{styleTag}</style>
 
       {/* ══════════════════════════════════════════════════
           HERO IDENTITY CARD — full-width header image
       ════════════════════════════════════════════════════ */}
       {game.header_image_url && (
-        <div className="autopsy-stagger-1" style={{ position: "relative", width: "100%", height: 260, overflow: "hidden" }}>
+        <div className="autopsy-stagger-1 relative w-full overflow-hidden" style={{ height: 260 }}>
           <img
             src={game.header_image_url}
             alt={game.title}
@@ -1137,18 +1137,18 @@ export default function TheAutopsy() {
             background: `linear-gradient(to top, ${C.bg} 0%, rgba(17,19,20,0.65) 45%, transparent 100%)`,
           }} />
           {/* floating title on image */}
-          <div style={{ position: "absolute", bottom: 20, left: 32, right: 32 }}>
+          <div className="absolute bottom-5 left-4 right-4 md:left-8 md:right-8">
             <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: C.ops, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
               The Autopsy · Forensic Timeline Analysis
             </div>
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 700, margin: 0, color: C.white, lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>
+            <h1 className="font-serif text-2xl md:text-4xl font-bold leading-tight" style={{ margin: 0, color: C.white, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>
               {game.title}
             </h1>
           </div>
         </div>
       )}
 
-      <div style={{ padding: "24px 40px 60px" }}>
+      <div className="px-4 md:px-10 pt-6 pb-16">
 
       {/* Fallback title when no header image */}
       {!game.header_image_url && (
@@ -1221,13 +1221,7 @@ export default function TheAutopsy() {
           VITAL SIGNS ROW — 5 metric tiles
       ════════════════════════════════════════════════════ */}
       <div
-        className="autopsy-stagger-2"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 10,
-          marginBottom: 24,
-        }}
+        className="autopsy-stagger-2 grid grid-cols-3 md:grid-cols-5 gap-2.5 mb-6"
       >
         {[
           {

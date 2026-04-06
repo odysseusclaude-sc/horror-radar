@@ -17,6 +17,7 @@ from sqlalchemy import func
 from collectors._http import fetch_with_retry, steam_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
+from validators import validate_review_count, validate_review_score
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,13 @@ async def run_review_snapshots():
                     review_score_pct = (
                         (total_pos / total_reviews * 100) if total_reviews > 0 else 0.0
                     )
+
+                    # Validate: reviews never decrease, score in 0-100
+                    total_reviews = validate_review_count(
+                        db, game.appid, total_reviews,
+                        latest.review_count if latest else None,
+                    )
+                    review_score_pct = validate_review_score(db, game.appid, review_score_pct)
 
                     # Upsert snapshot for today
                     existing = (
