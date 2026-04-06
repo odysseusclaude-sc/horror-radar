@@ -717,6 +717,21 @@ function EventCard({
   );
 }
 
+/* ── Section label with rule ─────────────────────────────────────── */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <span
+        style={{ fontFamily: "'Public Sans', sans-serif" }}
+        className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-dim whitespace-nowrap"
+      >
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-border-dark" />
+    </div>
+  );
+}
+
 /* ==================================================================
    THE AUTOPSY -- Main Component
    ================================================================== */
@@ -757,6 +772,8 @@ export default function TheAutopsy() {
   const [showGhost, setShowGhost] = useState(false);
   const [showSandbox, setShowSandbox] = useState(false);
   const [sandboxWeights, setSandboxWeights] = useState<OpsWeights>(DEFAULT_WEIGHTS);
+  const [activeSignalTab, setActiveSignalTab] = useState<"youtube" | "reddit" | "twitch">("youtube");
+  const [showOpsAnatomy, setShowOpsAnatomy] = useState(false);
 
   const toggleSeries = useCallback((key: string) => {
     setVisibleSeries((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -945,6 +962,43 @@ export default function TheAutopsy() {
     return { arrow: "\u2192", label: "stable" };
   }, [snapshots]);
 
+  /* ── Review delta 7d ── */
+  const reviewDelta7d = useMemo(() => {
+    if (!latestSnapshot?.review_count) return null;
+    const target = latestSnapshot.day_index - 7;
+    let closest: TimelineSnapshot | null = null;
+    let minDist = Infinity;
+    for (const s of snapshots) {
+      if (s.review_count == null) continue;
+      const dist = Math.abs(s.day_index - target);
+      if (dist < minDist) { minDist = dist; closest = s; }
+    }
+    if (!closest?.review_count) return null;
+    return latestSnapshot.review_count - closest.review_count;
+  }, [snapshots, latestSnapshot]);
+
+  /* ── OPS delta 7d ── */
+  const opsDelta7d = useMemo(() => {
+    const opsSnaps = snapshots.filter((s) => s.ops_score != null);
+    if (opsSnaps.length < 2) return null;
+    const latest = opsSnaps[opsSnaps.length - 1];
+    const target = latest.day_index - 7;
+    let closest: TimelineSnapshot | null = null;
+    let minDist = Infinity;
+    for (const s of opsSnaps) {
+      const dist = Math.abs(s.day_index - target);
+      if (dist < minDist) { minDist = dist; closest = s; }
+    }
+    if (!closest?.ops_score || !latest.ops_score) return null;
+    return latest.ops_score - closest.ops_score;
+  }, [snapshots]);
+
+  /* ── Unique YouTube channels ── */
+  const ytUniqueChannels = useMemo(() => {
+    const ids = new Set((data?.videos ?? []).map((v) => v.channel_id));
+    return ids.size;
+  }, [data?.videos]);
+
   /* ── Shared chart props ── */
   const gridProps = {
     stroke: C.border,
@@ -1121,34 +1175,110 @@ export default function TheAutopsy() {
     <div className="bg-background-dark min-h-screen text-text-main">
       <style>{styleTag}</style>
 
-      {/* ══════════════════════════════════════════════════
-          HERO IDENTITY CARD — full-width header image
-      ════════════════════════════════════════════════════ */}
-      {game.header_image_url && (
-        <div className="autopsy-stagger-1 relative w-full overflow-hidden" style={{ height: 260 }}>
+      {/* ══ HERO BANNER ══════════════════════════════════════════════ */}
+      {/* Full-bleed banner — header image with gradient overlay */}
+      <section className="relative overflow-hidden" style={{ height: 320 }}>
+        {game.header_image_url ? (
           <img
             src={game.header_image_url}
             alt={game.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }}
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          {/* gradient overlay — bottom to top */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: `linear-gradient(to top, ${C.bg} 0%, rgba(17,19,20,0.65) 45%, transparent 100%)`,
-          }} />
-          {/* floating title on image */}
-          <div className="absolute bottom-5 left-4 right-4 md:left-8 md:right-8">
-            <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: C.ops, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
-              The Autopsy · Forensic Timeline Analysis
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(135deg, #1a1012 0%, #2a1418 30%, #1a1a1c 70%, #111314 100%)" }}
+          />
+        )}
+        {/* Gradient fade to base */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(to top, #111314 0%, rgba(17,19,20,0.75) 45%, transparent 100%)" }}
+        />
+        {/* Red radial accent */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse 60% 80% at 30% 40%, rgba(128,38,38,0.28), transparent)" }}
+        />
+        {/* Content at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 max-w-[1200px] mx-auto px-6 pb-8">
+          {/* Breadcrumb */}
+          <div className="font-mono text-[11px] text-text-dim mb-3">
+            <Link to="/" className="hover:text-text-mid transition-colors">Home</Link>
+            <span className="mx-1.5 opacity-40">/</span>
+            <span className="text-text-mid">{game.title}</span>
+          </div>
+          {/* Title */}
+          <h1
+            className="font-serif text-[2.4rem] sm:text-[3rem] font-bold text-white leading-tight mb-3"
+            style={{ textShadow: "0 2px 20px rgba(0,0,0,0.55)" }}
+          >
+            {game.title}
+          </h1>
+          {/* Meta */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 text-sm text-text-mid">
+            {game.developer && <span>by {game.developer}</span>}
+            {game.price_usd != null && (
+              <span className="font-mono text-xs text-text-main bg-white/[0.06] px-2.5 py-0.5 rounded">
+                {game.price_usd === 0 ? "Free" : `$${game.price_usd.toFixed(2)}`}
+              </span>
+            )}
+            {releaseDate && (
+              <span className="text-text-dim text-xs">
+                {new Date(releaseDate + "T00:00:00Z").toLocaleDateString("en-US", {
+                  month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+                })}
+              </span>
+            )}
+            {releaseDate && (() => {
+              const d = daysBetween(releaseDate, new Date().toISOString().slice(0, 10));
+              if (d <= 0) return null;
+              const cls = d <= 7
+                ? "text-status-pos bg-status-pos/10 border-status-pos/20"
+                : d <= 30
+                ? "text-status-warn bg-status-warn/10 border-status-warn/20"
+                : "text-status-neg bg-status-neg/10 border-status-neg/20";
+              return (
+                <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${cls}`}>
+                  {d}d
+                </span>
+              );
+            })()}
+          </div>
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {tags.slice(0, 6).map((t) => (
+                <span
+                  key={t}
+                  className="px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border border-border-dark text-text-mid bg-background-dark/80"
+                >
+                  {t}
+                </span>
+              ))}
             </div>
-            <h1 className="font-serif text-2xl md:text-4xl font-bold leading-tight" style={{ margin: 0, color: C.white, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>
-              {game.title}
-            </h1>
+          )}
+          {/* Actions */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <a
+              href={`https://store.steampowered.com/app/${game.appid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-surface-dark border border-border-dark rounded-md text-xs font-semibold text-text-main hover:border-text-dim transition-all"
+            >
+              View on Steam ↗
+            </a>
+            {game.has_demo && (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold text-status-info border border-status-info/25 bg-status-info/10">
+                ✓ Demo Available
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </section>
 
-      <div className="px-4 md:px-10 pt-6 pb-16">
+      {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
+      <div className="max-w-[1200px] mx-auto px-6 pb-16">
 
       {/* Fallback title when no header image */}
       {!game.header_image_url && (
@@ -1162,930 +1292,684 @@ export default function TheAutopsy() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════
-          META ROW — developer · price · release · tags
-      ════════════════════════════════════════════════════ */}
-      <div className="autopsy-stagger-1" style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.dim, marginBottom: 4 }}>
-            {game.developer || "Unknown developer"}
-            {game.price_usd != null && (
-              <span style={{ marginLeft: 10, color: C.white }}>
-                {game.price_usd === 0 ? "Free" : `$${game.price_usd.toFixed(2)}`}
-              </span>
-            )}
-            {releaseDate && (
-              <span style={{ marginLeft: 10, color: C.dim }}>
-                · {new Date(releaseDate + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-              </span>
-            )}
+      {/* ══ VITAL SIGNS ══════════════════════════════════════════════ */}
+      {/* ── Vital Signs 5-card grid ──────────────────────────────── */}
+      <section className="py-8">
+        <SectionLabel>Vital Signs</SectionLabel>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* OPS Score */}
+          {(() => {
+            const score = latestWithOps?.ops_score;
+            const color = score == null ? "text-text-dim"
+              : score >= 60 ? "text-status-pos"
+              : score >= 30 ? "text-status-warn"
+              : "text-status-neg";
+            return (
+              <div className="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-border-structural transition-all hover:-translate-y-0.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-dim mb-2">OPS Score</div>
+                <div className={`font-mono text-[2rem] font-bold leading-none mb-1.5 ${color}`}>
+                  {score != null ? Math.round(score) : "--"}
+                </div>
+                <div className="font-mono text-xs text-text-dim">
+                  {opsDelta7d != null && Math.abs(opsDelta7d) >= 1 && (
+                    <span className={opsDelta7d > 0 ? "text-status-pos" : "text-status-neg"}>
+                      {opsDelta7d > 0 ? "↑" : "↓"}{Math.abs(Math.round(opsDelta7d))} vs 7d ago
+                    </span>
+                  )}
+                  {opsDelta7d == null && latestWithOps?.ops_confidence && (
+                    <span>{latestWithOps.ops_confidence} confidence</span>
+                  )}
+                </div>
+                {latestWithOps?.ops_confidence && (
+                  <div className="flex gap-1 mt-2">
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className={`inline-block w-1.5 h-1.5 rounded-full ${
+                        (latestWithOps.ops_confidence === "high" && i <= 2) ||
+                        (latestWithOps.ops_confidence === "medium" && i <= 1) ||
+                        (latestWithOps.ops_confidence === "low" && i === 0)
+                          ? "bg-text-mid" : "bg-border-dark"
+                      }`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {/* Reviews */}
+          <div className="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-border-structural transition-all hover:-translate-y-0.5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-dim mb-2">Reviews</div>
+            <div className="font-mono text-[2rem] font-bold leading-none text-text-main mb-1.5">
+              {latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "--"}
+            </div>
+            <div className="font-mono text-xs text-text-dim">
+              {reviewDelta7d != null && reviewDelta7d > 0 && (
+                <span className="text-status-pos">+{reviewDelta7d} in 7d</span>
+              )}
+            </div>
           </div>
-          {/* Tags */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-            {tags.slice(0, 8).map((t) => (
-              <span key={t} style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 9,
-                padding: "2px 7px",
-                borderRadius: 3,
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${C.border}`,
-                color: C.dim,
-              }}>{t}</span>
-            ))}
+          {/* Sentiment */}
+          {(() => {
+            const pct = latestSnapshot?.review_score_pct;
+            const color = pct == null ? "text-text-dim"
+              : pct >= 80 ? "text-status-pos"
+              : pct >= 40 ? "text-status-warn"
+              : "text-status-neg";
+            const rating = pct != null ? getSteamRating(pct) : null;
+            return (
+              <div className="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-border-structural transition-all hover:-translate-y-0.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-dim mb-2">Sentiment</div>
+                <div className={`font-mono text-[2rem] font-bold leading-none mb-1.5 ${color}`}>
+                  {pct != null ? Math.round(pct) + "%" : "--"}
+                </div>
+                <div className="font-mono text-xs text-text-dim">
+                  {rating && <span style={{ color: rating.color }}>{rating.label}</span>}
+                </div>
+              </div>
+            );
+          })()}
+          {/* Peak CCU */}
+          {(() => {
+            const maxCcu = snapshots.reduce((m, s) => Math.max(m, s.peak_ccu ?? 0), 0);
+            return (
+              <div className="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-border-structural transition-all hover:-translate-y-0.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-dim mb-2">Peak CCU</div>
+                <div className="font-mono text-[2rem] font-bold leading-none text-text-main mb-1.5">
+                  {maxCcu > 0 ? fmtNum(maxCcu) : "--"}
+                </div>
+                <div className="font-mono text-xs text-text-dim">Concurrent players</div>
+              </div>
+            );
+          })()}
+          {/* YouTube */}
+          <div className="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-border-structural transition-all hover:-translate-y-0.5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-dim mb-2">YouTube</div>
+            <div className="font-mono text-[2rem] font-bold leading-none text-text-main mb-1.5">
+              {ytVideoCount > 0 ? ytVideoCount : "--"}
+            </div>
+            <div className="font-mono text-xs text-text-dim">
+              {ytVideoCount > 0 ? `videos · ${ytUniqueChannels} channel${ytUniqueChannels !== 1 ? "s" : ""}` : "No coverage yet"}
+            </div>
           </div>
         </div>
-        <a
-          href={`https://store.steampowered.com/app/${game.appid}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
-            padding: "6px 14px",
-            borderRadius: 4,
-            border: `1px solid ${C.border}`,
-            color: C.dim,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.ops; e.currentTarget.style.color = C.white; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.dim; }}
-        >
-          View on Steam ↗
-        </a>
-      </div>
+      </section>
 
-      {/* ══════════════════════════════════════════════════
-          VITAL SIGNS ROW — 5 metric tiles
-      ════════════════════════════════════════════════════ */}
-      <div
-        className="autopsy-stagger-2 grid grid-cols-3 md:grid-cols-5 gap-2.5 mb-6"
-      >
-        {[
-          {
-            label: "OPS Score",
-            value: latestWithOps?.ops_score != null ? String(Math.round(latestWithOps.ops_score)) : "--",
-            note: latestWithOps?.ops_confidence ? `${latestWithOps.ops_confidence} confidence` : null,
-            color: latestWithOps?.ops_score != null
-              ? (latestWithOps.ops_score >= 60 ? "#5ec269" : latestWithOps.ops_score >= 30 ? "#e8a832" : "#e25535")
-              : C.dim,
-          },
-          {
-            label: "Reviews",
-            value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "--",
-            note: null,
-            color: C.white,
-          },
-          {
-            label: "Score %",
-            value: latestSnapshot?.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--",
-            note: latestSnapshot?.review_score_pct != null ? getSteamRating(latestSnapshot.review_score_pct).label : null,
-            color: latestSnapshot?.review_score_pct != null
-              ? (latestSnapshot.review_score_pct >= 80 ? "#5ec269" : latestSnapshot.review_score_pct >= 60 ? "#e8a832" : "#e25535")
-              : C.dim,
-          },
-          {
-            label: "Peak CCU",
-            value: (() => { const mx = snapshots.reduce((m, s) => Math.max(m, s.peak_ccu ?? 0), 0); return mx > 0 ? fmtNum(mx) : "--"; })(),
-            note: null,
-            color: "#802626",
-          },
-          {
-            label: "YT Videos",
-            value: ytVideoCount > 0 ? String(ytVideoCount) : "--",
-            note: ytVideoCount > 0 ? "tracked videos" : null,
-            color: "#38bdf8",
-          },
-        ].map((tile) => (
-          <div
-            key={tile.label}
-            style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 6,
-              padding: "14px 16px",
-            }}
-          >
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 6 }}>
-              {tile.label}
-            </div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 26, fontWeight: 700, color: tile.color, lineHeight: 1 }}>
-              {tile.value}
-            </div>
-            {tile.note && (
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.dim, marginTop: 4 }}>
-                {tile.note}
-              </div>
+      {/* ── Story So Far ────────────────────────────────────────────── */}
+      <section className="py-8 border-t border-border-dark">
+        <SectionLabel>The Story So Far</SectionLabel>
+        {/* Phase progress track */}
+        {phases.length > 0 && (
+          <div className="relative mb-6">
+            <div className="absolute top-[14px] left-0 right-0 h-px bg-border-dark" />
+            {activePhase && (
+              <div
+                className="absolute top-[14px] left-0 h-px transition-all"
+                style={{
+                  width: `${Math.min(100, ((phases.findIndex((p) => p.id === activePhase) + 0.5) / phases.length) * 100)}%`,
+                  background: "linear-gradient(90deg, #6b6058, #802626)",
+                }}
+              />
             )}
+            <div className="relative flex w-full">
+              {phases.map((p, idx) => {
+                const activIdx = phases.findIndex((ph) => ph.id === activePhase);
+                const isActive = p.id === activePhase;
+                const isPast = idx < activIdx;
+                return (
+                  <div key={p.id} className="flex-1 text-center relative z-10">
+                    <div
+                      className={`w-3 h-3 rounded-full mx-auto mb-2 border-2 border-background-dark transition-all ${
+                        isActive
+                          ? "bg-primary shadow-[0_0_0_4px_rgba(128,38,38,0.25)] w-3.5 h-3.5"
+                          : isPast
+                          ? "bg-text-dim"
+                          : "bg-border-dark"
+                      }`}
+                    />
+                    <div
+                      className={`text-[10px] font-semibold uppercase tracking-wider ${
+                        isActive ? "text-text-main" : isPast ? "text-text-mid" : "text-text-dim"
+                      }`}
+                    >
+                      {p.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        ))}
-      </div>
+        )}
+        {/* Narrative prose */}
+        <div className="bg-surface-dark border border-border-dark border-l-4 border-l-primary rounded-r-xl p-5 text-sm text-text-mid leading-relaxed">
+          {storySentence}
+        </div>
+      </section>
 
-      {/* ══════════════════════════════════════════════════
-          OPS COMPONENT RADAR
-      ════════════════════════════════════════════════════ */}
-      {radarData && (
-        <div
-          className="autopsy-stagger-3"
-          style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 6,
-            padding: "16px 20px",
-            marginBottom: 28,
-            display: "flex",
-            alignItems: "center",
-            gap: 24,
-          }}
-        >
-          <div style={{ flex: "0 0 220px" }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 4 }}>
-              OPS Component Radar
-            </div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.dim, lineHeight: 1.5 }}>
-              Each axis = component score normalised to 0–100.{" "}
-              <span style={{ color: "rgba(255,255,255,0.35)" }}>White ring = peer median (50).</span>
-            </div>
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-              {radarData.map((d) => (
-                <div key={d.axis} style={{ display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
-                  <span style={{ color: C.dim }}>{d.axis}</span>
-                  <span style={{ color: d.score >= 60 ? "#5ec269" : d.score >= 30 ? "#e8a832" : "#e25535" }}>{d.score}</span>
-                </div>
+      {/* ── Performance Timeline ─────────────────────────────────────── */}
+      <section className="py-8 border-t border-border-dark">
+        <SectionLabel>Performance Timeline</SectionLabel>
+
+        {/* Panel 1 — OPS Trajectory */}
+        <div className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden mb-4">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-dark">
+            <span className="text-sm font-semibold text-text-main">OPS Trajectory</span>
+            <div className="flex gap-1">
+              {SERIES.filter((s) => s.panel === 1).map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => toggleSeries(s.key)}
+                  className={`px-3 py-1 text-[10px] font-semibold uppercase tracking-wide border rounded transition-all ${
+                    visibleSeries[s.key]
+                      ? "bg-primary/15 border-primary/30 text-text-main"
+                      : "bg-transparent border-transparent text-text-dim hover:text-text-mid"
+                  }`}
+                >
+                  {s.label}
+                </button>
               ))}
             </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height={220}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                <PolarGrid stroke={C.border} />
-                <PolarAngleAxis
-                  dataKey="axis"
-                  tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+          <div className="p-4" style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisStyle} domain={[0, 100]} tickFormatter={(v: number) => String(Math.round(v))} />
+                <Tooltip content={<AutopsyTooltip visibleSeries={visibleSeries} events={events} />} />
+                {renderPhaseBands()}
+                {renderEventLines(true)}
+                <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="2 6" strokeOpacity={0.5} />
+                {visibleSeries.raw_ops && (
+                  <Line type="monotone" dataKey="raw_ops" stroke={C.ops} strokeWidth={2} dot={false} connectNulls />
+                )}
+                <Brush
+                  dataKey="date"
+                  height={20}
+                  travellerWidth={6}
+                  stroke={C.border}
+                  fill={C.surface}
+                  tickFormatter={(v: string) => fmtDate(v)}
+                  onChange={handleBrushChange}
+                  startIndex={brushRange.startIndex}
+                  endIndex={brushRange.endIndex}
                 />
-                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                {/* Peer median ring */}
-                <Radar
-                  name="Peer Median"
-                  dataKey="peer"
-                  stroke="rgba(255,255,255,0.2)"
-                  fill="rgba(255,255,255,0.04)"
-                  strokeDasharray="4 3"
-                  strokeWidth={1}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                {/* Game score */}
-                <Radar
-                  name="This Game"
-                  dataKey="score"
-                  stroke={C.ops}
-                  fill={`${C.ops}25`}
-                  strokeWidth={2}
-                  dot={{ fill: C.ops, r: 3 }}
-                  isAnimationActive={false}
-                />
-              </RadarChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
-      )}
 
-      {/* --- Story sentence (autopsy narrative) --- */}
-      <p className="autopsy-stagger-1" style={{ ...heading, fontSize: 14, color: C.dim, margin: "0 0 24px", lineHeight: 1.6, maxWidth: 700 }}>
-        {storySentence}
-      </p>
-
-      {/* ══════════════════════════════════════════════════
-          OPS WEIGHT SANDBOX
-      ════════════════════════════════════════════════════ */}
-      {latestWithOps && (
-        <div className="autopsy-stagger-3" style={{ marginBottom: 20 }}>
-          <button
-            onClick={() => setShowSandbox((v) => !v)}
-            style={{
-              ...mono,
-              fontSize: 10,
-              padding: "4px 12px",
-              borderRadius: 4,
-              cursor: "pointer",
-              border: `1px solid ${showSandbox ? C.ops : C.border}`,
-              background: showSandbox ? `${C.ops}15` : "transparent",
-              color: showSandbox ? C.ops : C.dim,
-              transition: "all 0.2s",
-              marginBottom: showSandbox ? 12 : 0,
-            }}
-          >
-            {showSandbox ? "▲" : "▼"} Weight Sandbox
-          </button>
-
-          {showSandbox && (
-            <div style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 6,
-              padding: "16px 20px",
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 16,
-              alignItems: "start",
-            }}>
-              <div>
-                <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 12 }}>
-                  Adjust component weights — see how OPS changes in real-time
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {(Object.entries(sandboxWeights) as [keyof OpsWeights, number][]).map(([key, val]) => (
-                    <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ ...mono, fontSize: 10, color: C.dim, width: 70, textTransform: "capitalize" }}>
-                        {key}
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={0.6}
-                        step={0.01}
-                        value={val}
-                        onChange={(e) => setSandboxWeights((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-                        style={{ flex: 1, accentColor: C.ops }}
-                      />
-                      <div style={{ ...mono, fontSize: 10, color: C.white, width: 36, textAlign: "right" }}>
-                        {(val * 100).toFixed(0)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
+        {/* Panel 2 — Reviews & Engagement */}
+        <div className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden mb-4">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-dark flex-wrap gap-2">
+            <span className="text-sm font-semibold text-text-main">Reviews &amp; Engagement</span>
+            <div className="flex gap-1 flex-wrap">
+              {SERIES.filter((s) => s.panel === 2).map((s) => (
                 <button
-                  onClick={() => setSandboxWeights(DEFAULT_WEIGHTS)}
-                  style={{
-                    ...mono, fontSize: 9, marginTop: 10, padding: "3px 10px",
-                    borderRadius: 3, cursor: "pointer",
-                    border: `1px solid ${C.border}`, background: "transparent", color: C.dim,
-                  }}
+                  key={s.key}
+                  onClick={() => toggleSeries(s.key)}
+                  className={`px-3 py-1 text-[10px] font-semibold uppercase tracking-wide border rounded transition-all ${
+                    visibleSeries[s.key]
+                      ? "bg-primary/15 border-primary/30 text-text-main"
+                      : "bg-transparent border-transparent text-text-dim hover:text-text-mid"
+                  }`}
                 >
-                  Reset to defaults
+                  {s.label}
                 </button>
-              </div>
-
-              {/* Live score */}
-              <div style={{ textAlign: "center", minWidth: 90 }}>
-                <div style={{ ...mono, fontSize: 9, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>
-                  Sandbox OPS
-                </div>
-                <div style={{
-                  ...mono, fontSize: 40, fontWeight: 700,
-                  color: sandboxScore != null
-                    ? (sandboxScore >= 60 ? "#5ec269" : sandboxScore >= 30 ? "#e8a832" : "#e25535")
-                    : C.dim,
-                  lineHeight: 1,
-                }}>
-                  {sandboxScore ?? "--"}
-                </div>
-                <div style={{ ...mono, fontSize: 9, color: C.dim, marginTop: 4 }}>
-                  vs actual <span style={{ color: C.ops }}>
-                    {latestWithOps?.ops_score != null ? Math.round(latestWithOps.ops_score) : "--"}
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* --- Series Toggle Pills --- */}
-      <div className="autopsy-stagger-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
-        {SERIES.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => toggleSeries(s.key)}
-            style={{
-              ...mono,
-              fontSize: 10,
-              padding: "4px 12px",
-              borderRadius: 4,
-              cursor: "pointer",
-              border: `1px solid ${visibleSeries[s.key] ? s.color : C.border}`,
-              background: visibleSeries[s.key] ? `${s.color}15` : "transparent",
-              color: visibleSeries[s.key] ? s.color : C.dim,
-              transition: "all 0.2s",
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-        <span style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />
-        <button
-          onClick={() => setShowGhost((g) => !g)}
-          style={{
-            ...mono,
-            fontSize: 10,
-            padding: "4px 12px",
-            borderRadius: 4,
-            cursor: "pointer",
-            border: `1px solid ${showGhost ? C.ghostStroke : C.border}`,
-            background: showGhost ? "rgba(255,255,255,0.04)" : "transparent",
-            color: showGhost ? C.white : C.dim,
-            transition: "all 0.2s",
-          }}
-        >
-          {showGhost ? "Hide" : "Show"} Median Trajectory
-        </button>
-      </div>
-
-      {showGhost && (
-        <div style={{ ...mono, fontSize: 10, color: C.dim, marginBottom: 12, paddingLeft: 4 }}>
-          Coming soon -- median trajectory comparison is not yet available.
-        </div>
-      )}
-
-      {/* --- ELEMENT 2: Master Timeline --- */}
-      <div className="autopsy-stagger-2">
-
-        {/* Panel 1: OPS Score + Event Flags */}
-        {hasOpsData && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px 8px", marginBottom: 8 }}>
-            <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, paddingLeft: 8 }}>
-              OPS (Raw) &mdash; Vital Sign
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
+          </div>
+          <div className="p-4" style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid {...gridProps} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisStyle} tickFormatter={fmtNum} />
+                <Tooltip content={<AutopsyTooltip visibleSeries={visibleSeries} events={events} />} />
                 {renderPhaseBands()}
-                <XAxis {...xAxisProps} hide />
-                <YAxis {...yAxisStyle} tickFormatter={(v: number) => v.toFixed(1)} />
-                <Tooltip
-                  content={(props: any) => (
-                    <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />
-                  )}
-                  cursor={{ stroke: C.dim, strokeDasharray: "3 3" }}
-                />
-                {renderEventLines(true)}
-                <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" label={{ value: "Today", fill: C.dim, fontSize: 10, position: "top" }} />
-                {visibleSeries.raw_ops && (
-                  <Line
-                    dataKey="raw_ops"
-                    stroke={C.ops}
-                    strokeWidth={2.5}
-                    dot={false}
-                    connectNulls
-                    activeDot={{ r: 4, fill: C.ops, stroke: C.bg, strokeWidth: 2 }}
-                  />
+                {renderEventLines(false)}
+                {visibleSeries.review_count && (
+                  <Line type="monotone" dataKey="review_count" stroke={C.reviews} strokeWidth={2} dot={false} connectNulls />
+                )}
+                {visibleSeries.review_velocity && (
+                  <Line type="monotone" dataKey="review_velocity" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 2" dot={false} connectNulls />
+                )}
+                {visibleSeries.peak_ccu && (
+                  <Line type="monotone" dataKey="peak_ccu" stroke={C.ccu} strokeWidth={1.5} dot={false} connectNulls />
+                )}
+                {visibleSeries.demo_review_count && (
+                  <Line type="monotone" dataKey="demo_review_count" stroke="#22d3ee" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls />
                 )}
               </ComposedChart>
             </ResponsiveContainer>
-            {/* Clickable event flags row */}
-            {events.length > 0 && (
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "6px 8px 4px", borderTop: `1px solid ${C.border}` }}>
-                {events.map((e, i) => (
-                  <button
-                    key={i}
-                    className="autopsy-event-flag"
-                    onClick={() => setSelectedEvent(e)}
-                    title={e.title}
-                    style={{
-                      ...mono,
-                      fontSize: 10,
-                      background: `${EVENT_COLORS[e.type] || C.dim}15`,
-                      border: `1px solid ${(EVENT_COLORS[e.type] || C.dim)}40`,
-                      color: EVENT_COLORS[e.type] || C.dim,
-                      borderRadius: 3,
-                      padding: "2px 6px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {eventShape(e.type)} D{e.day_index}
-                  </button>
+          </div>
+        </div>
+
+        {/* Panel 3 — Sentiment & YouTube */}
+        <div className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-dark">
+            <span className="text-sm font-semibold text-text-main">Sentiment &amp; YouTube</span>
+            <div className="flex gap-1">
+              {SERIES.filter((s) => s.panel === 3).map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => toggleSeries(s.key)}
+                  className={`px-3 py-1 text-[10px] font-semibold uppercase tracking-wide border rounded transition-all ${
+                    visibleSeries[s.key]
+                      ? "bg-primary/15 border-primary/30 text-text-main"
+                      : "bg-transparent border-transparent text-text-dim hover:text-text-mid"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="p-4" style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisStyle} yAxisId="score" domain={[0, 100]} />
+                <YAxis {...yAxisStyle} yAxisId="yt" orientation="right" tickFormatter={fmtNum} />
+                <Tooltip content={<AutopsyTooltip visibleSeries={visibleSeries} events={events} />} />
+                {[95, 80, 70, 40].map((pct) => (
+                  <ReferenceLine
+                    key={pct}
+                    yAxisId="score"
+                    y={pct}
+                    stroke={getSteamRating(pct).color}
+                    strokeDasharray="2 4"
+                    strokeOpacity={0.3}
+                    label={{ value: `${pct}%`, fill: getSteamRating(pct).color, fontSize: 9, position: "insideTopRight" }}
+                  />
                 ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Panel 2: Reviews + CCU */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px 8px", marginBottom: 8 }}>
-          <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, paddingLeft: 8 }}>
-            Reviews + Concurrent Players
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid {...gridProps} />
-              {renderPhaseBands()}
-              <XAxis {...xAxisProps} hide />
-              <YAxis yAxisId="reviews" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <YAxis yAxisId="ccu" orientation="right" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <Tooltip
-                content={(props: any) => (
-                  <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />
+                {visibleSeries.review_score_pct && (
+                  <Line yAxisId="score" type="monotone" dataKey="review_score_pct" stroke={C.score} strokeWidth={2} dot={false} connectNulls />
                 )}
-                cursor={{ stroke: C.dim, strokeDasharray: "3 3" }}
-              />
-              {renderEventLines(false)}
-              <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" yAxisId="reviews" />
-              {visibleSeries.peak_ccu && (
-                <Area
-                  dataKey="peak_ccu"
-                  yAxisId="ccu"
-                  stroke={C.ccu}
-                  fill={C.ccu}
-                  fillOpacity={0.12}
-                  strokeWidth={1.5}
-                  connectNulls
-                  dot={snapshots.filter(s => s.peak_ccu != null).length <= 3 ? { r: 3, fill: C.ccu } : false}
-                />
-              )}
-              {visibleSeries.review_count && (
-                <Line
-                  dataKey="review_count"
-                  yAxisId="reviews"
-                  stroke={C.reviews}
-                  strokeWidth={2}
-                  dot={snapshots.filter(s => s.review_count != null).length <= 3 ? { r: 3, fill: C.reviews } : false}
-                  connectNulls
-                  activeDot={{ r: 3, fill: C.reviews, stroke: C.bg, strokeWidth: 2 }}
-                />
-              )}
-              {visibleSeries.demo_review_count && (
-                <Line
-                  dataKey="demo_review_count"
-                  yAxisId="reviews"
-                  stroke="#22d3ee"
-                  strokeWidth={1.5}
-                  dot={false}
-                  strokeDasharray="4 2"
-                />
-              )}
-              {visibleSeries.review_velocity && (
-                <Line
-                  dataKey="review_velocity"
-                  yAxisId="ccu"
-                  stroke="#f97316"
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls
-                  strokeDasharray="4 2"
-                  activeDot={{ r: 3, fill: "#f97316", stroke: C.bg, strokeWidth: 2 }}
-                />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Panel 3: Score % + YT Views */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px 8px", marginBottom: 8 }}>
-          <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, paddingLeft: 8 }}>
-            Review Sentiment + YouTube Views
-          </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <ComposedChart data={chartData} syncId="autopsy" margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid {...gridProps} />
-              {renderPhaseBands()}
-              <XAxis {...xAxisProps} />
-              <YAxis yAxisId="score" {...yAxisStyle} domain={[0, 100]} tickFormatter={(v: number) => v + "%"} />
-              <YAxis yAxisId="ytviews" orientation="right" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <Tooltip
-                content={(props: any) => (
-                  <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />
+                {visibleSeries.yt_cumulative_views && (
+                  <Area yAxisId="yt" type="monotone" dataKey="yt_cumulative_views" stroke="#38bdf8" fill="rgba(56,189,248,0.08)" strokeWidth={1.5} dot={false} connectNulls />
                 )}
-                cursor={{ stroke: C.dim, strokeDasharray: "3 3" }}
-              />
-              {/* Steam rating reference bands */}
-              {visibleSeries.review_score_pct && (
-                <>
-                  <ReferenceArea yAxisId="score" y1={95} y2={100} fill="#22c55e" fillOpacity={0.04} />
-                  <ReferenceArea yAxisId="score" y1={80} y2={95} fill="#22c55e" fillOpacity={0.03} />
-                  <ReferenceArea yAxisId="score" y1={70} y2={80} fill="#86efac" fillOpacity={0.02} />
-                  <ReferenceArea yAxisId="score" y1={40} y2={70} fill="#facc15" fillOpacity={0.02} />
-                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
-                  <ReferenceLine yAxisId="score" y={70} stroke="#86efac" strokeDasharray="8 6" strokeOpacity={0.2} label={{ value: "Mostly Positive", fill: "#86efac", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
-                </>
-              )}
-              {renderEventLines(false)}
-              <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" yAxisId="score" />
-              {visibleSeries.review_score_pct && (
-                <Line
-                  dataKey="review_score_pct"
-                  yAxisId="score"
-                  stroke={C.score}
-                  strokeWidth={2}
-                  dot={snapshots.filter(s => s.review_score_pct != null).length <= 3 ? { r: 3, fill: C.score } : false}
-                  connectNulls
-                  activeDot={{ r: 3, fill: C.score, stroke: C.bg, strokeWidth: 2 }}
-                />
-              )}
-              {visibleSeries.yt_cumulative_views && (
-                <Area
-                  dataKey="yt_cumulative_views"
-                  yAxisId="ytviews"
-                  stroke="#38bdf8"
-                  fill="#38bdf8"
-                  fillOpacity={0.08}
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls
-                />
-              )}
-              {/* Brush control at the bottom of the last panel */}
-              <Brush
-                dataKey="date"
-                height={28}
-                stroke={C.border}
-                fill={C.bg}
-                tickFormatter={(v: string) => fmtDate(v)}
-                onChange={handleBrushChange}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          {visibleSeries.yt_cumulative_views && (
-            <div style={{ ...mono, fontSize: 9, color: C.dim, padding: "4px 8px 0", opacity: 0.6 }}>
-              YT views are cumulative snapshots &mdash; step pattern reflects periodic collection, not actual view growth curve.
-            </div>
-          )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* --- ELEMENT 3: Phase Analysis Strip --- */}
-      {phases.length > 0 && (
-        <div className="autopsy-stagger-3" style={{ marginTop: 28, marginBottom: 36 }}>
-          <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>
-            Phase Analysis
-          </div>
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-            {phases.map((p) => {
-              const isActive = activePhase === p.id;
-              return (
-                <div
-                  key={p.id}
-                  className="autopsy-phase-card"
-                  style={{
-                    flex: "0 0 auto",
-                    width: 200,
-                    background: isActive ? `${PHASE_ACCENT_COLORS[p.id] || C.dim}10` : C.surface,
-                    border: `1px solid ${isActive ? (PHASE_ACCENT_COLORS[p.id] || C.dim) + "60" : C.border}`,
-                    borderTop: `3px solid ${PHASE_ACCENT_COLORS[p.id] || C.dim}`,
-                    borderRadius: 6,
-                    padding: "12px 14px",
-                  }}
-                >
-                  <div style={{ ...heading, fontSize: 13, fontWeight: 700, color: PHASE_ACCENT_COLORS[p.id] || C.dim, marginBottom: 4 }}>
-                    {p.label}
-                  </div>
-                  <div style={{ ...mono, fontSize: 10, color: C.dim, marginBottom: 8 }}>
-                    {p.duration_days}d &middot; Day {p.start_day}-{p.end_day}
-                  </div>
-                  <div style={{ ...mono, fontSize: 10, color: C.white, marginBottom: 6, lineHeight: 1.5 }}>
-                    {p.summary}
-                  </div>
-                  <div style={{ ...mono, fontSize: 9, color: C.dim, marginBottom: 4 }}>
-                    <span style={{ color: PHASE_ACCENT_COLORS[p.id] || C.dim }}>Signal:</span> {p.dominant_signal}
-                  </div>
-                  <div style={{ ...mono, fontSize: 9, color: C.dim, marginBottom: 4 }}>
-                    <span style={{ color: PHASE_ACCENT_COLORS[p.id] || C.dim }}>Event:</span> {p.key_event}
-                  </div>
-                  <div style={{ ...heading, fontSize: 10, color: C.dim, lineHeight: 1.5, fontStyle: "italic", borderTop: `1px solid ${C.border}`, paddingTop: 6, marginTop: 6 }}>
-                    {p.insight}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ── Signal Breakdown (tabs) ──────────────────────────────────── */}
+      <section className="py-8 border-t border-border-dark">
+        <SectionLabel>Signal Breakdown</SectionLabel>
+        {/* Tab bar */}
+        <div className="flex gap-0 border-b border-border-dark mb-6">
+          {(["youtube", "reddit", "twitch"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveSignalTab(tab)}
+              className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-all ${
+                activeSignalTab === tab
+                  ? "border-primary text-text-main"
+                  : "border-transparent text-text-dim hover:text-text-mid"
+              }`}
+            >
+              {tab === "youtube"
+                ? `YouTube (${ytVideoCount})`
+                : tab === "reddit"
+                ? `Reddit (${data?.reddit_mentions?.length ?? 0})`
+                : "Twitch"}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* --- ELEMENT 4: Creator Impact Panel --- */}
-      <div className="autopsy-stagger-4" style={{ marginBottom: 36 }}>
-        <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>
-          Creator Impact Analysis
-        </div>
-        {creatorImpacts.length === 0 ? (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "24px 20px", textAlign: "center" }}>
-            <div style={{ ...heading, fontSize: 14, color: C.dim }}>No YouTube coverage detected yet</div>
-            <div style={{ ...mono, fontSize: 11, color: C.dim, marginTop: 6 }}>
-              Creator impact data will appear when YouTube videos covering this game are found.
-            </div>
-          </div>
-        ) : (
+        {/* YouTube tab */}
+        {activeSignalTab === "youtube" && (
           <>
-            {/* Hero card for #1 creator (breakout catalyst) */}
-            {(() => {
-              const hero = creatorImpacts[0];
-              const velocityChange = hero.velocity_after - hero.velocity_before;
-              const velocityPct = hero.velocity_before > 0 ? Math.round((velocityChange / hero.velocity_before) * 100) : velocityChange > 0 ? 999 : 0;
-              return (
-                <div
-                  style={{
-                    background: `linear-gradient(135deg, ${C.surface} 0%, rgba(34,211,238,0.06) 100%)`,
-                    border: `1px solid #22d3ee40`,
-                    borderLeft: `4px solid #22d3ee`,
-                    borderRadius: 6,
-                    padding: "20px 24px",
-                    marginBottom: 12,
-                    display: "flex",
-                    gap: 24,
-                    alignItems: "stretch",
-                  }}
-                >
-                  {/* Left: Creator identity + verdict */}
-                  <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                    <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#22d3ee", marginBottom: 6 }}>
-                      Breakout Catalyst
-                    </div>
-                    <div style={{ ...heading, fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 2 }}>
-                      {hero.channel_name}
-                    </div>
-                    <div style={{ ...mono, fontSize: 11, color: C.dim, marginBottom: 10 }}>
-                      {fmtNum(hero.subscriber_count)} subscribers &middot; {fmtDate(hero.upload_date)}
-                    </div>
-                    <div style={{ ...mono, fontSize: 11, color: C.white, marginBottom: 8, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      &ldquo;{hero.video_title}&rdquo;
-                    </div>
-                    <div style={{ ...heading, fontSize: 12, color: C.dim, lineHeight: 1.6, maxWidth: 480 }}>
-                      {hero.raw_review_delta > 0
-                        ? `This creator's coverage drove +${hero.raw_review_delta} reviews in the 7 days following upload${hero.shared_date ? " (attributed share)" : ""}, accelerating review velocity by ${velocityPct > 0 ? `${Math.min(velocityPct, 999)}%` : "—"}.`
-                        : `This creator had the highest measured impact of all covering channels.`}
-                    </div>
-                  </div>
-
-                  {/* Right: Impact metrics grid */}
-                  <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", alignSelf: "center" }}>
-                    <div>
-                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Views</div>
-                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: C.white }}>{fmtNum(hero.view_count)}</div>
-                    </div>
-                    <div>
-                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Impact</div>
-                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: hero.impact_score >= 70 ? C.ops : hero.impact_score >= 40 ? C.score : C.white }}>{hero.impact_score}</div>
-                    </div>
-                    <div>
-                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Rev +7d</div>
-                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: C.green }}>+{hero.reviews_after_7d - hero.reviews_before_7d}</div>
-                    </div>
-                    <div>
-                      <div style={{ ...mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 1, color: C.dim }}>Velocity</div>
-                      <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: velocityChange > 0 ? C.green : C.dim }}>
-                        {velocityChange > 0 ? "+" : ""}{velocityChange.toFixed(1)}/d
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Remaining creators table */}
-            {creatorImpacts.length > 1 && (
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: "hidden" }}>
-                <table style={{ ...mono, width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                      {["Creator", "Subs", "Video", "Date", "Views", "Rev +/-", "Impact"].map((h) => (
-                        <th
-                          key={h}
-                          style={{
-                            padding: "8px 12px",
-                            textAlign: "left",
-                            color: C.dim,
-                            fontWeight: 400,
-                            fontSize: 9,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {creatorImpacts.slice(1).map((c) => (
-                      <tr key={c.channel_name + c.upload_date} style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "8px 12px" }}>
-                          <span style={{ color: "#22d3ee" }}>{c.channel_name}</span>
-                          {c.shared_date && <span style={{ ...mono, fontSize: 8, color: C.dim, marginLeft: 4 }} title="Shared upload date — impact split by subscriber count">*</span>}
-                        </td>
-                        <td style={{ padding: "8px 12px", color: C.dim }}>{fmtNum(c.subscriber_count)}</td>
-                        <td style={{ padding: "8px 12px", color: C.white, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {c.video_title}
-                        </td>
-                        <td style={{ padding: "8px 12px", color: C.dim }}>{fmtDate(c.upload_date)}</td>
-                        <td style={{ padding: "8px 12px", color: C.white }}>{fmtNum(c.view_count)}</td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <span style={{ color: C.dim }}>{c.reviews_before_7d}</span>
-                          <span style={{ color: C.green }}> +{c.reviews_after_7d - c.reviews_before_7d}</span>
-                        </td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ width: 44, height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                              <div style={{ width: `${c.impact_score}%`, height: "100%", background: c.impact_score >= 70 ? C.ops : c.impact_score >= 40 ? C.score : C.dim, borderRadius: 3 }} />
-                            </div>
-                            <span style={{ color: C.dim, fontSize: 10 }}>{c.impact_score}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Coverage + shared-date footnote */}
-                <div style={{ display: "flex", gap: 8, padding: "6px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", flexWrap: "wrap" }}>
-                  {creatorImpacts.map((c) => (
-                    <span
-                      key={c.channel_name + c.upload_date}
-                      style={{
-                        ...mono,
-                        fontSize: 9,
-                        padding: "2px 8px",
-                        borderRadius: 3,
-                        background: c.covers === "demo" ? "rgba(34,211,238,0.1)" : "rgba(192,57,43,0.1)",
-                        color: c.covers === "demo" ? "#22d3ee" : C.ccu,
-                        border: `1px solid ${c.covers === "demo" ? "#22d3ee30" : C.ccu + "30"}`,
-                      }}
+            {data?.videos && data.videos.length > 0 ? (
+              <>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-dim mb-4">
+                  Creator Coverage
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                  {data.videos.slice(0, 6).map((v) => (
+                    <a
+                      key={v.video_id}
+                      href={`https://www.youtube.com/watch?v=${v.video_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden block hover:border-border-structural hover:-translate-y-0.5 transition-all"
                     >
-                      {c.channel_name}: {c.covers.toUpperCase()}
-                    </span>
+                      <div className="relative h-[120px] overflow-hidden bg-background-dark">
+                        <img
+                          src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
+                          alt={v.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center border-2 border-white/30">
+                            <span className="text-white text-sm ml-0.5">▶</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "#d45555" }}>
+                          {v.channel_name ?? "Unknown"}
+                        </div>
+                        <p className="text-xs font-semibold text-text-main leading-snug mb-2 line-clamp-2">
+                          {v.title}
+                        </p>
+                        <div className="flex gap-3 font-mono text-[10px] text-text-dim">
+                          {v.view_count != null && (
+                            <span>
+                              <span className="text-text-mid">{fmtNum(v.view_count)}</span> views
+                            </span>
+                          )}
+                          {v.like_count != null && (
+                            <span>
+                              <span className="text-text-mid">{fmtNum(v.like_count)}</span> likes
+                            </span>
+                          )}
+                        </div>
+                        {v.subscriber_count != null && (
+                          <div className="font-mono text-[10px] text-text-dim mt-1">
+                            {fmtNum(v.subscriber_count)} subs
+                            {v.subscriber_count >= 1_000_000 && (
+                              <span className="ml-1.5 text-status-neg font-bold">HIGH REACH</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </a>
                   ))}
-                  {creatorImpacts.some((c) => c.shared_date) && (
-                    <span style={{ ...mono, fontSize: 8, color: C.dim, marginLeft: 8 }}>
-                      * Same-day uploads &mdash; review delta split proportionally by subscriber count
-                    </span>
-                  )}
                 </div>
+                {/* Coverage bar */}
+                <div className="flex items-center gap-4 bg-surface-dark border border-border-dark rounded-xl px-5 py-4">
+                  <span className="text-sm font-semibold text-text-mid whitespace-nowrap">Coverage Score</span>
+                  <div className="flex-1 h-1.5 bg-border-dark rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${Math.min(100, (ytUniqueChannels / 10) * 100)}%`,
+                        background: "linear-gradient(90deg, #802626, #2faa6e)",
+                      }}
+                    />
+                  </div>
+                  <span className="font-mono text-sm font-semibold text-text-main whitespace-nowrap">
+                    {ytUniqueChannels} / 10
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-text-dim text-center py-8 bg-surface-dark border border-border-dark rounded-xl">
+                No YouTube coverage detected yet.
               </div>
             )}
           </>
         )}
-      </div>
 
-      {/* --- ELEMENT 5: OPS Score Spotlight --- */}
-      {hasOpsData && (
-        <div className="autopsy-stagger-5" style={{ marginBottom: 36 }}>
-          <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>
-            OPS Score Spotlight
+        {/* Reddit tab */}
+        {activeSignalTab === "reddit" && (
+          <>
+            {data?.reddit_mentions && data.reddit_mentions.length > 0 ? (
+              <div className="space-y-2">
+                {data.reddit_mentions.slice(0, 12).map((m) => (
+                  <a
+                    key={m.post_id}
+                    href={m.post_url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-4 bg-surface-dark border border-border-dark rounded-xl px-4 py-3 hover:border-border-structural transition-all block"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-status-warn mb-1">
+                        r/{m.subreddit}
+                      </div>
+                      <p className="text-sm text-text-main font-medium leading-snug line-clamp-2">
+                        {m.title}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0 font-mono text-xs text-text-dim">
+                      {m.score != null && (
+                        <div className="text-text-mid font-semibold">↑ {fmtNum(m.score)}</div>
+                      )}
+                      {m.num_comments != null && <div>{m.num_comments} comments</div>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-text-dim text-center py-8 bg-surface-dark border border-border-dark rounded-xl">
+                No Reddit mentions tracked yet.
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Twitch tab */}
+        {activeSignalTab === "twitch" && (
+          <div className="text-sm text-text-dim text-center py-10 bg-surface-dark border border-border-dark rounded-xl">
+            Twitch data is shown in the <strong className="text-text-mid">Reviews &amp; Engagement</strong> chart above.
+            <br />
+            <span className="text-xs opacity-70 mt-1 block">Enable the "Peak CCU" toggle to see concurrent player data.</span>
           </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            {/* OPS mini chart */}
-            <div style={{ flex: "1 1 400px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 12px" }}>
-              <ResponsiveContainer width="100%" height={140}>
-                <ComposedChart data={chartData.filter((d) => d.raw_ops != null)} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis {...xAxisProps} />
-                  <YAxis {...yAxisStyle} tickFormatter={(v: number) => v.toFixed(1)} />
-                  <Area
-                    dataKey="raw_ops"
-                    stroke={C.ops}
-                    fill={C.ops}
-                    fillOpacity={0.12}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  {/* Peak annotation */}
-                  {opsPeak.date && (
-                    <ReferenceLine
-                      x={opsPeak.date}
-                      stroke={C.ops}
-                      strokeDasharray="4 3"
-                      label={{
-                        value: `Day ${opsPeak.day}: OPS ${opsPeak.score}`,
-                        fill: C.ops,
-                        fontSize: 10,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        position: "insideTopRight",
-                      }}
-                    />
-                  )}
-                </ComposedChart>
-              </ResponsiveContainer>
-              <div style={{ ...mono, fontSize: 10, color: C.dim, padding: "8px 8px 0", lineHeight: 1.6 }}>
-                Peak: Day {opsPeak.day} &mdash; OPS {opsPeak.score}
+        )}
+      </section>
+
+      {/* ── OPS Anatomy (collapsible) ────────────────────────────────── */}
+      <section className="py-8 border-t border-border-dark">
+        <SectionLabel>OPS Anatomy</SectionLabel>
+        {/* Collapsible trigger */}
+        <button
+          onClick={() => setShowOpsAnatomy((v) => !v)}
+          className={`w-full flex items-center justify-between px-5 py-4 bg-surface-dark border border-border-dark text-left transition-all hover:border-border-structural ${
+            showOpsAnatomy ? "rounded-t-xl border-b-transparent" : "rounded-xl"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-text-main">OPS Component Breakdown</span>
+            {latestWithOps?.ops_score != null && (
+              <span className="text-xs text-text-dim">
+                Score: {Math.round(latestWithOps.ops_score)}
+                {latestWithOps.ops_confidence ? ` · ${latestWithOps.ops_confidence} confidence` : ""}
+              </span>
+            )}
+          </div>
+          <svg
+            className={`w-5 h-5 text-text-dim transition-transform ${showOpsAnatomy ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {showOpsAnatomy && (
+          <div className="bg-surface-dark border border-border-dark border-t-0 rounded-b-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 items-start">
+              {/* Radar chart */}
+              {radarData && (
+                <div className="flex justify-center">
+                  <ResponsiveContainer width={250} height={230}>
+                    <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                      <PolarGrid stroke={C.border} />
+                      <PolarAngleAxis
+                        dataKey="axis"
+                        tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                      />
+                      <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name="Peer median" dataKey="peer" stroke={C.dim} strokeDasharray="3 3" fill="none" strokeOpacity={0.5} />
+                      <Radar
+                        name={game.title}
+                        dataKey="score"
+                        stroke={C.ops}
+                        fill={C.ops}
+                        fillOpacity={0.25}
+                        strokeWidth={2}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {/* Component cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { name: "Rev Momentum", val: latestWithOps?.velocity_component, max: 5.0, weight: "28%", color: "#5ec269" },
+                  { name: "Sentiment",    val: latestWithOps?.review_component,   max: 2.0, weight: "10%", color: "#e8a832" },
+                  { name: "YouTube",      val: latestWithOps?.youtube_component,  max: 3.0, weight: "18%", color: "#38bdf8" },
+                  { name: "Live Engage",  val: latestWithOps?.ccu_component,      max: 4.0, weight: "15%", color: "#802626" },
+                  { name: "Decay Ret.",   val: latestWithOps?.decay_component,    max: 2.0, weight: "20%", color: "#bb7125" },
+                ].map((comp) => {
+                  const pct = comp.val != null && comp.max > 0
+                    ? Math.min(100, (comp.val / comp.max) * 100)
+                    : 0;
+                  return (
+                    <div key={comp.name} className="bg-background-dark border border-border-dark rounded-xl p-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
+                        {comp.name}
+                      </div>
+                      <div className="flex items-baseline gap-1.5 mb-2">
+                        <span className="font-mono text-xl font-bold text-text-main">
+                          {comp.val != null ? comp.val.toFixed(1) : "--"}
+                        </span>
+                        <span className="font-mono text-xs text-text-dim">/{comp.max.toFixed(1)}</span>
+                      </div>
+                      <div className="h-1 bg-border-dark rounded-full overflow-hidden mb-2">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, backgroundColor: comp.color }}
+                        />
+                      </div>
+                      <div className="font-mono text-[10px] text-text-dim">{comp.weight} weight</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          </div>
+        )}
+      </section>
 
-            {/* OPS stats panel */}
-            <div style={{ flex: "0 0 280px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              {/* Current OPS */}
+      {/* ── Phase Analysis ───────────────────────────────────────────── */}
+      {phases.length > 0 && (
+        <section className="py-8 border-t border-border-dark">
+          <SectionLabel>Phase Analysis</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {phases.map((p) => (
+              <div
+                key={p.id}
+                className={`bg-surface-dark rounded-xl p-4 autopsy-phase-card border ${
+                  p.id === activePhase ? "border-l-4 border-y border-r-border-dark" : "border-border-dark"
+                }`}
+                style={p.id === activePhase ? { borderLeftColor: PHASE_ACCENT_COLORS[p.id] } : {}}
+              >
+                <div
+                  className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1"
+                  style={{ color: p.id === activePhase ? PHASE_ACCENT_COLORS[p.id] : C.dim }}
+                >
+                  {p.label}
+                </div>
+                <div className="font-mono text-xs text-text-dim mb-2">
+                  Day {p.start_day}–{p.end_day} · {p.duration_days}d
+                </div>
+                <p className="text-xs text-text-mid leading-relaxed">{p.summary}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Creator Impact ───────────────────────────────────────────── */}
+      {creatorImpacts.length > 0 && (
+        <section className="py-8 border-t border-border-dark">
+          <SectionLabel>Creator Impact</SectionLabel>
+          {/* Hero impact — #1 breakout catalyst */}
+          <div
+            className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden mb-4"
+            style={{ borderLeft: "4px solid #22d3ee" }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 p-5">
               <div>
-                <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 4 }}>
-                  Current OPS (Raw)
+                <div className="text-[10px] font-bold uppercase tracking-wider text-status-info mb-1.5">
+                  Breakout Catalyst
                 </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{ ...mono, fontSize: 36, fontWeight: 700, color: C.ops }}>
-                    {latestWithOps?.raw_ops != null ? latestWithOps.raw_ops.toFixed(1) : (latestWithOps?.ops_score ?? "--")}
-                  </span>
-                  {opsMomentum.arrow && (
-                    <>
-                      <span style={{ ...mono, fontSize: 16, color: C.dim }}>
-                        {opsMomentum.arrow}
-                      </span>
-                      <span style={{ ...mono, fontSize: 10, color: C.dim }}>
-                        {opsMomentum.label}
-                      </span>
-                    </>
+                <h3 className="font-semibold text-text-main text-base mb-0.5">
+                  {creatorImpacts[0].channel_name}
+                </h3>
+                <div className="font-mono text-xs text-text-dim mb-2">
+                  {fmtNum(creatorImpacts[0].subscriber_count)} subs
+                  {creatorImpacts[0].subscriber_count >= 1_000_000 && (
+                    <span className="ml-2 text-status-neg font-bold">HIGH REACH</span>
                   )}
                 </div>
-                <div style={{ ...mono, fontSize: 10, color: C.dim, marginTop: 2, display: "flex", gap: 12 }}>
-                  {latestWithOps?.ops_score != null && (
-                    <span>Capped: <span style={{ color: C.ops }}>{latestWithOps.ops_score}</span>/100</span>
-                  )}
-                  {latestWithOps?.ops_confidence && (
-                    <span>Confidence: <span style={{ color: C.green }}>{latestWithOps.ops_confidence}</span></span>
-                  )}
+                <p className="text-sm italic text-text-mid leading-snug mb-3 line-clamp-2">
+                  "{creatorImpacts[0].video_title}"
+                </p>
+                <div className="font-mono text-xs text-text-dim">
+                  {fmtDate(creatorImpacts[0].upload_date)} · {fmtNum(creatorImpacts[0].view_count)} views
                 </div>
               </div>
-
-              {/* Component breakdown */}
-              <div style={{ marginTop: 16 }}>
-                <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 8 }}>
-                  Latest Components
-                </div>
-                {latestWithOps && [
-                  { label: "Rev Momentum", value: latestWithOps.velocity_component, weight: 0.28, max: 5.0, color: C.score },
-                  { label: "YouTube Signal", value: latestWithOps.youtube_component, weight: 0.18, max: 3.0, color: "#38bdf8" },
-                  { label: "Live Engage", value: latestWithOps.ccu_component, weight: 0.15, max: 4.0, color: C.ccu },
-                  { label: "Disc-Adj Dmnd", value: null, weight: 0.12, max: 3.0, color: "#a78bfa" },
-                  { label: "Sentiment", value: latestWithOps.review_component, weight: 0.10, max: 2.0, color: C.reviews },
-                  { label: "Community Buzz", value: null, weight: 0.10, max: 3.0, color: "#f472b6" },
-                  { label: "Demo Convert", value: null, weight: 0.07, max: 2.5, color: "#34d399" },
-                ].map((comp) => (
-                  <div key={comp.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ ...mono, fontSize: 10, color: C.dim, width: 80 }}>{comp.label}</span>
-                    <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
-                      <div
-                        style={{
-                          width: `${Math.min(100, ((comp.value || 0) / comp.max) * 100)}%`,
-                          height: "100%",
-                          background: comp.color,
-                          borderRadius: 4,
-                          opacity: 0.7,
-                        }}
-                      />
-                    </div>
-                    <span style={{ ...mono, fontSize: 10, color: comp.color, width: 40, textAlign: "right" }}>
-                      {comp.value != null ? comp.value.toFixed(2) : "--"}
-                    </span>
+              <div className="grid grid-cols-2 gap-3 flex-shrink-0 self-start">
+                {[
+                  { label: "Views",   value: fmtNum(creatorImpacts[0].view_count) },
+                  { label: "Impact",  value: String(creatorImpacts[0].impact_score) },
+                  { label: "Rev +7d", value: `+${creatorImpacts[0].raw_review_delta}` },
+                  { label: "Vel. ×",  value: creatorImpacts[0].velocity_before > 0
+                      ? `${(creatorImpacts[0].velocity_after / Math.max(0.1, creatorImpacts[0].velocity_before)).toFixed(1)}×`
+                      : "n/a" },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center bg-background-dark border border-border-dark rounded-lg p-3">
+                    <div className="font-mono text-lg font-bold text-text-main">{stat.value}</div>
+                    <div className="text-[10px] text-text-dim uppercase tracking-wide mt-0.5">{stat.label}</div>
                   </div>
                 ))}
               </div>
-
-              {/* Explanation */}
-              <div style={{ ...heading, fontSize: 11, color: C.dim, lineHeight: 1.6, marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-                OPS v6 measures breakout potential via 7 components: Review Momentum (28%), YouTube Signal (18%), Live Engagement (15%), Discount-Adjusted Demand (12%), Sentiment (10%), Community Buzz (10%), Demo Conversion (7%). Components marked — are not yet computed in this version.
-              </div>
             </div>
           </div>
-        </div>
+          {/* Remaining creators table */}
+          {creatorImpacts.length > 1 && (
+            <div className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border-dark">
+                    {["Creator", "Subs", "Video", "Date", "Views", "Rev ±7d", "Impact"].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 font-semibold uppercase tracking-wide text-text-dim text-[10px]"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {creatorImpacts.slice(1).map((imp, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-border-dark/50 last:border-b-0 hover:bg-background-dark/50 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-text-main font-medium">{imp.channel_name}</td>
+                      <td className="px-4 py-3 font-mono text-text-dim">{fmtNum(imp.subscriber_count)}</td>
+                      <td className="px-4 py-3 text-text-mid max-w-[180px] truncate" title={imp.video_title}>
+                        {imp.video_title}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-text-dim">{fmtDate(imp.upload_date)}</td>
+                      <td className="px-4 py-3 font-mono text-text-dim">{fmtNum(imp.view_count)}</td>
+                      <td className="px-4 py-3 font-mono">
+                        <span className={imp.raw_review_delta >= 0 ? "text-status-pos" : "text-status-neg"}>
+                          {imp.raw_review_delta >= 0 ? "+" : ""}{imp.raw_review_delta}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-text-main">{imp.impact_score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* --- ELEMENT 6: Comparable Ghost Overlay (info panel) --- */}
-      <div className="autopsy-stagger-6" style={{ marginBottom: 24 }}>
-        <div style={{ ...mono, fontSize: 10, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>
-          Comparable Trajectory
-        </div>
-        <div
-          style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 6,
-            padding: "16px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
-          <div>
-            <div style={{ ...heading, fontSize: 14, color: C.white, marginBottom: 4 }}>
-              Median Trajectory Comparison
-            </div>
-            <div style={{ ...mono, fontSize: 11, color: C.dim, lineHeight: 1.6 }}>
-              Compare this game's trajectory against the median for similar horror indie games.
-              This feature will overlay the typical review, CCU, and OPS curves for peer games
-              with matching price range and subgenre. Coming soon.
-            </div>
-          </div>
-          <button
-            onClick={() => setShowGhost((g) => !g)}
-            style={{
-              ...mono,
-              fontSize: 11,
-              padding: "8px 20px",
-              borderRadius: 4,
-              cursor: "pointer",
-              border: `1px solid ${showGhost ? C.ops : C.border}`,
-              background: showGhost ? `${C.ops}15` : "transparent",
-              color: showGhost ? C.ops : C.dim,
-              whiteSpace: "nowrap",
-              transition: "all 0.2s",
-            }}
-          >
-            {showGhost ? "Hide Ghost" : "Show Ghost"}
-          </button>
-        </div>
-      </div>
+      </div>{/* end max-w container */}
 
-      {/* --- Event Card Overlay --- */}
+      {/* ── Event Card Modal ─────────────────────────────────────────── */}
       {selectedEvent && (
         <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} />
       )}
-      </div>{/* end padding wrapper */}
     </div>
   );
 }
