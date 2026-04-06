@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horror Radar — Breakout Detection for Indie Horror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Base ─────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-body:  'Public Sans', system-ui, sans-serif;
+    --font-mono:  'JetBrains Mono', monospace;
+    --font-serif: 'Playfair Display', Georgia, serif;
+  }
+
+  /* ── Dark Theme — "Candlelit Archive" ─────────────── */
+  [data-theme="dark"] {
+    --bg-base:          #111314;
+    --bg-surface:       #1a1b1d;
+    --bg-elevated:      #242527;
+    --text-main:        #e8e0d6;
+    --text-mid:         #b5a595;
+    --text-dim:         #998c7e;
+    --primary:          #802626;
+    --primary-text:     #d45555;
+    --primary-glow:     rgba(128, 38, 38, 0.35);
+    --primary-hover:    #993030;
+    --accent-gold:      #d4a574;
+    --accent-gold-hover:#e0b888;
+    --status-pos:       #2faa6e;
+    --status-warn:      #e8a832;
+    --status-neg:       #e25535;
+    --status-info:      #5b9fd4;
+    --status-special:   #b07db2;
+    --border-structural:#4a4541;
+    --border-decorative:#332e2a;
+    --ops-high:         #2faa6e;
+    --ops-mid:          #e8a832;
+    --ops-low:          #6b635b;
+    --skeleton-base:    #1a1b1d;
+    --skeleton-shine:   #2a2b2d;
+    /* status pill backgrounds */
+    --pill-pos:         #1a3a2a;
+    --pill-warn:        #3a2e15;
+    --pill-neg:         #3a1a15;
+    --pill-info:        #1a2a3a;
+    --pill-special:     #2e1a30;
+    /* component-specific */
+    --header-bg:        rgba(17, 19, 20, 0.92);
+    --hero-gradient:    linear-gradient(135deg, #1e1210 0%, #111314 50%, #0d1117 100%);
+    --hero-radial-1:    radial-gradient(ellipse 80% 60% at 75% 40%, rgba(128,38,38,0.12) 0%, transparent 70%);
+    --hero-radial-2:    radial-gradient(ellipse 40% 50% at 20% 80%, rgba(94,194,105,0.04) 0%, transparent 60%);
+    --card-hover-glow:  radial-gradient(ellipse at 50% 0%, rgba(128,38,38,0.08) 0%, transparent 70%);
+    --card-hover-shadow:rgba(0,0,0,0.4);
+    --card-hover-border:rgba(128, 38, 38, 0.5);
+    --price-bg:         rgba(255,255,255,0.06);
+    --days-green-bg:    rgba(94,194,105,0.1);
+    --ops-green-bg:     rgba(94,194,105,0.1);
+    --ops-green-border: rgba(94,194,105,0.2);
+    --ops-amber-bg:     rgba(232,168,50,0.1);
+    --ops-amber-border: rgba(232,168,50,0.2);
+    --ops-red-bg:       rgba(226,85,53,0.1);
+    --ops-red-border:   rgba(226,85,53,0.2);
+    --card-footer-border:rgba(42,36,32,0.6);
+    --tag-bg:           rgba(255,255,255,0.04);
+    --tag-border:       rgba(255,255,255,0.06);
+    --scoring-bg:       rgba(255,255,255,0.03);
+    --scoring-border:   rgba(255,255,255,0.08);
+    --btn-secondary-hover-bg: rgba(128,38,38,0.08);
+    --hero-badge-bg:    rgba(94,194,105,0.06);
+    --toggle-bg:        #242527;
+    --toggle-border:    #4a4541;
+    --toggle-hover-bg:  #332e2a;
+  }
+
+  /* ── Light Theme — "Morning Desk" ─────────────────── */
+  [data-theme="light"] {
+    --bg-base:          #f5f0eb;
+    --bg-surface:       #ffffff;
+    --bg-elevated:      #ebe5de;
+    --text-main:        #1c1916;
+    --text-mid:         #5c534a;
+    --text-dim:         #6e655d;
+    --primary:          #802626;
+    --primary-text:     #802626;
+    --primary-glow:     rgba(128, 38, 38, 0.18);
+    --primary-hover:    #6b1f1f;
+    --accent-gold:      #8a6e3e;
+    --accent-gold-hover:#725a30;
+    --status-pos:       #1a7a28;
+    --status-warn:      #8a6100;
+    --status-neg:       #b3332b;
+    --status-info:      #256598;
+    --status-special:   #7b4d7d;
+    --border-structural:#c9c0b5;
+    --border-decorative:#ddd6cd;
+    --ops-high:         #1a7a28;
+    --ops-mid:          #8a6100;
+    --ops-low:          #8a8279;
+    --skeleton-base:    #ebe5de;
+    --skeleton-shine:   #ddd6cd;
+    /* status pill backgrounds */
+    --pill-pos:         #d9f0dd;
+    --pill-warn:        #f5ebd0;
+    --pill-neg:         #f5d5d0;
+    --pill-info:        #d0e5f5;
+    --pill-special:     #edd5ef;
+    /* component-specific */
+    --header-bg:        rgba(245, 240, 235, 0.94);
+    --hero-gradient:    linear-gradient(135deg, #ede5dc 0%, #f5f0eb 50%, #e8e2da 100%);
+    --hero-radial-1:    radial-gradient(ellipse 80% 60% at 75% 40%, rgba(128,38,38,0.06) 0%, transparent 70%);
+    --hero-radial-2:    radial-gradient(ellipse 40% 50% at 20% 80%, rgba(26,122,40,0.04) 0%, transparent 60%);
+    --card-hover-glow:  radial-gradient(ellipse at 50% 0%, rgba(128,38,38,0.04) 0%, transparent 70%);
+    --card-hover-shadow:rgba(0,0,0,0.08);
+    --card-hover-border:rgba(128, 38, 38, 0.35);
+    --price-bg:         rgba(0,0,0,0.04);
+    --days-green-bg:    rgba(26,122,40,0.1);
+    --ops-green-bg:     rgba(26,122,40,0.08);
+    --ops-green-border: rgba(26,122,40,0.2);
+    --ops-amber-bg:     rgba(138,97,0,0.08);
+    --ops-amber-border: rgba(138,97,0,0.2);
+    --ops-red-bg:       rgba(179,51,43,0.08);
+    --ops-red-border:   rgba(179,51,43,0.2);
+    --card-footer-border:rgba(201,192,181,0.6);
+    --tag-bg:           rgba(0,0,0,0.03);
+    --tag-border:       rgba(0,0,0,0.08);
+    --scoring-bg:       rgba(0,0,0,0.03);
+    --scoring-border:   rgba(0,0,0,0.1);
+    --btn-secondary-hover-bg: rgba(128,38,38,0.06);
+    --hero-badge-bg:    rgba(26,122,40,0.06);
+    --toggle-bg:        #ebe5de;
+    --toggle-border:    #c9c0b5;
+    --toggle-hover-bg:  #ddd6cd;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-base);
+    color: var(--text-main);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  /* ── Fade-in on scroll ────────────────────────────── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Layout ───────────────────────────────────────── */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Header ───────────────────────────────────────── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--header-bg);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-decorative);
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .logo {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    color: var(--text-main);
+    text-decoration: none;
+  }
+  .logo span { color: var(--primary); }
+  nav { display: flex; gap: 32px; }
+  nav a {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-mid);
+    text-decoration: none;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  nav a:hover { color: var(--text-main); }
+  nav a.active {
+    color: var(--text-main);
+    border-bottom-color: var(--primary);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 20px;
+    padding: 5px 14px;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--status-pos);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Theme Toggle ─────────────────────────────────── */
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--toggle-border);
+    background: var(--toggle-bg);
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+    color: var(--text-mid);
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s, transform 0.2s;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover {
+    background: var(--toggle-hover-bg);
+    color: var(--text-main);
+    transform: scale(1.08);
+  }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .hero {
+    margin-top: 32px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: var(--hero-gradient);
+    border: 1px solid var(--border-decorative);
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      var(--hero-radial-1),
+      var(--hero-radial-2);
+  }
+  .hero-content {
+    position: relative;
+    padding: 56px 48px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--status-warn);
+    margin-bottom: 12px;
+  }
+  .hero-title {
+    font-family: var(--font-serif);
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text-main);
+    margin-bottom: 12px;
+  }
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .hero-developer {
+    font-size: 0.95rem;
+    color: var(--text-mid);
+  }
+  .hero-price {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-main);
+    background: var(--price-bg);
+    padding: 3px 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .hero-days {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--status-pos);
+    background: var(--days-green-bg);
+    padding: 3px 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .hero-verdict {
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--text-mid);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--primary);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    text-decoration: none;
+  }
+  .hero-cta:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px var(--primary-glow);
+  }
+  .ops-badge-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3px solid var(--ops-high);
+    background: var(--hero-badge-bg);
+    flex-shrink: 0;
+    transition: border-color 0.3s, background-color 0.3s;
+  }
+  .ops-badge-hero .ops-number {
+    font-family: var(--font-mono);
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--ops-high);
+    line-height: 1;
+  }
+  .ops-badge-hero .ops-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--ops-high);
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  /* ── Section Headings ─────────────────────────────── */
+  .section-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .section-heading h2 {
+    font-family: var(--font-body);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .section-heading .sub {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .section-heading .view-all {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-mid);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .section-heading .view-all:hover { color: var(--text-main); }
+
+  /* ── Trending Cards ───────────────────────────────── */
+  section.trending { margin-top: 48px; }
+  .card-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s, background-color 0.3s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: var(--card-hover-glow);
+  }
+  .card:hover {
+    border-color: var(--card-hover-border);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px var(--card-hover-shadow);
+  }
+  .card:hover::before { opacity: 1; }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.3;
+  }
+  .card-developer {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .ops-badge {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  }
+  .ops-green  { color: var(--ops-high);    background: var(--ops-green-bg);  border: 1px solid var(--ops-green-border); }
+  .ops-amber  { color: var(--ops-mid);     background: var(--ops-amber-bg);  border: 1px solid var(--ops-amber-border); }
+  .ops-red    { color: var(--status-neg);  background: var(--ops-red-bg);    border: 1px solid var(--ops-red-border); }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--card-footer-border);
+    transition: border-color 0.3s;
+  }
+  .card-price {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-mid);
+  }
+  .card-days {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .days-green  { color: var(--ops-high);   background: var(--ops-green-bg); }
+  .days-amber  { color: var(--ops-mid);    background: var(--ops-amber-bg); }
+  .days-red    { color: var(--status-neg); background: var(--ops-red-bg); }
+
+  .card-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    padding: 2px 8px;
+    border-radius: 3px;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  }
+
+  /* ── Fresh Drops ──────────────────────────────────── */
+  section.fresh-drops { margin-top: 48px; }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .mini-card {
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 8px;
+    padding: 14px 16px;
+    gap: 14px;
+    transition: border-color 0.2s, transform 0.15s, background-color 0.3s;
+    cursor: pointer;
+    position: relative;
+  }
+  .mini-card:hover {
+    border-color: var(--card-hover-border);
+    transform: translateY(-2px);
+  }
+  .mini-card.hot {
+    border-left: 3px solid var(--ops-high);
+  }
+  .mini-card-info { flex: 1; min-width: 0; }
+  .mini-card-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini-card-sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .mini-card-ops {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  }
+  .scoring {
+    color: var(--text-dim);
+    background: var(--scoring-bg);
+    border: 1px dashed var(--scoring-border);
+    font-style: italic;
+  }
+
+  /* ── Market Pulse ─────────────────────────────────── */
+  section.market-pulse { margin-top: 56px; }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-tile {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 10px;
+    padding: 24px 20px;
+    text-align: center;
+    transition: border-color 0.2s, background-color 0.3s;
+  }
+  .stat-tile:hover {
+    border-color: var(--card-hover-border);
+  }
+  .stat-number {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-label {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .stat-tile:nth-child(1) .stat-number { color: var(--text-main); }
+  .stat-tile:nth-child(2) .stat-number { color: var(--status-warn); }
+  .stat-tile:nth-child(3) .stat-number { color: var(--ops-high); }
+  .stat-tile:nth-child(4) .stat-number { color: var(--status-special); }
+
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .btn-secondary {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-main);
+    background: transparent;
+    border: 1px solid var(--border-decorative);
+    border-radius: 8px;
+    padding: 12px 28px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s, color 0.3s;
+  }
+  .btn-secondary:hover {
+    border-color: var(--primary);
+    background: var(--btn-secondary-hover-bg);
+    transform: translateY(-1px);
+  }
+  .btn-primary {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    padding: 12px 28px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px var(--primary-glow);
+  }
+
+  /* ── Footer ───────────────────────────────────────── */
+  footer {
+    margin-top: 64px;
+    padding: 32px 0;
+    border-top: 1px solid var(--border-decorative);
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+  footer p {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  footer span.sep { margin: 0 8px; opacity: 0.4; }
+
+  /* ── Responsive ───────────────────────────────────── */
+  @media (max-width: 900px) {
+    .card-row { grid-template-columns: repeat(2, 1fr); }
+    .mini-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .hero-content { grid-template-columns: 1fr; }
+    .ops-badge-hero { margin: 0 auto; }
+  }
+  @media (max-width: 600px) {
+    .card-row { grid-template-columns: 1fr; }
+    .mini-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    nav { gap: 20px; }
+    nav a { font-size: 0.78rem; }
+    .hero-content { padding: 32px 24px; }
+    .hero-title { font-size: 2rem; }
+    .status-pill { display: none; }
+    .section-heading { flex-wrap: wrap; }
+    .cta-row { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ━━ Header ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<header>
+  <div class="container header-inner">
+    <a href="#" class="logo"><span>//</span> HORROR RADAR</a>
+    <nav>
+      <a href="#" class="active">Home</a>
+      <a href="#">Discover</a>
+      <a href="#">Radar Pick</a>
+      <a href="#">Trends</a>
+    </nav>
+    <div class="header-right">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        12/12 scrapers &bull; 4m ago
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme"></button>
+    </div>
+  </div>
+</header>
+
+<!-- ━━ Hero ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<main class="container">
+  <section class="hero reveal">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div>
+        <div class="hero-label">Breaking Out This Week</div>
+        <h1 class="hero-title">Graveshift</h1>
+        <div class="hero-meta">
+          <span class="hero-developer">by Hollow Pine Studios</span>
+          <span class="hero-price">$14.99</span>
+          <span class="hero-days">12 days</span>
+        </div>
+        <p class="hero-verdict">"Velocity 4.2x above baseline with sustained YouTube coverage across 6 tracked channels. The graveyard shift hasn't been this crowded since Mortuary Assistant."</p>
+        <a href="#" class="hero-cta">Read the Signal <span>&rarr;</span></a>
+      </div>
+      <div class="ops-badge-hero">
+        <span class="ops-number">73</span>
+        <span class="ops-label">OPS</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ━━ Trending ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <section class="trending reveal">
+    <div class="section-heading">
+      <h2>Trending This Week</h2>
+      <span class="sub">Biggest movers by OPS delta</span>
+      <a href="#" class="view-all">View all &rarr;</a>
+    </div>
+    <div class="card-row">
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">The Backrooms: Found Footage</div>
+            <div class="card-developer">Steelkrill Studio</div>
+          </div>
+          <span class="ops-badge ops-green">80</span>
+        </div>
+        <div class="card-tags">
+          <span class="tag">Liminal</span>
+          <span class="tag">Found Footage</span>
+          <span class="tag">Psychological</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-price">$9.99</span>
+          <span class="card-days days-green">5d</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Rotwood Manor</div>
+            <div class="card-developer">Candlewick Games</div>
+          </div>
+          <span class="ops-badge ops-green">67</span>
+        </div>
+        <div class="card-tags">
+          <span class="tag">Survival Horror</span>
+          <span class="tag">Co-op</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-price">$19.99</span>
+          <span class="card-days days-amber">23d</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Beneath the Steeple</div>
+            <div class="card-developer">Ashen Moth</div>
+          </div>
+          <span class="ops-badge ops-amber">52</span>
+        </div>
+        <div class="card-tags">
+          <span class="tag">Gothic</span>
+          <span class="tag">Cosmic Horror</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-price">$12.99</span>
+          <span class="card-days days-amber">31d</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">SIGNAL LOST</div>
+            <div class="card-developer">Nocturn Games</div>
+          </div>
+          <span class="ops-badge ops-amber">45</span>
+        </div>
+        <div class="card-tags">
+          <span class="tag">Analog Horror</span>
+          <span class="tag">Short</span>
+          <span class="tag">VHS</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-price">$4.99</span>
+          <span class="card-days days-green">8d</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ━━ Fresh Drops ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <section class="fresh-drops reveal">
+    <div class="section-heading">
+      <h2>Fresh Drops</h2>
+      <span class="sub">Released in the last 7 days</span>
+      <a href="#" class="view-all">View all &rarr;</a>
+    </div>
+    <div class="mini-grid">
+
+      <div class="mini-card hot">
+        <div class="mini-card-info">
+          <div class="mini-card-title">The Backrooms: Found Footage</div>
+          <div class="mini-card-sub">Steelkrill Studio &middot; $9.99</div>
+        </div>
+        <span class="mini-card-ops ops-green">80</span>
+      </div>
+
+      <div class="mini-card hot">
+        <div class="mini-card-info">
+          <div class="mini-card-title">Hollowbreach</div>
+          <div class="mini-card-sub">Graven Pixel &middot; $7.99</div>
+        </div>
+        <span class="mini-card-ops ops-green">64</span>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-card-info">
+          <div class="mini-card-title">Skin of Teeth</div>
+          <div class="mini-card-sub">Deadpan Interactive &middot; $11.99</div>
+        </div>
+        <span class="mini-card-ops ops-amber">41</span>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-card-info">
+          <div class="mini-card-title">Parish</div>
+          <div class="mini-card-sub">Iron Lung Studios &middot; Free</div>
+        </div>
+        <span class="mini-card-ops scoring">Scoring...</span>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-card-info">
+          <div class="mini-card-title">Tape 7: Inversion</div>
+          <div class="mini-card-sub">Rust Belt Games &middot; $3.99</div>
+        </div>
+        <span class="mini-card-ops scoring">Scoring...</span>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-card-info">
+          <div class="mini-card-title">Dolls House</div>
+          <div class="mini-card-sub">Porcelain Fright &middot; $6.99</div>
+        </div>
+        <span class="mini-card-ops scoring">Scoring...</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ━━ Market Pulse ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <section class="market-pulse reveal">
+    <div class="section-heading">
+      <h2>Market Pulse</h2>
+      <span class="sub">90-day tracking window</span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-tile">
+        <div class="stat-number">187</div>
+        <div class="stat-label">Games Tracked</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-number">14</div>
+        <div class="stat-label">New This Month</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-number">73%</div>
+        <div class="stat-label">Avg Sentiment</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-number">6</div>
+        <div class="stat-label">Breakouts</div>
+      </div>
+    </div>
+    <div class="cta-row">
+      <a href="#" class="btn-primary">Explore Database &rarr;</a>
+      <a href="#" class="btn-secondary">Full Market Report &rarr;</a>
+    </div>
+  </section>
+
+</main>
+
+<!-- ━━ Footer ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<footer>
+  <div class="container">
+    <p>Horror Radar<span class="sep">&middot;</span>Breakout detection for indie horror<span class="sep">&middot;</span>Data updates daily</p>
+  </div>
+</footer>
+
+<!-- ━━ Theme Toggle + Scroll Reveal ━━━━━━━━━━━━━━━━━ -->
+<script>
+(function() {
+  // Theme toggle
+  const STORAGE_KEY = 'horror-radar-theme';
+  const toggle = document.getElementById('theme-toggle');
+  const html = document.documentElement;
+
+  function getStoredTheme() {
+    try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; }
+  }
+
+  function setTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    toggle.textContent = theme === 'dark' ? '\u2600' : '\u263D';
+    toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    try { localStorage.setItem(STORAGE_KEY, theme); } catch(e) {}
+  }
+
+  // Initialize: stored preference > default dark
+  var initial = getStoredTheme() || 'dark';
+  setTheme(initial);
+
+  toggle.addEventListener('click', function() {
+    var current = html.getAttribute('data-theme');
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // Scroll reveal
+  var reveals = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry, i) {
+      if (entry.isIntersecting) {
+        setTimeout(function() { entry.target.classList.add('visible'); }, i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(function(el) { observer.observe(el); });
+})();
+</script>
+</body>
+</html>

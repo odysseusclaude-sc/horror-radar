@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAVESHIFT - Horror Radar Autopsy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Theme: Dark — "Candlelit Archive" ─────────────────────────── */
+[data-theme="dark"] {
+  --bg-base: #111314;
+  --bg-surface: #1a1b1d;
+  --bg-elevated: #242527;
+  --text-main: #e8e0d6;
+  --text-mid: #b5a595;
+  --text-dim: #998c7e;
+  --primary: #802626;
+  --primary-text: #d45555;
+  --primary-glow: rgba(128, 38, 38, 0.3);
+  --accent-gold: #d4a574;
+  --accent-gold-hover: #e0b888;
+  --status-pos: #2faa6e;
+  --status-warn: #e8a832;
+  --status-neg: #e25535;
+  --status-info: #5b9fd4;
+  --status-special: #b07db2;
+  --border-structural: #4a4541;
+  --border-decorative: #332e2a;
+  --ops-high: #2faa6e;
+  --ops-mid: #e8a832;
+  --ops-low: #6b635b;
+  --on-primary: #ffffff;
+  --pill-pos-bg: #1a3a2a;
+  --pill-warn-bg: #3a2e15;
+  --pill-neg-bg: #3a1a15;
+  --pill-info-bg: #1a2a3a;
+  --hero-gradient-a: #1a1012;
+  --hero-gradient-b: #2a1418;
+  --hero-gradient-c: #1a1a1c;
+  --header-bg: rgba(17, 19, 20, 0.92);
+  --chart-line-ops: #802626;
+  --chart-line-reviews: #2faa6e;
+  --chart-area-ops-start: rgba(128, 38, 38, 0.25);
+  --chart-area-ops-end: rgba(128, 38, 38, 0);
+  --chart-area-reviews-start: rgba(47, 170, 110, 0.15);
+  --chart-area-reviews-end: rgba(47, 170, 110, 0);
+  --radar-ring: #2a2420;
+  --radar-fill: rgba(128, 38, 38, 0.25);
+  --radar-stroke: #802626;
+  --radar-label: #b5a595;
+  --radar-median: #998c7e;
+  --toggle-bg: transparent;
+  --toggle-border: #4a4541;
+  --toggle-hover-bg: rgba(255,255,255,0.06);
+  --tag-bg: rgba(26, 27, 29, 0.7);
+  --demo-bg: rgba(91, 159, 212, 0.12);
+  --demo-border: rgba(91, 159, 212, 0.25);
+  --chart-toggle-active-bg: rgba(128, 38, 38, 0.15);
+  --chart-toggle-active-border: rgba(128, 38, 38, 0.3);
+  --hover-surface: #222224;
+  --hover-border: #3a3430;
+  --play-bg: rgba(0,0,0,0.6);
+  --play-border: rgba(255,255,255,0.3);
+  --play-arrow: white;
+  --duration-bg: rgba(0,0,0,0.7);
+  --coverage-gradient-start: #802626;
+  --coverage-gradient-end: #2faa6e;
+  --highlight-text: white;
+}
+
+/* ── Theme: Light — "Morning Desk" ─────────────────────────────── */
+[data-theme="light"] {
+  --bg-base: #f5f0eb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ebe5de;
+  --text-main: #1c1916;
+  --text-mid: #5c534a;
+  --text-dim: #6e655d;
+  --primary: #802626;
+  --primary-text: #802626;
+  --primary-glow: rgba(128, 38, 38, 0.15);
+  --accent-gold: #8a6e3e;
+  --accent-gold-hover: #725a30;
+  --status-pos: #1a7a28;
+  --status-warn: #8a6100;
+  --status-neg: #b3332b;
+  --status-info: #256598;
+  --status-special: #7b4d7d;
+  --border-structural: #c9c0b5;
+  --border-decorative: #ddd6cd;
+  --ops-high: #1a7a28;
+  --ops-mid: #8a6100;
+  --ops-low: #8a8279;
+  --on-primary: #ffffff;
+  --pill-pos-bg: #d9f0dd;
+  --pill-warn-bg: #f5ebd0;
+  --pill-neg-bg: #f5d5d0;
+  --pill-info-bg: #d0e5f5;
+  --hero-gradient-a: #ddd6cd;
+  --hero-gradient-b: #d4c4b8;
+  --hero-gradient-c: #ebe5de;
+  --header-bg: rgba(245, 240, 235, 0.92);
+  --chart-line-ops: #802626;
+  --chart-line-reviews: #1a7a28;
+  --chart-area-ops-start: rgba(128, 38, 38, 0.15);
+  --chart-area-ops-end: rgba(128, 38, 38, 0);
+  --chart-area-reviews-start: rgba(26, 122, 40, 0.12);
+  --chart-area-reviews-end: rgba(26, 122, 40, 0);
+  --radar-ring: #c9c0b5;
+  --radar-fill: rgba(128, 38, 38, 0.15);
+  --radar-stroke: #802626;
+  --radar-label: #5c534a;
+  --radar-median: #6e655d;
+  --toggle-bg: transparent;
+  --toggle-border: #c9c0b5;
+  --toggle-hover-bg: rgba(0,0,0,0.05);
+  --tag-bg: rgba(255, 255, 255, 0.7);
+  --demo-bg: rgba(37, 101, 152, 0.1);
+  --demo-border: rgba(37, 101, 152, 0.25);
+  --chart-toggle-active-bg: rgba(128, 38, 38, 0.1);
+  --chart-toggle-active-border: rgba(128, 38, 38, 0.25);
+  --hover-surface: #f0ebe5;
+  --hover-border: #b5aca2;
+  --play-bg: rgba(0,0,0,0.45);
+  --play-border: rgba(255,255,255,0.5);
+  --play-arrow: white;
+  --duration-bg: rgba(0,0,0,0.55);
+  --coverage-gradient-start: #802626;
+  --coverage-gradient-end: #1a7a28;
+  --highlight-text: #1c1916;
+}
+
+:root {
+  --font-body: 'Public Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: 'Playfair Display', serif;
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-base);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+a { color: var(--text-main); text-decoration: none; }
+a:hover { color: var(--highlight-text); }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Transition helper ────────────────────────────────────────── */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, fill 0.3s ease, stroke 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* ── Header ────────────────────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-decorative);
+  padding: 0 24px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-dot {
+  width: 8px; height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--primary-glow); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px transparent; }
+}
+
+.nav-links {
+  display: flex;
+  gap: 28px;
+  list-style: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.nav-links a { color: var(--text-mid); transition: color 0.2s; }
+.nav-links a:hover { color: var(--text-main); }
+.nav-links a.active { color: var(--text-main); }
+
+/* ── Theme Toggle ─────────────────────────────────────────────── */
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--toggle-border);
+  background: var(--toggle-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, border-color 0.2s;
+  color: var(--text-mid);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--toggle-hover-bg);
+  border-color: var(--text-dim);
+  color: var(--text-main);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.3s ease, opacity 0.2s ease;
+}
+
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon { position: absolute; }
+
+[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+
+/* ── Breadcrumb ────────────────────────────────────────────────── */
+.breadcrumb {
+  padding: 12px 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.breadcrumb a { color: var(--text-dim); transition: color 0.2s; }
+.breadcrumb a:hover { color: var(--text-mid); }
+.breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+.breadcrumb .current { color: var(--text-mid); }
+
+/* ── Hero ──────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  margin-top: -1px;
+  overflow: hidden;
+}
+
+.hero-banner {
+  width: 100%;
+  height: 340px;
+  background: linear-gradient(135deg, var(--hero-gradient-a) 0%, var(--hero-gradient-b) 30%, var(--hero-gradient-c) 70%, var(--bg-base) 100%);
+  position: relative;
+  transition: background 0.3s ease;
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 30% 40%, var(--primary-glow), transparent),
+    radial-gradient(ellipse 40% 60% at 70% 60%, rgba(26,26,28,0.8), transparent);
+}
+
+[data-theme="light"] .hero-banner::before {
+  background:
+    radial-gradient(ellipse 60% 80% at 30% 40%, rgba(128,38,38,0.08), transparent),
+    radial-gradient(ellipse 40% 60% at 70% 60%, rgba(245,240,235,0.6), transparent);
+}
+
+.hero-banner::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 200px;
+  background: linear-gradient(to top, var(--bg-base) 0%, rgba(17,19,20,0.8) 40%, transparent 100%);
+}
+
+[data-theme="light"] .hero-banner::after {
+  background: linear-gradient(to top, var(--bg-base) 0%, rgba(245,240,235,0.85) 40%, transparent 100%);
+}
+
+.hero-content {
+  position: absolute;
+  bottom: 0;
+  left: 0; right: 0;
+  padding: 0 24px 32px;
+  z-index: 2;
+}
+
+.hero-inner { max-width: 1200px; margin: 0 auto; }
+
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--highlight-text);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+
+[data-theme="light"] .hero-title {
+  text-shadow: 0 2px 20px rgba(0,0,0,0.1);
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--text-mid);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.hero-meta .dot { opacity: 0.4; }
+
+.hero-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tag-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border-decorative);
+  color: var(--text-mid);
+  background: var(--tag-bg);
+  transition: border-color 0.2s;
+}
+
+.tag-pill:hover { border-color: var(--text-dim); }
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-steam {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-steam:hover {
+  background: var(--hover-surface);
+  border-color: var(--text-dim);
+}
+
+.badge-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: var(--demo-bg);
+  color: var(--status-info);
+  border: 1px solid var(--demo-border);
+}
+
+/* ── Vital Signs ───────────────────────────────────────────────── */
+.vitals {
+  padding: 32px 0;
+}
+
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.vital-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 10px;
+  padding: 20px;
+  transition: border-color 0.2s, transform 0.2s, background-color 0.3s;
+}
+
+.vital-card:hover {
+  border-color: var(--hover-border);
+  transform: translateY(-2px);
+}
+
+.vital-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.vital-value {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.vital-sub {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.vital-sub .pos { color: var(--status-pos); }
+.vital-sub .neg { color: var(--status-neg); }
+
+.confidence-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.confidence-dots .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border-decorative);
+}
+
+.confidence-dots .dot.filled { background: var(--status-pos); }
+
+.color-green { color: var(--status-pos); }
+.color-amber { color: var(--status-warn); }
+.color-red { color: var(--status-neg); }
+.color-white { color: var(--highlight-text); }
+
+/* ── Section shared ────────────────────────────────────────────── */
+.section { padding: 32px 0; }
+
+.section-header {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-decorative);
+}
+
+/* ── Story Timeline ────────────────────────────────────────────── */
+.timeline-phases {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.timeline-track {
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--border-decorative);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.timeline-track .fill {
+  height: 100%;
+  width: 75%;
+  background: linear-gradient(90deg, var(--text-dim), var(--primary));
+  border-radius: 1px;
+}
+
+.phase {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.phase-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--border-decorative);
+  margin: 0 auto 8px;
+  border: 2px solid var(--bg-base);
+  transition: all 0.3s;
+}
+
+.phase.completed .phase-dot { background: var(--text-dim); }
+.phase.active .phase-dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+  width: 14px; height: 14px;
+}
+
+.phase-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.phase.active .phase-label { color: var(--text-main); }
+.phase.completed .phase-label { color: var(--text-mid); }
+
+.story-text {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  padding: 20px 24px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-mid);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.story-text strong { color: var(--text-main); font-weight: 600; }
+
+/* ── Chart ─────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-decorative);
+}
+
+.chart-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.chart-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.chart-toggle {
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.chart-toggle:hover { color: var(--text-mid); background: var(--toggle-hover-bg); }
+.chart-toggle.active {
+  background: var(--chart-toggle-active-bg);
+  color: var(--text-main);
+  border-color: var(--chart-toggle-active-border);
+}
+
+.chart-body {
+  padding: 20px;
+  height: 300px;
+  position: relative;
+}
+
+/* ── Signal Breakdown ──────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-decorative);
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 10px 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--font-body);
+}
+
+.tab:hover { color: var(--text-mid); }
+.tab.active {
+  color: var(--text-main);
+  border-bottom-color: var(--primary);
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.video-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s, background-color 0.3s;
+}
+
+.video-card:hover {
+  border-color: var(--hover-border);
+  transform: translateY(-2px);
+}
+
+.video-thumb {
+  height: 120px;
+  background: linear-gradient(135deg, var(--hero-gradient-a), var(--hero-gradient-b), var(--hero-gradient-c));
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-icon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--play-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--play-border);
+}
+
+.play-icon::after {
+  content: '';
+  width: 0; height: 0;
+  border-left: 12px solid var(--play-arrow);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  margin-left: 3px;
+}
+
+.video-info { padding: 14px; }
+
+.video-channel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-text);
+  margin-bottom: 4px;
+}
+
+.video-title-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-stats {
+  display: flex;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.video-stats .stat-val { color: var(--text-mid); font-weight: 500; }
+
+.video-subs {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.video-duration {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--duration-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-mid);
+}
+
+.high-reach { color: var(--status-neg); }
+
+.coverage-bar-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.coverage-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+.coverage-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border-decorative);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.coverage-fill {
+  height: 100%;
+  width: 82%;
+  background: linear-gradient(90deg, var(--coverage-gradient-start), var(--coverage-gradient-end));
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.coverage-value {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+/* ── OPS Anatomy ───────────────────────────────────────────────── */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.3s;
+  user-select: none;
+}
+
+.collapsible-header:hover { border-color: var(--hover-border); }
+
+.collapsible-header.expanded {
+  border-radius: 10px 10px 0 0;
+  border-bottom-color: transparent;
+}
+
+.collapsible-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.collapsible-summary {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-left: 16px;
+}
+
+.chevron {
+  width: 20px; height: 20px;
+  color: var(--text-dim);
+  transition: transform 0.3s;
+}
+
+.chevron.expanded { transform: rotate(180deg); }
+
+.collapsible-body {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 24px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.ops-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.radar-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.comp-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border-decorative);
+  border-radius: 8px;
+  padding: 14px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.comp-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.comp-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.comp-score {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.comp-max {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.comp-bar {
+  height: 4px;
+  background: var(--border-decorative);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.comp-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.comp-weight {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+/* ── Similar Games ─────────────────────────────────────────────── */
+.similar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.similar-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-decorative);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s, background-color 0.3s;
+}
+
+.similar-card:hover {
+  border-color: var(--hover-border);
+  transform: translateY(-3px);
+}
+
+.similar-thumb {
+  height: 100px;
+  background: linear-gradient(135deg, var(--hero-gradient-a), var(--hero-gradient-c));
+}
+
+.similar-info { padding: 16px; }
+
+.similar-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.similar-dev {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.similar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ops-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: var(--pill-pos-bg);
+  color: var(--status-pos);
+}
+
+.ops-badge.amber {
+  background: var(--pill-warn-bg);
+  color: var(--status-warn);
+}
+
+.compare-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: color 0.2s;
+}
+
+.compare-link:hover { color: var(--text-main); }
+
+/* ── Footer ────────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--border-decorative);
+  padding: 24px;
+  margin-top: 48px;
+  transition: border-color 0.3s ease;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.footer-status {
+  display: flex;
+  gap: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.footer-status .dot-green {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--status-pos);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .vitals-grid { grid-template-columns: repeat(2, 1fr); }
+  .vitals-grid .vital-card:last-child { grid-column: 1 / -1; }
+  .video-grid { grid-template-columns: 1fr; }
+  .similar-grid { grid-template-columns: 1fr; }
+  .ops-layout { grid-template-columns: 1fr; }
+  .component-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-title { font-size: 2rem; }
+  .hero-banner { height: 240px; }
+  .nav-links { gap: 16px; }
+  .chart-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .timeline-phases { overflow-x: auto; }
+}
+
+@media (max-width: 480px) {
+  .vitals-grid { grid-template-columns: 1fr; }
+  .component-grid { grid-template-columns: 1fr; }
+  .hero-title { font-size: 1.6rem; }
+  .nav-links { display: none; }
+  .coverage-bar-wrap { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── SVG Chart Styling ─────────────────────────────────────────── */
+.chart-svg { width: 100%; height: 100%; }
+.chart-grid-line { stroke: var(--border-decorative); stroke-width: 0.5; }
+.chart-axis-label {
+  fill: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.chart-line-ops {
+  fill: none;
+  stroke: var(--chart-line-ops);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-line-reviews {
+  fill: none;
+  stroke: var(--chart-line-reviews);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-area-ops {
+  fill: url(#opsGradient);
+}
+.chart-area-reviews {
+  fill: url(#reviewsGradient);
+}
+.event-marker {
+  cursor: pointer;
+}
+.event-marker circle {
+  fill: var(--status-warn);
+  transition: r 0.2s;
+}
+.event-marker:hover circle { r: 5; }
+.event-label {
+  fill: var(--text-mid);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.chart-legend {
+  display: flex;
+  gap: 20px;
+  justify-content: flex-end;
+  padding: 8px 20px 12px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* ── Creator Impact heading ───────────────────────────────────── */
+.signal-subheading {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-main);
+}
+</style>
+</head>
+<body>
+
+<!-- ─── Header ──────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-dot"></span>
+      HORROR RADAR
+    </div>
+    <div class="header-right">
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#">Discover</a></li>
+          <li><a href="#">Radar Pick</a></li>
+          <li><a href="#">Trends</a></li>
+          <li><a href="#" class="active">Autopsy</a></li>
+        </ul>
+      </nav>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode" title="Toggle theme">
+        <!-- Sun icon (shown in dark mode — click to go light) -->
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <!-- Moon icon (shown in light mode — click to go dark) -->
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ─── Breadcrumb ──────────────────────────────────────────────── -->
+<div class="container">
+  <div class="breadcrumb">
+    <a href="#">Home</a>
+    <span class="sep">&rsaquo;</span>
+    <a href="#">Discover</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current">GRAVESHIFT</span>
+  </div>
+</div>
+
+<!-- ─── Hero ────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-banner"></div>
+  <div class="hero-content">
+    <div class="hero-inner">
+      <h1 class="hero-title">GRAVESHIFT</h1>
+      <div class="hero-meta">
+        <span>Hollow Pine Studios</span>
+        <span class="dot">&middot;</span>
+        <span style="font-family: var(--font-mono);">$14.99</span>
+        <span class="dot">&middot;</span>
+        <span>Released Mar 24, 2026</span>
+        <span class="dot">&middot;</span>
+        <span style="color: var(--status-warn); font-weight: 600;">12 days ago</span>
+      </div>
+      <div class="hero-tags">
+        <span class="tag-pill">Survival Horror</span>
+        <span class="tag-pill">Psychological</span>
+        <span class="tag-pill">Co-op</span>
+        <span class="tag-pill">First Person</span>
+      </div>
+      <div class="hero-actions">
+        <button class="btn-steam">View on Steam <span style="opacity:0.6;">&nearr;</span></button>
+        <span class="badge-demo">&check; DEMO AVAILABLE</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Vital Signs ─────────────────────────────────────────────── -->
+<section class="vitals container">
+  <div class="section-header">Vital Signs</div>
+  <div class="vitals-grid">
+    <div class="vital-card">
+      <div class="vital-label">OPS Score</div>
+      <div class="vital-value color-green">73</div>
+      <div class="vital-sub"><span class="pos">&uarr;8</span> vs 7d ago</div>
+      <div class="confidence-dots">
+        <span class="dot filled"></span>
+        <span class="dot filled"></span>
+        <span class="dot"></span>
+      </div>
+    </div>
+    <div class="vital-card">
+      <div class="vital-label">Reviews</div>
+      <div class="vital-value color-white">342</div>
+      <div class="vital-sub"><span class="pos">+47 in 7d</span></div>
+    </div>
+    <div class="vital-card">
+      <div class="vital-label">Sentiment</div>
+      <div class="vital-value color-green">
+        <span style="font-size: 1.4rem; vertical-align: middle; margin-right: 4px;">&#9760;</span>91%
+      </div>
+      <div class="vital-sub">Overwhelmingly Positive</div>
+    </div>
+    <div class="vital-card">
+      <div class="vital-label">Peak CCU</div>
+      <div class="vital-value color-white">1,204</div>
+      <div class="vital-sub">Captured 2d ago</div>
+    </div>
+    <div class="vital-card">
+      <div class="vital-label">YouTube</div>
+      <div class="vital-value color-white">8 <span style="font-size: 0.9rem; color: var(--text-dim);">videos</span></div>
+      <div class="vital-sub">3 channels covering</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── The Story So Far ────────────────────────────────────────── -->
+<section class="section container">
+  <div class="section-header">The Story So Far</div>
+
+  <div class="timeline-phases">
+    <div class="timeline-track"><div class="fill"></div></div>
+    <div class="phase completed">
+      <div class="phase-dot"></div>
+      <div class="phase-label">Pre-Launch</div>
+    </div>
+    <div class="phase completed">
+      <div class="phase-dot"></div>
+      <div class="phase-label">Launch Week</div>
+    </div>
+    <div class="phase active">
+      <div class="phase-dot"></div>
+      <div class="phase-label">Discovery</div>
+    </div>
+    <div class="phase">
+      <div class="phase-dot"></div>
+      <div class="phase-label">Sustained</div>
+    </div>
+  </div>
+
+  <div class="story-text">
+    <strong>GRAVESHIFT</strong> launched to strong reviews and immediate YouTube coverage from <strong>3 tracked channels</strong>. Review velocity is <strong style="color: var(--status-pos);">2.4x the indie horror median</strong>, driven by a demo-to-purchase conversion pipeline that started during Steam Next Fest. The game entered the <strong>Discovery phase</strong> on day 8 with sustained momentum &mdash; co-op gameplay is generating organic word-of-mouth on Reddit, with <strong>4 posts</strong> crossing 100+ upvotes in r/HorrorGaming.
+  </div>
+</section>
+
+<!-- ─── Performance Timeline Chart ──────────────────────────────── -->
+<section class="section container">
+  <div class="section-header">Performance Timeline</div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">12-Day Trajectory</div>
+      <div class="chart-toggles">
+        <button class="chart-toggle active">OPS</button>
+        <button class="chart-toggle active">Reviews</button>
+        <button class="chart-toggle">CCU</button>
+        <button class="chart-toggle">YouTube</button>
+      </div>
+    </div>
+    <div class="chart-body">
+      <svg class="chart-svg" viewBox="0 0 760 260" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="opsGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" class="ops-grad-start"/>
+            <stop offset="100%" class="ops-grad-end"/>
+          </linearGradient>
+          <linearGradient id="reviewsGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" class="reviews-grad-start"/>
+            <stop offset="100%" class="reviews-grad-end"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Grid lines -->
+        <line x1="60" y1="20" x2="60" y2="220" class="chart-grid-line"/>
+        <line x1="60" y1="220" x2="740" y2="220" class="chart-grid-line"/>
+        <!-- Horizontal grid -->
+        <line x1="60" y1="170" x2="740" y2="170" class="chart-grid-line" stroke-dasharray="4,4"/>
+        <line x1="60" y1="120" x2="740" y2="120" class="chart-grid-line" stroke-dasharray="4,4"/>
+        <line x1="60" y1="70" x2="740" y2="70" class="chart-grid-line" stroke-dasharray="4,4"/>
+        <line x1="60" y1="20" x2="740" y2="20" class="chart-grid-line" stroke-dasharray="4,4"/>
+
+        <!-- Y-axis labels (OPS left) -->
+        <text x="50" y="224" class="chart-axis-label" text-anchor="end">0</text>
+        <text x="50" y="174" class="chart-axis-label" text-anchor="end">25</text>
+        <text x="50" y="124" class="chart-axis-label" text-anchor="end">50</text>
+        <text x="50" y="74" class="chart-axis-label" text-anchor="end">75</text>
+        <text x="50" y="24" class="chart-axis-label" text-anchor="end">100</text>
+
+        <!-- Y-axis labels (Reviews right) -->
+        <text x="745" y="224" class="chart-axis-label reviews-axis" text-anchor="start">0</text>
+        <text x="745" y="174" class="chart-axis-label reviews-axis" text-anchor="start">100</text>
+        <text x="745" y="124" class="chart-axis-label reviews-axis" text-anchor="start">200</text>
+        <text x="745" y="74" class="chart-axis-label reviews-axis" text-anchor="start">300</text>
+        <text x="745" y="24" class="chart-axis-label reviews-axis" text-anchor="start">400</text>
+
+        <!-- X-axis labels -->
+        <text x="60" y="240" class="chart-axis-label" text-anchor="middle">D1</text>
+        <text x="116.7" y="240" class="chart-axis-label" text-anchor="middle">D2</text>
+        <text x="173.3" y="240" class="chart-axis-label" text-anchor="middle">D3</text>
+        <text x="230" y="240" class="chart-axis-label" text-anchor="middle">D4</text>
+        <text x="286.7" y="240" class="chart-axis-label" text-anchor="middle">D5</text>
+        <text x="343.3" y="240" class="chart-axis-label" text-anchor="middle">D6</text>
+        <text x="400" y="240" class="chart-axis-label" text-anchor="middle">D7</text>
+        <text x="456.7" y="240" class="chart-axis-label" text-anchor="middle">D8</text>
+        <text x="513.3" y="240" class="chart-axis-label" text-anchor="middle">D9</text>
+        <text x="570" y="240" class="chart-axis-label" text-anchor="middle">D10</text>
+        <text x="626.7" y="240" class="chart-axis-label" text-anchor="middle">D11</text>
+        <text x="683.3" y="240" class="chart-axis-label" text-anchor="middle">D12</text>
+
+        <!-- OPS area fill -->
+        <polygon class="chart-area-ops"
+          points="60,140 116.7,136.4 173.3,128.8 230,124.8 286.7,118 343.3,110 400,104 456.7,98 513.3,92 570,84 626.7,78 683.3,73.6 683.3,220 60,220"/>
+
+        <!-- OPS line -->
+        <polyline class="chart-line-ops"
+          points="60,140 116.7,136.4 173.3,128.8 230,124.8 286.7,118 343.3,110 400,104 456.7,98 513.3,92 570,84 626.7,78 683.3,73.6"/>
+
+        <!-- Reviews area fill -->
+        <polygon class="chart-area-reviews"
+          points="60,220 116.7,206 173.3,189 230,171 286.7,152.5 343.3,136 400,117.5 456.7,101 513.3,89 570,76 626.7,61 683.3,49 683.3,220 60,220"/>
+
+        <!-- Reviews line -->
+        <polyline class="chart-line-reviews"
+          points="60,220 116.7,206 173.3,189 230,171 286.7,152.5 343.3,136 400,117.5 456.7,101 513.3,89 570,76 626.7,61 683.3,49"/>
+
+        <!-- OPS data dots -->
+        <circle cx="60" cy="140" r="3" class="ops-dot"/>
+        <circle cx="683.3" cy="73.6" r="3" class="ops-dot"/>
+
+        <!-- Review data dots -->
+        <circle cx="60" cy="220" r="3" class="reviews-dot"/>
+        <circle cx="683.3" cy="49" r="3" class="reviews-dot"/>
+
+        <!-- Event markers -->
+        <g class="event-marker" transform="translate(173.3, 128.8)">
+          <circle r="4"/>
+          <line x1="0" y1="4" x2="0" y2="20" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2,2" class="event-line"/>
+          <text x="4" y="30" class="event-label">IGP video</text>
+        </g>
+
+        <g class="event-marker" transform="translate(456.7, 98)">
+          <circle r="4"/>
+          <line x1="0" y1="4" x2="0" y2="20" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2,2" class="event-line"/>
+          <text x="4" y="30" class="event-label">Reddit front page</text>
+        </g>
+
+        <!-- Axis titles -->
+        <text x="30" y="130" class="chart-axis-label ops-axis-title" text-anchor="middle" transform="rotate(-90, 20, 120)" font-size="9">OPS</text>
+      </svg>
+    </div>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background: var(--chart-line-ops);"></span>OPS Score</span>
+      <span><span class="legend-dot" style="background: var(--chart-line-reviews);"></span>Cumulative Reviews</span>
+      <span><span class="legend-dot" style="background: var(--status-warn);"></span>Events</span>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Signal Breakdown ────────────────────────────────────────── -->
+<section class="section container">
+  <div class="section-header">Signal Breakdown</div>
+
+  <div class="tabs">
+    <button class="tab active">YouTube</button>
+    <button class="tab">Reddit</button>
+    <button class="tab">Twitch</button>
+    <button class="tab">Updates</button>
+  </div>
+
+  <h3 class="signal-subheading">Creator Impact</h3>
+
+  <div class="video-grid">
+    <!-- IGP -->
+    <div class="video-card">
+      <div class="video-thumb">
+        <div class="play-icon"></div>
+        <span class="video-duration">24:18</span>
+      </div>
+      <div class="video-info">
+        <div class="video-channel">IGP</div>
+        <div class="video-title-text">GRAVESHIFT Is The Scariest Co-Op Horror Game This Year</div>
+        <div class="video-stats">
+          <span><span class="stat-val">180K</span> views</span>
+          <span><span class="stat-val">8.2K</span> likes</span>
+          <span>Mar 26</span>
+        </div>
+        <div class="video-subs">2.1M subscribers &middot; <span class="high-reach">HIGH REACH</span></div>
+      </div>
+    </div>
+
+    <!-- Insym -->
+    <div class="video-card">
+      <div class="video-thumb">
+        <div class="play-icon"></div>
+        <span class="video-duration">1:02:44</span>
+      </div>
+      <div class="video-info">
+        <div class="video-channel">Insym</div>
+        <div class="video-title-text">This NEW Horror Game Made Me Scream (Graveshift Full Playthrough)</div>
+        <div class="video-stats">
+          <span><span class="stat-val">95K</span> views</span>
+          <span><span class="stat-val">4.1K</span> likes</span>
+          <span>Mar 28</span>
+        </div>
+        <div class="video-subs">1.8M subscribers &middot; <span class="high-reach">HIGH REACH</span></div>
+      </div>
+    </div>
+
+    <!-- CJUGames -->
+    <div class="video-card">
+      <div class="video-thumb">
+        <div class="play-icon"></div>
+        <span class="video-duration">18:32</span>
+      </div>
+      <div class="video-info">
+        <div class="video-channel">CJUGames</div>
+        <div class="video-title-text">Graveshift - A Hidden Gem You NEED To Play</div>
+        <div class="video-stats">
+          <span><span class="stat-val">42K</span> views</span>
+          <span><span class="stat-val">2.3K</span> likes</span>
+          <span>Mar 30</span>
+        </div>
+        <div class="video-subs">340K subscribers</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="coverage-bar-wrap">
+    <div class="coverage-label">Coverage Score</div>
+    <div class="coverage-track"><div class="coverage-fill"></div></div>
+    <div class="coverage-value">0.82 / 1.00</div>
+  </div>
+</section>
+
+<!-- ─── OPS Anatomy ─────────────────────────────────────────────── -->
+<section class="section container">
+  <div class="section-header">OPS Anatomy</div>
+
+  <div class="collapsible-header expanded" onclick="toggleOps()">
+    <div>
+      <span class="collapsible-title">OPS Component Breakdown</span>
+      <span class="collapsible-summary">5 components scored, 3 with high confidence</span>
+    </div>
+    <svg class="chevron expanded" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </div>
+
+  <div class="collapsible-body" id="opsBody">
+    <div class="ops-layout">
+      <!-- Radar Chart -->
+      <div class="radar-wrap">
+        <svg width="280" height="280" viewBox="0 0 280 280">
+          <defs>
+            <clipPath id="radarClip">
+              <circle cx="140" cy="140" r="120"/>
+            </clipPath>
+          </defs>
+
+          <!-- Background rings -->
+          <g opacity="0.3">
+            <polygon points="140,32 243,80 221,196 59,196 37,80" fill="none" class="radar-ring-line"/>
+            <polygon points="140,59 218,97 200,186 80,186 62,97" fill="none" class="radar-ring-line"/>
+            <polygon points="140,86 193,113 179,175 101,175 87,113" fill="none" class="radar-ring-line"/>
+            <polygon points="140,113 168,130 158,165 122,165 112,130" fill="none" class="radar-ring-line"/>
+          </g>
+
+          <!-- Axis lines -->
+          <line x1="140" y1="140" x2="140" y2="32" class="radar-axis-line"/>
+          <line x1="140" y1="140" x2="243" y2="80" class="radar-axis-line"/>
+          <line x1="140" y1="140" x2="221" y2="196" class="radar-axis-line"/>
+          <line x1="140" y1="140" x2="59" y2="196" class="radar-axis-line"/>
+          <line x1="140" y1="140" x2="37" y2="80" class="radar-axis-line"/>
+
+          <!-- Peer median ring (dashed, at 50%) -->
+          <polygon points="140,86 193,113 179,175 101,175 87,113" fill="none" class="radar-median-line"/>
+
+          <!-- Game polygon -->
+          <polygon
+            points="140,70.9 198.5,88.2 196.1,177.4 86.3,168 71.3,95.6"
+            class="radar-data-polygon"
+          />
+
+          <!-- Data points -->
+          <circle cx="140" cy="70.9" r="3.5" class="radar-data-dot"/>
+          <circle cx="198.5" cy="88.2" r="3.5" class="radar-data-dot"/>
+          <circle cx="196.1" cy="177.4" r="3.5" class="radar-data-dot"/>
+          <circle cx="86.3" cy="168" r="3.5" class="radar-data-dot"/>
+          <circle cx="71.3" cy="95.6" r="3.5" class="radar-data-dot"/>
+
+          <!-- Axis labels -->
+          <text x="140" y="20" text-anchor="middle" class="radar-label-text" font-size="11" font-weight="600">Velocity</text>
+          <text x="258" y="78" text-anchor="start" class="radar-label-text" font-size="11" font-weight="600">Retention</text>
+          <text x="232" y="206" text-anchor="start" class="radar-label-text" font-size="11" font-weight="600">Volume</text>
+          <text x="48" y="206" text-anchor="end" class="radar-label-text" font-size="11" font-weight="600">YouTube</text>
+          <text x="22" y="78" text-anchor="end" class="radar-label-text" font-size="11" font-weight="600">CCU</text>
+        </svg>
+      </div>
+
+      <!-- Component Cards -->
+      <div class="component-grid">
+        <div class="comp-card">
+          <div class="comp-name">Velocity</div>
+          <div class="comp-score-row">
+            <span class="comp-score">3.2</span>
+            <span class="comp-max">/ 5.0</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 64%; background: var(--status-pos);"></div></div>
+          <div class="comp-weight">Weight: 35%</div>
+        </div>
+
+        <div class="comp-card">
+          <div class="comp-name">Decay Retention</div>
+          <div class="comp-score-row">
+            <span class="comp-score">0.9</span>
+            <span class="comp-max">/ 2.0</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 45%; background: var(--status-warn);"></div></div>
+          <div class="comp-weight">Weight: 20%</div>
+        </div>
+
+        <div class="comp-card">
+          <div class="comp-name">Review Volume</div>
+          <div class="comp-score-row">
+            <span class="comp-score">3.6</span>
+            <span class="comp-max">/ 5.0</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 72%; background: var(--status-pos);"></div></div>
+          <div class="comp-weight">Weight: 15%</div>
+        </div>
+
+        <div class="comp-card">
+          <div class="comp-name">YouTube</div>
+          <div class="comp-score-row">
+            <span class="comp-score">1.5</span>
+            <span class="comp-max">/ 1.8</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 82%; background: var(--status-pos);"></div></div>
+          <div class="comp-weight">Weight: 15%</div>
+        </div>
+
+        <div class="comp-card">
+          <div class="comp-name">CCU</div>
+          <div class="comp-score-row">
+            <span class="comp-score">2.9</span>
+            <span class="comp-max">/ 5.0</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 58%; background: var(--status-warn);"></div></div>
+          <div class="comp-weight">Weight: 15%</div>
+        </div>
+
+        <div class="comp-card" style="border-style: dashed; opacity: 0.6;">
+          <div class="comp-name">Coverage</div>
+          <div class="comp-score-row">
+            <span class="comp-score">5/5</span>
+            <span class="comp-max">active</span>
+          </div>
+          <div class="comp-bar"><div class="comp-bar-fill" style="width: 100%; background: var(--status-pos);"></div></div>
+          <div class="comp-weight">Penalty: 1.00x (none)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Similar Games ───────────────────────────────────────────── -->
+<section class="section container">
+  <div class="section-header">Games with Similar Signals</div>
+
+  <div class="similar-grid">
+    <div class="similar-card">
+      <div class="similar-thumb" style="background: linear-gradient(135deg, var(--hero-gradient-a) 0%, var(--hero-gradient-b) 50%, var(--hero-gradient-c) 100%);"></div>
+      <div class="similar-info">
+        <div class="similar-title">The Hollow Below</div>
+        <div class="similar-dev">Ashwood Interactive</div>
+        <div class="similar-footer">
+          <span class="ops-badge">OPS 68</span>
+          <a href="#" class="compare-link">Compare &rarr;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="similar-card">
+      <div class="similar-thumb" style="background: linear-gradient(135deg, var(--hero-gradient-c) 0%, var(--hero-gradient-a) 50%, var(--hero-gradient-c) 100%);"></div>
+      <div class="similar-info">
+        <div class="similar-title">Nightshift Protocol</div>
+        <div class="similar-dev">Red Candle Games</div>
+        <div class="similar-footer">
+          <span class="ops-badge">OPS 61</span>
+          <a href="#" class="compare-link">Compare &rarr;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="similar-card">
+      <div class="similar-thumb" style="background: linear-gradient(135deg, var(--hero-gradient-b) 0%, var(--hero-gradient-c) 50%, var(--hero-gradient-c) 100%);"></div>
+      <div class="similar-info">
+        <div class="similar-title">Cabin Recall</div>
+        <div class="similar-dev">Pinecone Studio</div>
+        <div class="similar-footer">
+          <span class="ops-badge amber">OPS 55</span>
+          <a href="#" class="compare-link">Compare &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ──────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--text-dim);">
+      HORROR RADAR &middot; Indie Horror Breakout Detection
+    </div>
+    <div class="footer-status">
+      <span>Showing 1 of 47 Games</span>
+      <span><span class="dot-green"></span>10/12 Scrapers Active</span>
+      <span>Last Sync: 4 mins ago</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── Theme Toggle ────────────────────────────────────────────────
+(function() {
+  const STORAGE_KEY = 'horror-radar-theme';
+  const html = document.documentElement;
+  const toggle = document.getElementById('themeToggle');
+
+  // Initialize from localStorage, default to dark
+  const saved = localStorage.getItem(STORAGE_KEY);
+  const initial = saved === 'light' ? 'light' : 'dark';
+  html.setAttribute('data-theme', initial);
+
+  toggle.addEventListener('click', function() {
+    // Add transition class briefly
+    html.classList.add('theme-transition');
+
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem(STORAGE_KEY, next);
+
+    // Update SVG gradient stops (they don't inherit CSS custom properties)
+    updateSvgColors(next);
+
+    // Remove transition class after animation completes
+    setTimeout(function() {
+      html.classList.remove('theme-transition');
+    }, 350);
+  });
+
+  // SVG gradient stops and inline fills need explicit updates
+  function updateSvgColors(theme) {
+    var isDark = theme === 'dark';
+
+    // OPS gradient
+    var opsStarts = document.querySelectorAll('.ops-grad-start');
+    var opsEnds = document.querySelectorAll('.ops-grad-end');
+    opsStarts.forEach(function(el) {
+      el.setAttribute('stop-color', '#802626');
+      el.setAttribute('stop-opacity', isDark ? '0.25' : '0.15');
+    });
+    opsEnds.forEach(function(el) {
+      el.setAttribute('stop-color', '#802626');
+      el.setAttribute('stop-opacity', '0');
+    });
+
+    // Reviews gradient
+    var revStarts = document.querySelectorAll('.reviews-grad-start');
+    var revEnds = document.querySelectorAll('.reviews-grad-end');
+    var revColor = isDark ? '#2faa6e' : '#1a7a28';
+    revStarts.forEach(function(el) {
+      el.setAttribute('stop-color', revColor);
+      el.setAttribute('stop-opacity', isDark ? '0.15' : '0.12');
+    });
+    revEnds.forEach(function(el) {
+      el.setAttribute('stop-color', revColor);
+      el.setAttribute('stop-opacity', '0');
+    });
+
+    // Reviews axis labels
+    document.querySelectorAll('.reviews-axis').forEach(function(el) {
+      el.setAttribute('fill', revColor);
+    });
+
+    // OPS axis title
+    document.querySelectorAll('.ops-axis-title').forEach(function(el) {
+      el.setAttribute('fill', '#802626');
+    });
+
+    // OPS data dots
+    document.querySelectorAll('.ops-dot').forEach(function(el) {
+      el.setAttribute('fill', '#802626');
+    });
+
+    // Reviews data dots
+    document.querySelectorAll('.reviews-dot').forEach(function(el) {
+      el.setAttribute('fill', revColor);
+    });
+
+    // Event marker lines
+    var warnColor = isDark ? '#e8a832' : '#8a6100';
+    document.querySelectorAll('.event-line').forEach(function(el) {
+      el.setAttribute('stroke', warnColor);
+    });
+
+    // Radar chart
+    var ringColor = isDark ? '#2a2420' : '#c9c0b5';
+    var axisColor = isDark ? '#2a2420' : '#c9c0b5';
+    var labelColor = isDark ? '#b5a595' : '#5c534a';
+    var medianColor = isDark ? '#998c7e' : '#6e655d';
+
+    document.querySelectorAll('.radar-ring-line').forEach(function(el) {
+      el.setAttribute('stroke', ringColor);
+      el.setAttribute('stroke-width', '0.8');
+    });
+    document.querySelectorAll('.radar-axis-line').forEach(function(el) {
+      el.setAttribute('stroke', axisColor);
+      el.setAttribute('stroke-width', '0.5');
+    });
+    document.querySelectorAll('.radar-median-line').forEach(function(el) {
+      el.setAttribute('stroke', medianColor);
+      el.setAttribute('stroke-width', '1');
+      el.setAttribute('stroke-dasharray', '4,3');
+    });
+    document.querySelectorAll('.radar-data-polygon').forEach(function(el) {
+      el.setAttribute('fill', isDark ? 'rgba(128,38,38,0.25)' : 'rgba(128,38,38,0.15)');
+      el.setAttribute('stroke', '#802626');
+      el.setAttribute('stroke-width', '2');
+    });
+    document.querySelectorAll('.radar-data-dot').forEach(function(el) {
+      el.setAttribute('fill', '#802626');
+    });
+    document.querySelectorAll('.radar-label-text').forEach(function(el) {
+      el.setAttribute('fill', labelColor);
+      el.setAttribute('font-family', 'Public Sans');
+    });
+  }
+
+  // Run once on load
+  updateSvgColors(initial);
+})();
+
+// ── OPS Collapsible ─────────────────────────────────────────────
+function toggleOps() {
+  const header = document.querySelector('.collapsible-header');
+  const body = document.getElementById('opsBody');
+  const chevron = document.querySelector('.chevron');
+
+  if (header.classList.contains('expanded')) {
+    header.classList.remove('expanded');
+    chevron.classList.remove('expanded');
+    body.style.display = 'none';
+  } else {
+    header.classList.add('expanded');
+    chevron.classList.add('expanded');
+    body.style.display = 'block';
+  }
+}
+
+// Tab switching (visual only)
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+
+// Chart toggle switching (visual only)
+document.querySelectorAll('.chart-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('active');
+  });
+});
+</script>
+
+</body>
+</html>

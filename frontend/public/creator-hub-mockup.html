@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creator Hub - Horror Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ========== Theme Tokens ========== */
+  [data-theme="dark"] {
+    --bg-base: #111314;
+    --bg-surface: #1a1b1d;
+    --bg-elevated: #242527;
+    --text-main: #e8e0d6;
+    --text-mid: #b5a595;
+    --text-dim: #998c7e;
+    --primary: #802626;
+    --primary-text: #d45555;
+    --primary-hover: #c04040;
+    --accent-gold: #d4a574;
+    --accent-gold-hover: #e0b888;
+    --status-pos: #2faa6e;
+    --status-warn: #e8a832;
+    --status-neg: #e25535;
+    --status-info: #5b9fd4;
+    --status-special: #b07db2;
+    --border-structural: #4a4541;
+    --border-decorative: #332e2a;
+    --ops-high: #2faa6e;
+    --ops-mid: #e8a832;
+    --ops-low: #6b635b;
+    --pill-pos-bg: #1a3a2a;
+    --pill-warn-bg: #3a2e15;
+    --pill-neg-bg: #3a1a15;
+    --pill-info-bg: #1a2a3a;
+    --pill-special-bg: #2e1a30;
+    --hero-gradient: rgba(128,38,38,0.15);
+    --hero-gradient-end: rgba(17,19,20,0.95);
+    --card-hover-border: #3a3028;
+    --card-hover-shadow: rgba(0,0,0,0.3);
+    --embed-shadow: rgba(0,0,0,0.4);
+    --row-hover-bg: rgba(128,38,38,0.06);
+    --table-border: rgba(74,69,65,0.5);
+    --coverage-warn-bg: rgba(232,168,50,0.1);
+    --coverage-warn-border: rgba(232,168,50,0.2);
+    --coverage-crit-bg: rgba(226,85,53,0.1);
+    --coverage-crit-border: rgba(226,85,53,0.2);
+    --ops-green-bg: rgba(47,170,110,0.1);
+    --ops-amber-bg: rgba(232,168,50,0.1);
+    --avatar-gradient-end: #4a1818;
+    --digest-border: rgba(74,69,65,0.5);
+    --digest-gradient: rgba(128,38,38,0.2);
+    --toggle-bg: #242527;
+    --toggle-border: #4a4541;
+    --toggle-hover: #332e2a;
+  }
+
+  [data-theme="light"] {
+    --bg-base: #f5f0eb;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ebe5de;
+    --text-main: #1c1916;
+    --text-mid: #5c534a;
+    --text-dim: #6e655d;
+    --primary: #802626;
+    --primary-text: #802626;
+    --primary-hover: #601c1c;
+    --accent-gold: #8a6e3e;
+    --accent-gold-hover: #725a30;
+    --status-pos: #1a7a28;
+    --status-warn: #8a6100;
+    --status-neg: #b3332b;
+    --status-info: #256598;
+    --status-special: #7b4d7d;
+    --border-structural: #c9c0b5;
+    --border-decorative: #ddd6cd;
+    --ops-high: #1a7a28;
+    --ops-mid: #8a6100;
+    --ops-low: #8a8279;
+    --pill-pos-bg: #d9f0dd;
+    --pill-warn-bg: #f5ebd0;
+    --pill-neg-bg: #f5d5d0;
+    --pill-info-bg: #d0e5f5;
+    --pill-special-bg: #edd5ef;
+    --hero-gradient: rgba(128,38,38,0.08);
+    --hero-gradient-end: rgba(245,240,235,0.95);
+    --card-hover-border: #c9c0b5;
+    --card-hover-shadow: rgba(0,0,0,0.08);
+    --embed-shadow: rgba(0,0,0,0.1);
+    --row-hover-bg: rgba(128,38,38,0.04);
+    --table-border: rgba(201,192,181,0.5);
+    --coverage-warn-bg: rgba(138,97,0,0.08);
+    --coverage-warn-border: rgba(138,97,0,0.2);
+    --coverage-crit-bg: rgba(179,51,43,0.08);
+    --coverage-crit-border: rgba(179,51,43,0.2);
+    --ops-green-bg: rgba(26,122,40,0.08);
+    --ops-amber-bg: rgba(138,97,0,0.08);
+    --avatar-gradient-end: #d4a0a0;
+    --digest-border: rgba(201,192,181,0.5);
+    --digest-gradient: rgba(128,38,38,0.06);
+    --toggle-bg: #ebe5de;
+    --toggle-border: #c9c0b5;
+    --toggle-hover: #ddd6cd;
+  }
+
+  :root {
+    --font-body: 'Public Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-serif: 'Playfair Display', serif;
+  }
+
+  /* ========== Transitions ========== */
+  html[data-theme] body,
+  html[data-theme] .site-header,
+  html[data-theme] .hero,
+  html[data-theme] .game-card,
+  html[data-theme] .channel-card,
+  html[data-theme] .embed-card,
+  html[data-theme] .embed-textarea,
+  html[data-theme] .digest-card,
+  html[data-theme] .digest-header,
+  html[data-theme] .site-footer,
+  html[data-theme] .gap-table th,
+  html[data-theme] .gap-table td,
+  html[data-theme] .btn,
+  html[data-theme] .section,
+  html[data-theme] .ops-badge,
+  html[data-theme] .coverage-gap,
+  html[data-theme] .theme-toggle {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  html { font-size: 16px; }
+  body {
+    background: var(--bg-base);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  a { color: var(--primary-text); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--primary-hover); }
+
+  /* Header */
+  .site-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-decorative);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text-main); }
+  .header-right { display: flex; align-items: center; gap: 1.5rem; }
+  .nav { display: flex; gap: 1.5rem; align-items: center; }
+  .nav a {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-mid);
+    transition: color 0.2s;
+    padding: 0.25rem 0;
+  }
+  .nav a:hover { color: var(--text-main); }
+  .nav a.active {
+    color: var(--text-main);
+    border-bottom: 2px solid var(--primary);
+  }
+
+  /* Theme Toggle */
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--toggle-border);
+    background: var(--toggle-bg);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-mid);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover {
+    background: var(--toggle-hover);
+    color: var(--text-main);
+    border-color: var(--text-dim);
+  }
+
+  /* Layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--hero-gradient) 0%, var(--hero-gradient-end) 60%), var(--bg-surface);
+    border-bottom: 1px solid var(--border-decorative);
+    padding: 4rem 0 3.5rem;
+    text-align: center;
+  }
+  .hero h1 {
+    font-family: var(--font-serif);
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.01em;
+  }
+  .hero p {
+    font-size: 1.1rem;
+    color: var(--text-mid);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* Section */
+  .section { padding: 3rem 0; }
+  .section + .section { border-top: 1px solid var(--border-decorative); }
+  .section-title {
+    font-family: var(--font-body);
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+  }
+  .section-desc {
+    color: var(--text-mid);
+    font-size: 0.9rem;
+    margin-bottom: 1.75rem;
+    max-width: 700px;
+    line-height: 1.65;
+  }
+
+  /* Game Cards (Section 1) */
+  .game-cards { display: flex; flex-direction: column; gap: 1rem; }
+  .game-card {
+    display: grid;
+    grid-template-columns: 160px 1fr auto;
+    gap: 1.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-left: 4px solid var(--ops-mid);
+    border-radius: 6px;
+    padding: 1.1rem 1.25rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    align-items: start;
+  }
+  .game-card:hover {
+    border-color: var(--card-hover-border);
+    box-shadow: 0 4px 20px var(--card-hover-shadow);
+  }
+  .game-card.ops-high { border-left-color: var(--ops-high); }
+  .game-card.ops-mid { border-left-color: var(--ops-mid); }
+
+  .game-thumb {
+    width: 160px;
+    height: 75px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .game-thumb-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+  }
+  .thumb-1 { background: linear-gradient(135deg, #1a2a1a, #0d1f0d, #2a1a1a); }
+  .thumb-2 { background: linear-gradient(135deg, #2a1a2a, #1a0d2a, #1a1a2a); }
+  .thumb-3 { background: linear-gradient(135deg, #1a1a2a, #0d0d1f, #2a2a1a); }
+  .thumb-4 { background: linear-gradient(135deg, #2a2020, #1f0d0d, #2a1a0d); }
+  .thumb-5 { background: linear-gradient(135deg, #1a2a2a, #0d1f1f, #1a1a2a); }
+
+  .game-info { min-width: 0; }
+  .game-info h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+    color: var(--text-main);
+  }
+  .game-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+  }
+  .game-meta span { white-space: nowrap; }
+  .coverage-gap {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--status-warn);
+    background: var(--coverage-warn-bg);
+    border: 1px solid var(--coverage-warn-border);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    margin-bottom: 0.4rem;
+    font-family: var(--font-mono);
+  }
+  .coverage-gap.critical {
+    color: var(--status-neg);
+    background: var(--coverage-crit-bg);
+    border-color: var(--coverage-crit-border);
+  }
+  .game-pitch {
+    font-size: 0.85rem;
+    color: var(--text-mid);
+    line-height: 1.55;
+    margin-bottom: 0.4rem;
+  }
+  .game-link {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-text);
+  }
+  .game-link:hover { color: var(--primary-hover); }
+
+  .ops-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .ops-badge .label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 0.15rem;
+  }
+  .ops-badge .value {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .ops-green { background: var(--ops-green-bg); }
+  .ops-green .value { color: var(--ops-high); }
+  .ops-amber { background: var(--ops-amber-bg); }
+  .ops-amber .value { color: var(--ops-mid); }
+
+  /* Coverage Gap Table (Section 2) */
+  .gap-table-wrap { overflow-x: auto; }
+  .gap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .gap-table th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border-decorative);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  .gap-table th:hover { color: var(--text-mid); }
+  .gap-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--table-border);
+    vertical-align: middle;
+    color: var(--text-main);
+  }
+  .gap-table tr { transition: background 0.15s; }
+  .gap-table tbody tr:hover { background: var(--row-hover-bg); }
+  .gap-table .game-name { font-weight: 600; color: var(--text-main); }
+  .gap-table .mono {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .gap-bar-cell { display: flex; align-items: center; gap: 0.5rem; }
+  .gap-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--primary);
+    transition: width 0.3s ease;
+    min-width: 4px;
+  }
+  .gap-score {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+    min-width: 28px;
+  }
+
+  /* Creator Leaderboard (Section 3) */
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .channel-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .channel-card:hover {
+    border-color: var(--card-hover-border);
+    box-shadow: 0 2px 12px var(--card-hover-shadow);
+  }
+  .channel-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--avatar-gradient-end));
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #fff;
+  }
+  .channel-info { min-width: 0; }
+  .channel-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .channel-stats {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.15rem;
+  }
+  .channel-pick {
+    font-size: 0.75rem;
+    color: var(--text-mid);
+    margin-top: 0.2rem;
+  }
+  .channel-pick strong { color: var(--text-main); font-weight: 600; }
+
+  /* Embed Preview (Section 4) */
+  .embed-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .embed-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .embed-card {
+    width: 300px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px var(--embed-shadow);
+  }
+  .embed-card-image {
+    width: 100%;
+    height: 140px;
+    background: linear-gradient(135deg, #2a1a1a, #1a0d0d, #2a2020);
+  }
+  .embed-card-body { padding: 0.85rem 1rem; }
+  .embed-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+  }
+  .embed-card-stats {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    margin-bottom: 0.5rem;
+  }
+  .embed-stat-label { color: var(--text-dim); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .embed-stat-value { color: var(--text-main); font-weight: 600; }
+  .embed-stat-value.green { color: var(--status-pos); }
+  .embed-footer {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 0.4rem;
+    border-top: 1px solid var(--border-decorative);
+    font-family: var(--font-mono);
+  }
+
+  /* Social card (landscape) */
+  .embed-card.social {
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    grid-template-columns: 180px 1fr;
+  }
+  .embed-card.social .embed-card-image { height: 100%; min-height: 120px; }
+  .embed-card.social .embed-card-body { display: flex; flex-direction: column; justify-content: center; }
+  .embed-card.social .embed-footer { grid-column: 1 / -1; }
+
+  .embed-code-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .embed-code-area h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.25rem;
+  }
+  .embed-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-decorative);
+    border-radius: 4px;
+    color: var(--text-mid);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.75rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  .embed-textarea:focus { outline: 1px solid var(--primary); border-color: var(--primary); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 5px;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-mid);
+    border: 1px solid var(--border-decorative);
+  }
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text-main); }
+
+  /* Weekly Digest (Section 5) */
+  .digest-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-decorative);
+    border-radius: 8px;
+    max-width: 600px;
+    overflow: hidden;
+  }
+  .digest-header {
+    background: linear-gradient(135deg, var(--digest-gradient), transparent);
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--border-decorative);
+  }
+  .digest-header h3 {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    color: var(--text-main);
+    margin-bottom: 0.2rem;
+  }
+  .digest-date {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+  .digest-body { padding: 1.25rem 1.5rem; }
+  .digest-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--digest-border);
+  }
+  .digest-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .digest-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    margin-bottom: 0.3rem;
+  }
+  .digest-value {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    line-height: 1.5;
+  }
+  .digest-value strong { font-weight: 700; }
+  .digest-value .mono {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+  .digest-value .green { color: var(--status-pos); }
+  .digest-value .amber { color: var(--status-warn); }
+  .digest-value .red { color: var(--status-neg); }
+  .digest-mini-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0;
+    font-size: 0.82rem;
+    color: var(--text-mid);
+  }
+  .digest-mini-list li { padding: 0.15rem 0; }
+  .digest-mini-list li::before { content: "- "; color: var(--text-dim); }
+  .digest-cta {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-decorative);
+    text-align: center;
+  }
+
+  /* Embed preview label */
+  .embed-label {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+  }
+
+  /* Footer */
+  .site-footer {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-decorative);
+    padding: 2rem;
+    text-align: center;
+    margin-top: 2rem;
+  }
+  .footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  .footer-links { display: flex; gap: 1.25rem; }
+  .footer-links a { color: var(--text-dim); font-size: 0.78rem; }
+  .footer-links a:hover { color: var(--text-mid); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .hero p { font-size: 0.95rem; }
+    .game-card { grid-template-columns: 1fr; gap: 0.75rem; }
+    .game-thumb { width: 100%; height: 100px; }
+    .ops-badge { flex-direction: row; gap: 0.5rem; }
+    .channel-grid { grid-template-columns: 1fr; }
+    .embed-section { grid-template-columns: 1fr; }
+    .embed-card.social { grid-template-columns: 1fr; }
+    .embed-card.social .embed-card-image { height: 120px; }
+    .gap-table { font-size: 0.78rem; }
+    .gap-table th, .gap-table td { padding: 0.5rem; }
+    .nav { gap: 0.75rem; }
+    .nav a { font-size: 0.75rem; }
+    .footer-inner { flex-direction: column; gap: 0.75rem; }
+  }
+
+  @media (max-width: 480px) {
+    .site-header { padding: 0 1rem; }
+    .container { padding: 0 1rem; }
+    .hero { padding: 2.5rem 0 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .nav { gap: 0.5rem; }
+    .nav a { font-size: 0.7rem; }
+    .embed-card { width: 100%; }
+    .header-right { gap: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="logo">HORROR <span>RADAR</span></div>
+  <div class="header-right">
+    <nav class="nav">
+      <a href="#">Home</a>
+      <a href="#">Discover</a>
+      <a href="#">Radar Pick</a>
+      <a href="#">Trends</a>
+      <a href="#" class="active">Creator Hub</a>
+    </nav>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode" title="Toggle theme"></button>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1>Find Your Next Horror Hit</h1>
+    <p>Coverage gaps, trending games, and creator intelligence &mdash; updated daily.</p>
+  </div>
+</section>
+
+<main class="container">
+
+  <!-- Section 1: Games to Cover This Week -->
+  <section class="section">
+    <h2 class="section-title">Games to Cover This Week</h2>
+    <p class="section-desc">Curated picks with high breakout potential and low creator coverage. These are the gaps worth filling.</p>
+
+    <div class="game-cards">
+
+      <!-- Game 1 -->
+      <div class="game-card ops-high">
+        <div class="game-thumb"><div class="game-thumb-inner thumb-1"></div></div>
+        <div class="game-info">
+          <h3>GRAVESHIFT</h3>
+          <div class="game-meta">
+            <span>Hollow Loop Studios</span>
+            <span>$12.99</span>
+            <span>18 days</span>
+          </div>
+          <div class="coverage-gap critical">HIGH OPS, ZERO COVERAGE &mdash; 0 YouTube videos</div>
+          <p class="game-pitch">Co-op graveyard shift simulator with permadeath. 94% positive from 312 reviews. Solo dev from Poland. Nobody has covered this yet.</p>
+          <a href="#" class="game-link">View Game &rarr;</a>
+        </div>
+        <div class="ops-badge ops-green">
+          <span class="label">OPS</span>
+          <span class="value">73</span>
+        </div>
+      </div>
+
+      <!-- Game 2 -->
+      <div class="game-card ops-high">
+        <div class="game-thumb"><div class="game-thumb-inner thumb-2"></div></div>
+        <div class="game-info">
+          <h3>Nightshift Protocol</h3>
+          <div class="game-meta">
+            <span>Redthread Games</span>
+            <span>$9.99</span>
+            <span>24 days</span>
+          </div>
+          <div class="coverage-gap">HIGH OPS, LOW COVERAGE &mdash; Only 1 YouTube video</div>
+          <p class="game-pitch">Analog horror meets security cam gameplay. OPS jumped from 45 to 61 this week. 89% positive reviews. Only IGP has covered it.</p>
+          <a href="#" class="game-link">View Game &rarr;</a>
+        </div>
+        <div class="ops-badge ops-green">
+          <span class="label">OPS</span>
+          <span class="value">61</span>
+        </div>
+      </div>
+
+      <!-- Game 3 -->
+      <div class="game-card ops-mid">
+        <div class="game-thumb"><div class="game-thumb-inner thumb-3"></div></div>
+        <div class="game-info">
+          <h3>The Drowning Shore</h3>
+          <div class="game-meta">
+            <span>Salt &amp; Bone Interactive</span>
+            <span>$7.99</span>
+            <span>11 days</span>
+          </div>
+          <div class="coverage-gap">RISING OPS, LOW COVERAGE &mdash; Only 2 YouTube videos</div>
+          <p class="game-pitch">Coastal folk horror with a fishing mechanic. Reviews tripled in 3 days. 91% positive from 87 reviews. Has demo on Next Fest.</p>
+          <a href="#" class="game-link">View Game &rarr;</a>
+        </div>
+        <div class="ops-badge ops-amber">
+          <span class="label">OPS</span>
+          <span class="value">52</span>
+        </div>
+      </div>
+
+      <!-- Game 4 -->
+      <div class="game-card ops-mid">
+        <div class="game-thumb"><div class="game-thumb-inner thumb-4"></div></div>
+        <div class="game-info">
+          <h3>MEATWORKS</h3>
+          <div class="game-meta">
+            <span>Viscera Digital</span>
+            <span>$4.99</span>
+            <span>9 days</span>
+          </div>
+          <div class="coverage-gap critical">HIGH VELOCITY, ZERO COVERAGE &mdash; 0 YouTube videos</div>
+          <p class="game-pitch">PS1-style body horror in a meat processing plant. 156 reviews in 9 days, 88% positive. Strong Twitch pickup (42 peak concurrent streams).</p>
+          <a href="#" class="game-link">View Game &rarr;</a>
+        </div>
+        <div class="ops-badge ops-amber">
+          <span class="label">OPS</span>
+          <span class="value">48</span>
+        </div>
+      </div>
+
+      <!-- Game 5 -->
+      <div class="game-card ops-mid">
+        <div class="game-thumb"><div class="game-thumb-inner thumb-5"></div></div>
+        <div class="game-info">
+          <h3>Beneath the Parish</h3>
+          <div class="game-meta">
+            <span>Candlewick Horror</span>
+            <span>$14.99</span>
+            <span>31 days</span>
+          </div>
+          <div class="coverage-gap">STEADY OPS, LOW COVERAGE &mdash; Only 1 YouTube video</div>
+          <p class="game-pitch">Religious horror investigation game. Slow burn with excellent retention &mdash; decay ratio 1.8x. 92% positive from 204 reviews. Only ManlyBadassHero covered it.</p>
+          <a href="#" class="game-link">View Game &rarr;</a>
+        </div>
+        <div class="ops-badge ops-amber">
+          <span class="label">OPS</span>
+          <span class="value">44</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Section 2: Coverage Gap Table -->
+  <section class="section">
+    <h2 class="section-title">Coverage Gap Finder</h2>
+    <p class="section-desc">Games with strong breakout signals but minimal YouTube/Twitch attention. These are your best opportunities for early coverage.</p>
+
+    <div class="gap-table-wrap">
+      <table class="gap-table">
+        <thead>
+          <tr>
+            <th>Game</th>
+            <th>OPS</th>
+            <th>Reviews</th>
+            <th>Days Old</th>
+            <th>YT Videos</th>
+            <th>Channels</th>
+            <th style="min-width:140px">Gap Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="game-name">GRAVESHIFT</td>
+            <td class="mono" style="color:var(--ops-high)">73</td>
+            <td class="mono">312</td>
+            <td class="mono">18</td>
+            <td class="mono">0</td>
+            <td class="mono">0</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:73px"></div>
+                <span class="gap-score">73</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">MEATWORKS</td>
+            <td class="mono" style="color:var(--ops-mid)">48</td>
+            <td class="mono">156</td>
+            <td class="mono">9</td>
+            <td class="mono">0</td>
+            <td class="mono">0</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:48px"></div>
+                <span class="gap-score">48</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">Nightshift Protocol</td>
+            <td class="mono" style="color:var(--ops-high)">61</td>
+            <td class="mono">178</td>
+            <td class="mono">24</td>
+            <td class="mono">1</td>
+            <td class="mono">1</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:46px"></div>
+                <span class="gap-score">46</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">Beneath the Parish</td>
+            <td class="mono" style="color:var(--ops-mid)">44</td>
+            <td class="mono">204</td>
+            <td class="mono">31</td>
+            <td class="mono">1</td>
+            <td class="mono">1</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:33px"></div>
+                <span class="gap-score">33</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">The Drowning Shore</td>
+            <td class="mono" style="color:var(--ops-mid)">52</td>
+            <td class="mono">87</td>
+            <td class="mono">11</td>
+            <td class="mono">2</td>
+            <td class="mono">2</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:31px"></div>
+                <span class="gap-score">31</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">Hollowvein</td>
+            <td class="mono" style="color:var(--ops-mid)">39</td>
+            <td class="mono">94</td>
+            <td class="mono">15</td>
+            <td class="mono">1</td>
+            <td class="mono">1</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:29px"></div>
+                <span class="gap-score">29</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">Skinthread</td>
+            <td class="mono" style="color:var(--ops-mid)">36</td>
+            <td class="mono">68</td>
+            <td class="mono">22</td>
+            <td class="mono">1</td>
+            <td class="mono">1</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:27px"></div>
+                <span class="gap-score">27</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="game-name">DORMITORY</td>
+            <td class="mono" style="color:var(--ops-mid)">33</td>
+            <td class="mono">121</td>
+            <td class="mono">42</td>
+            <td class="mono">2</td>
+            <td class="mono">1</td>
+            <td>
+              <div class="gap-bar-cell">
+                <div class="gap-bar" style="width:22px"></div>
+                <span class="gap-score">22</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Section 3: Creator Leaderboard -->
+  <section class="section">
+    <h2 class="section-title">Tracked Channels</h2>
+    <p class="section-desc">The 10 indie horror YouTube channels Horror Radar tracks for coverage signals and early discovery.</p>
+
+    <div class="channel-grid">
+
+      <div class="channel-card">
+        <div class="channel-avatar">IG</div>
+        <div class="channel-info">
+          <div class="channel-name">IGP</div>
+          <div class="channel-stats"><span>3.2M subs</span><span>47 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>GRAVESHIFT</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">Fo</div>
+        <div class="channel-info">
+          <div class="channel-name">Fooster</div>
+          <div class="channel-stats"><span>1.8M subs</span><span>38 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>Nightshift Protocol</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">In</div>
+        <div class="channel-info">
+          <div class="channel-name">Insym</div>
+          <div class="channel-stats"><span>2.5M subs</span><span>52 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>The Drowning Shore</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">MB</div>
+        <div class="channel-info">
+          <div class="channel-name">ManlyBadassHero</div>
+          <div class="channel-stats"><span>1.9M subs</span><span>61 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>Beneath the Parish</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">CJ</div>
+        <div class="channel-info">
+          <div class="channel-name">CJUGames</div>
+          <div class="channel-stats"><span>890K subs</span><span>34 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>MEATWORKS</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">MK</div>
+        <div class="channel-info">
+          <div class="channel-name">MrKravin</div>
+          <div class="channel-stats"><span>720K subs</span><span>29 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>Hollowvein</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">GS</div>
+        <div class="channel-info">
+          <div class="channel-name">GamerSault</div>
+          <div class="channel-stats"><span>540K subs</span><span>25 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>Skinthread</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">HG</div>
+        <div class="channel-info">
+          <div class="channel-name">HGH Horror Games House</div>
+          <div class="channel-stats"><span>310K subs</span><span>42 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>DORMITORY</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">Tw</div>
+        <div class="channel-info">
+          <div class="channel-name">Twoonto</div>
+          <div class="channel-stats"><span>180K subs</span><span>19 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>The Drowning Shore</strong></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-avatar">IF</div>
+        <div class="channel-info">
+          <div class="channel-name">Indie Fuel</div>
+          <div class="channel-stats"><span>95K subs</span><span>31 videos</span></div>
+          <div class="channel-pick">Top pick: <strong>Nightshift Protocol</strong></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Section 4: Embeddable Card Preview -->
+  <section class="section">
+    <h2 class="section-title">Share Your Picks</h2>
+    <p class="section-desc">Generate embeddable cards for your video descriptions, blogs, and social media. Show your audience the data behind your picks.</p>
+
+    <div class="embed-section">
+
+      <div class="embed-preview-wrap">
+        <div class="embed-label" style="margin-bottom:0.25rem;">Compact Card (300px)</div>
+        <div class="embed-card">
+          <div class="embed-card-image"></div>
+          <div class="embed-card-body">
+            <div class="embed-card-title">GRAVESHIFT</div>
+            <div class="embed-card-stats">
+              <div>
+                <div class="embed-stat-label">OPS</div>
+                <div class="embed-stat-value green">73</div>
+              </div>
+              <div>
+                <div class="embed-stat-label">Reviews</div>
+                <div class="embed-stat-value">312</div>
+              </div>
+              <div>
+                <div class="embed-stat-label">Sentiment</div>
+                <div class="embed-stat-value green">94%</div>
+              </div>
+            </div>
+          </div>
+          <div class="embed-footer">Powered by Horror Radar</div>
+        </div>
+
+        <div class="embed-label" style="margin-top:1rem;margin-bottom:0.25rem;">Social Card (landscape)</div>
+        <div class="embed-card social">
+          <div class="embed-card-image" style="background:linear-gradient(135deg,#1a2a1a,#0d1f0d,#2a1a1a)"></div>
+          <div class="embed-card-body">
+            <div class="embed-card-title">GRAVESHIFT</div>
+            <div class="embed-card-stats">
+              <div>
+                <div class="embed-stat-label">OPS</div>
+                <div class="embed-stat-value green">73</div>
+              </div>
+              <div>
+                <div class="embed-stat-label">Reviews</div>
+                <div class="embed-stat-value">312</div>
+              </div>
+              <div>
+                <div class="embed-stat-label">Sentiment</div>
+                <div class="embed-stat-value green">94%</div>
+              </div>
+            </div>
+          </div>
+          <div class="embed-footer">Powered by Horror Radar</div>
+        </div>
+      </div>
+
+      <div class="embed-code-area">
+        <div>
+          <h4>Compact Card Embed</h4>
+          <textarea class="embed-textarea" readonly>&lt;div style="width:300px;background:#1a1a1c;border:1px solid #2a2420;border-radius:8px;overflow:hidden;font-family:'Public Sans',sans-serif;color:#e8e0d4;"&gt;
+  &lt;img src="https://horror-radar.com/api/games/2847630/header" alt="GRAVESHIFT" style="width:100%;height:140px;object-fit:cover;" /&gt;
+  &lt;div style="padding:12px 16px;"&gt;
+    &lt;div style="font-weight:700;font-size:15px;margin-bottom:8px;"&gt;GRAVESHIFT&lt;/div&gt;
+    &lt;div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;"&gt;
+      &lt;div&gt;&lt;div style="color:#8a7a6e;font-size:10px;"&gt;OPS&lt;/div&gt;&lt;div style="color:#5ec269;font-weight:600;"&gt;73&lt;/div&gt;&lt;/div&gt;
+      &lt;div&gt;&lt;div style="color:#8a7a6e;font-size:10px;"&gt;REVIEWS&lt;/div&gt;&lt;div style="font-weight:600;"&gt;312&lt;/div&gt;&lt;/div&gt;
+      &lt;div&gt;&lt;div style="color:#8a7a6e;font-size:10px;"&gt;SENTIMENT&lt;/div&gt;&lt;div style="color:#5ec269;font-weight:600;"&gt;94%&lt;/div&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div style="text-align:center;padding:6px;border-top:1px solid #2a2420;font-size:10px;color:#8a7a6e;"&gt;Powered by Horror Radar&lt;/div&gt;
+&lt;/div&gt;</textarea>
+          <button class="btn btn-primary" style="margin-top:0.5rem;" onclick="this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Embed Code',1500)">Copy Embed Code</button>
+        </div>
+
+        <div style="margin-top:1.5rem;">
+          <h4>Social Card Embed</h4>
+          <textarea class="embed-textarea" readonly>&lt;div style="max-width:480px;display:grid;grid-template-columns:180px 1fr;background:#1a1a1c;border:1px solid #2a2420;border-radius:8px;overflow:hidden;font-family:'Public Sans',sans-serif;color:#e8e0d4;"&gt;
+  &lt;img src="https://horror-radar.com/api/games/2847630/header" alt="GRAVESHIFT" style="width:100%;height:100%;min-height:120px;object-fit:cover;" /&gt;
+  &lt;div style="padding:12px 16px;display:flex;flex-direction:column;justify-content:center;"&gt;
+    &lt;div style="font-weight:700;font-size:15px;margin-bottom:8px;"&gt;GRAVESHIFT&lt;/div&gt;
+    &lt;div style="display:flex;gap:16px;font-family:'JetBrains Mono',monospace;font-size:12px;"&gt;
+      &lt;div&gt;OPS &lt;span style="color:#5ec269;font-weight:600;"&gt;73&lt;/span&gt;&lt;/div&gt;
+      &lt;div&gt;Reviews &lt;span style="font-weight:600;"&gt;312&lt;/span&gt;&lt;/div&gt;
+      &lt;div&gt;&lt;span style="color:#5ec269;"&gt;94%&lt;/span&gt; positive&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</textarea>
+          <button class="btn btn-ghost" style="margin-top:0.5rem;" onclick="this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Embed Code',1500)">Copy Embed Code</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Section 5: Weekly Digest -->
+  <section class="section">
+    <h2 class="section-title">This Week in Horror Indie</h2>
+    <p class="section-desc">A weekly snapshot of the indie horror landscape. Subscribe to get this delivered to your inbox every Monday.</p>
+
+    <div class="digest-card">
+      <div class="digest-header">
+        <h3>Weekly Horror Radar Digest</h3>
+        <div class="digest-date">Mar 29 &mdash; Apr 5, 2026</div>
+      </div>
+      <div class="digest-body">
+
+        <div class="digest-item">
+          <div class="digest-label">Top Breakout</div>
+          <div class="digest-value">
+            <strong>GRAVESHIFT</strong> &mdash; <span class="mono green">OPS 73</span>, +47 reviews this week. Co-op graveyard horror with zero YouTube coverage and accelerating momentum.
+          </div>
+        </div>
+
+        <div class="digest-item">
+          <div class="digest-label">New Releases (4 games)</div>
+          <ul class="digest-mini-list">
+            <li><strong>MEATWORKS</strong> &mdash; PS1 body horror, $4.99, 156 reviews in 9 days</li>
+            <li><strong>The Drowning Shore</strong> &mdash; Coastal folk horror, $7.99, demo available</li>
+            <li><strong>Skinthread</strong> &mdash; Textile factory horror, $6.99, strong early reviews</li>
+            <li><strong>Hollowvein</strong> &mdash; Underground mining horror, $9.99, 94 reviews</li>
+          </ul>
+        </div>
+
+        <div class="digest-item">
+          <div class="digest-label">Rising</div>
+          <div class="digest-value">
+            <strong>Nightshift Protocol</strong> &mdash; OPS <span class="mono amber">45</span> &rarr; <span class="mono green">61</span> this week. Analog horror with security cam gameplay picking up steam after IGP coverage.
+          </div>
+        </div>
+
+        <div class="digest-item">
+          <div class="digest-label">Creator Alert</div>
+          <div class="digest-value">
+            <span class="mono red">3 games</span> with 0 YouTube coverage and OPS &gt; 40. GRAVESHIFT (73), MEATWORKS (48), and Hollowvein (39) are all uncovered.
+          </div>
+        </div>
+
+      </div>
+      <div class="digest-cta">
+        <button class="btn btn-primary">Subscribe to Weekly Email &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div style="font-family:var(--font-mono);font-size:0.72rem;letter-spacing:0.1em;color:var(--text-dim);">HORROR RADAR &copy; 2026</div>
+    <div class="footer-links">
+      <a href="#">About</a>
+      <a href="#">API</a>
+      <a href="#">GitHub</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  var STORAGE_KEY = 'horror-radar-theme';
+  var toggle = document.getElementById('themeToggle');
+  var html = document.documentElement;
+
+  function getPreferred() {
+    var stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+    return 'dark';
+  }
+
+  function applyTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    toggle.textContent = theme === 'dark' ? '\u2600' : '\u263D';
+    toggle.setAttribute('aria-label',
+      theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+    );
+  }
+
+  applyTheme(getPreferred());
+
+  toggle.addEventListener('click', function() {
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  });
+})();
+</script>
+
+</body>
+</html>
