@@ -38,6 +38,7 @@ from collectors.ops_autotune import run_ops_diagnostics
 from collectors.youtube_tier2_discovery import run_tier2_discovery
 from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
+from newsletter import run_newsletter
 from routers import games, channels, videos, runs, insights, radar, trends, health
 
 logging.basicConfig(
@@ -347,6 +348,21 @@ async def lifespan(app: FastAPI):
         hour=4,
         minute=0,
         id="weekly_analysis_job",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
+
+    # Weekly newsletter: Monday at 07:00 UTC = 15:00 SGT
+    # Fires after analysis (04:00), dev profiles (05:30), and diagnostics (06:00)
+    # so all data is fresh. Creates a Buttondown draft for manual review.
+    scheduler.add_job(
+        run_newsletter,
+        "cron",
+        day_of_week="mon",
+        hour=7,
+        minute=0,
+        id="weekly_newsletter_job",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
