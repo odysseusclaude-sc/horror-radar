@@ -31,13 +31,20 @@ from models import OpsScore
 logger = logging.getLogger(__name__)
 
 COMPONENTS = [
-    ("velocity", "velocity_component"),
-    ("decay", "decay_component"),
-    ("review", "review_component"),
-    ("youtube", "youtube_component"),
-    ("ccu", "ccu_component"),
-    ("sentiment", "sentiment_component"),   # v5 new
-    ("twitch", "twitch_component"),          # v5 new
+    # OPS v6 components (active)
+    ("review_momentum", "review_momentum_component"),   # merged: velocity+volume+retention
+    ("sentiment",       "sentiment_component"),          # enhanced: +early_bonus
+    ("youtube",         "youtube_component"),            # enhanced: 4 sub-signals
+    ("live_engagement", "live_engagement_component"),   # merged: CCU+Twitch
+    ("community_buzz",  "community_buzz_component"),    # new: Reddit grassroots
+    ("demo_conversion", "demo_conversion_component"),   # new: demo funnel
+    ("discount_demand", "discount_demand_component"),   # new: discount-dampened velocity
+    # OPS v5 legacy fields (NULL for v6 scores, kept for historical diagnostics)
+    ("velocity",        "velocity_component"),
+    ("decay",           "decay_component"),
+    ("review",          "review_component"),
+    ("ccu",             "ccu_component"),
+    ("twitch",          "twitch_component"),
 ]
 
 # Minimum coverage to keep a component active (below this → weight 0)
@@ -146,14 +153,21 @@ def run_ops_diagnostics(target_date: date | None = None) -> dict:
 
         # ── 4. Suggest weights ───────────────────────────────────────
         from config import settings
+        # OPS v6 active weights; legacy fields default to 0.0
         current_weights = {
-            "velocity": settings.ops_velocity_weight,
-            "decay": settings.ops_decay_weight,
-            "review": settings.ops_review_weight,
-            "youtube": settings.ops_youtube_weight,
-            "ccu": settings.ops_ccu_weight,
-            "sentiment": settings.ops_sentiment_weight,
-            "twitch": settings.ops_twitch_weight,
+            "review_momentum": settings.ops_review_momentum_weight,
+            "sentiment":       settings.ops_sentiment_weight,
+            "youtube":         settings.ops_youtube_weight,
+            "live_engagement": settings.ops_live_engagement_weight,
+            "community_buzz":  settings.ops_community_buzz_weight,
+            "demo_conversion": settings.ops_demo_conversion_weight,
+            "discount_demand": settings.ops_discount_demand_weight,
+            # Legacy v5 fields (0.0 weight in v6 — kept for historical diagnostics)
+            "velocity":  0.0,
+            "decay":     0.0,
+            "review":    0.0,
+            "ccu":       0.0,
+            "twitch":    0.0,
         }
 
         suggested = {}

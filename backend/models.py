@@ -175,12 +175,19 @@ class OpsScore(Base):
     creator_response_component = Column(Float)  # v3: velocity response to YT coverage
     price_modifier = Column(Float)
     youtube_breadth = Column(Float)
-    formula_version = Column(Integer, default=2)
+    formula_version = Column(String, default="v1")  # String from v6 onwards ("v6.0")
     # OPS v5 additions
     sentiment_component = Column(Float)
     twitch_component = Column(Float)
     forecast_7d = Column(Float)
     forecast_confidence = Column(String)  # "high", "medium", "low"
+    # OPS v6 additions
+    review_momentum_component = Column(Float)   # merged: velocity + volume + retention
+    live_engagement_component = Column(Float)   # merged: CCU + Twitch
+    community_buzz_component = Column(Float)    # new: Reddit grassroots
+    demo_conversion_component = Column(Float)   # new: demo → launch funnel
+    discount_demand_component = Column(Float)   # new: discount-dampened velocity
+    calibration_constant = Column(Float)        # weekly P95=85 calibration constant
     created_at = Column(DateTime, default=_utcnow)
 
     game = relationship("Game", back_populates="ops_scores")

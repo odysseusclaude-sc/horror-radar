@@ -98,6 +98,13 @@ def _run_migrations():
         "ALTER TABLE ops_scores ADD COLUMN twitch_component REAL",
         "ALTER TABLE ops_scores ADD COLUMN forecast_7d REAL",
         "ALTER TABLE ops_scores ADD COLUMN forecast_confidence TEXT",
+        # OPS v6 — 7-component engine additions
+        "ALTER TABLE ops_scores ADD COLUMN review_momentum_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN live_engagement_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN community_buzz_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN demo_conversion_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN discount_demand_component REAL",
+        "ALTER TABLE ops_scores ADD COLUMN calibration_constant REAL",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:

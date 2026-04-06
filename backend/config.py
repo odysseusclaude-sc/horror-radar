@@ -116,16 +116,59 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-    # OPS v5 formula weights (active components, redistribute on NULL)
-    ops_velocity_weight: float = 0.30       # age-adjusted velocity (primary signal)
-    ops_decay_weight: float = 0.20          # velocity decay rate
-    ops_review_weight: float = 0.13         # review volume vs peers
-    ops_youtube_weight: float = 0.13        # YT engagement (views/subs ratio + breadth)
-    ops_ccu_weight: float = 0.10            # peak CCU vs peers, with age decay
-    ops_sentiment_weight: float = 0.08      # review sentiment trend (NEW v5)
-    ops_twitch_weight: float = 0.06         # twitch viewer/streamer engagement (NEW v5)
-    ops_ccu_decay_days: int = 14
-    ops_score_multiplier: float = 24.0
+    # OPS v5 weights (kept as reference — DO NOT activate; v6 replaces these)
+    # ops_velocity_weight: float = 0.30    # age-adjusted velocity (primary signal)
+    # ops_decay_weight: float = 0.20       # velocity decay rate
+    # ops_review_weight: float = 0.13      # review volume vs peers
+    # ops_youtube_weight: float = 0.13     # YT engagement (views/subs ratio + breadth)
+    # ops_ccu_weight: float = 0.10         # peak CCU vs peers, with age decay
+    # ops_sentiment_weight: float = 0.08   # review sentiment trend (NEW v5)
+    # ops_twitch_weight: float = 0.06      # twitch viewer/streamer engagement (NEW v5)
+    # ops_ccu_decay_days: int = 14
+    # ops_score_multiplier: float = 24.0   # magic constant replaced by calibration_constant
+
+    # OPS v6 formula weights — 7-component engine (must sum to 1.00)
+    ops_review_momentum_weight: float = 0.28   # merged: velocity + volume + retention
+    ops_sentiment_weight: float = 0.10         # enhanced: score trend + early_bonus
+    ops_youtube_weight: float = 0.18           # enhanced: 4 sub-signals
+    ops_live_engagement_weight: float = 0.15   # merged: CCU + Twitch
+    ops_community_buzz_weight: float = 0.10    # new: Reddit grassroots signal
+    ops_demo_conversion_weight: float = 0.07   # new: demo → launch funnel
+    ops_discount_demand_weight: float = 0.12   # new: discount-dampened velocity
+
+    # Review Momentum sub-weights (must sum to 1.00)
+    ops_rm_velocity_subweight: float = 0.55    # rate of growth (strongest breakout signal)
+    ops_rm_volume_subweight: float = 0.25      # scale relative to peers
+    ops_rm_retention_subweight: float = 0.20   # sustainability (week2-4 vs week1)
+
+    # YouTube Signal sub-weights (must sum to 1.00)
+    ops_yt_view_velocity_subweight: float = 0.35   # total views vs channel reach
+    ops_yt_channel_breadth_subweight: float = 0.30  # unique channels covering the game
+    ops_yt_engagement_subweight: float = 0.20        # like + comment ratio
+    ops_yt_creator_tier_subweight: float = 0.15      # max subscriber tier of covering channels
+
+    # Live Engagement sub-weights (must sum to 1.00)
+    ops_le_ccu_subweight: float = 0.50         # peak CCU vs peers (with extended age decay)
+    ops_le_twitch_streamer_subweight: float = 0.30  # unique streamer breadth
+    ops_le_twitch_viewer_subweight: float = 0.20    # peak viewer ratio vs peers
+
+    # Community Buzz sub-weights (must sum to 1.00)
+    ops_cb_mention_velocity_subweight: float = 0.50   # mentions/7d vs peer median
+    ops_cb_upvote_quality_subweight: float = 0.30     # avg upvotes vs peer median
+    ops_cb_comment_depth_subweight: float = 0.20      # avg comments vs peer median
+
+    # Live Engagement: CCU age decay extended from v5's 14 days
+    ops_ccu_decay_days: int = 30              # linear decay to 0.3 over 30 days
+    ops_ccu_decay_floor: float = 0.3          # minimum decay factor (not 0 — preserves signal)
+
+    # Multiplayer structural boost (applied to Review Momentum + Live Engagement)
+    ops_multiplayer_boost: float = 1.12
+
+    # Calibration constant: recalculated weekly so P95 game = 85
+    ops_calibration_p95_target: float = 85.0
+    ops_calibration_min: float = 15.0
+    ops_calibration_max: float = 35.0
+    ops_calibration_default: float = 24.0     # fallback when insufficient data
 
     # Age-adjusted velocity: expected reviews/day by age bracket
     ops_velocity_baseline_week1: float = 1.14    # median from data
@@ -139,10 +182,11 @@ class Settings(BaseSettings):
     ops_price_10to20: float = 1.15
     ops_price_over20: float = 1.3
 
-    # YouTube sub-weights
+    # YouTube median normalization baseline
+    ops_yt_median_views_subs_ratio: float = 0.074  # median from data
+    # Legacy v5 sub-weights (kept for reference)
     ops_yt_view_subweight: float = 0.6
     ops_yt_breadth_subweight: float = 0.4
-    ops_yt_median_views_subs_ratio: float = 0.074  # median from data
 
     # Twitch
     twitch_client_id: str = ""
