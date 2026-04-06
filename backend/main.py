@@ -35,6 +35,7 @@ from collectors.reddit import run_reddit_scan
 from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
+from collectors.youtube_tier2_discovery import run_tier2_discovery
 from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
 from routers import games, channels, videos, runs, insights, radar, trends, health
@@ -317,6 +318,21 @@ async def lifespan(app: FastAPI):
         hour=6,
         minute=0,
         id="ops_diagnostics_job",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
+
+    # Tier 2 YouTube channel discovery: Monday at 06:30 UTC = 14:30 SGT
+    # Scans seed channel descriptions for linked channels, validates subscriber
+    # count (>10K) and recent horror game content before adding as Tier 2.
+    scheduler.add_job(
+        run_tier2_discovery,
+        "cron",
+        day_of_week="mon",
+        hour=6,
+        minute=30,
+        id="youtube_tier2_discovery",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,

@@ -97,6 +97,8 @@ class YoutubeChannel(Base):
     total_views = Column(Integer)
     video_count = Column(Integer)
     match_mode = Column(String, default="title")  # "title" or "description"
+    tier = Column(Integer, default=1)  # 1=seed, 2=auto-discovered
+    discovered_from = Column(String)   # channel_id of the seed channel that linked here
     collected_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

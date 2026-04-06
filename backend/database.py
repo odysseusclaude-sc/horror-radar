@@ -105,6 +105,9 @@ def _run_migrations():
         "ALTER TABLE ops_scores ADD COLUMN demo_conversion_component REAL",
         "ALTER TABLE ops_scores ADD COLUMN discount_demand_component REAL",
         "ALTER TABLE ops_scores ADD COLUMN calibration_constant REAL",
+        # Tier 2 YouTube discovery
+        "ALTER TABLE youtube_channels ADD COLUMN tier INTEGER DEFAULT 1",
+        "ALTER TABLE youtube_channels ADD COLUMN discovered_from TEXT",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:
