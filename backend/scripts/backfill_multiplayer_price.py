@@ -97,7 +97,13 @@ async def run_backfill(dry_run: bool = False) -> None:
             for i, game in enumerate(games, 1):
                 logger.info(f"[{i}/{total}] appid={game.appid} title={game.title[:40]!r}")
 
-                app_data = await _fetch_appdetails(client, game.appid)
+                try:
+                    app_data = await _fetch_appdetails(client, game.appid)
+                except Exception as fetch_err:
+                    logger.warning(f"  → Fetch error for appid={game.appid} ({fetch_err.__class__.__name__}) — skipping")
+                    skipped += 1
+                    continue
+
                 if not app_data:
                     logger.warning(f"  → No appdetails for appid={game.appid} — skipping")
                     skipped += 1
