@@ -7,6 +7,8 @@ import Pagination from "../components/Pagination";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { useCompare } from "../hooks/useCompare";
 import CompareBar from "../components/CompareBar";
+import HeroSection from "../components/HeroSection";
+import TopBreakouts from "../components/TopBreakouts";
 import type { GameListItem } from "../types";
 
 export default function Database() {
@@ -14,6 +16,10 @@ export default function Database() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Hero section: always top 5 by OPS, independent of user filters
+  const [heroGames, setHeroGames] = useState<GameListItem[]>([]);
+  const [heroLoading, setHeroLoading] = useState(true);
 
   // Watchlist
   const { watchlist, toggle: toggleWatch } = useWatchlist();
@@ -96,6 +102,24 @@ export default function Database() {
     }
   }, [page, debouncedDays, debouncedMaxPrice, sortBy, debouncedSearch, gameMode]);
 
+  const loadHeroGames = useCallback(async () => {
+    setHeroLoading(true);
+    try {
+      const resp = await fetchPaginated<GameListItem>("/games", {
+        sort_by: "ops",
+        page: 1,
+        page_size: 5,
+        days: 90,
+      });
+      setHeroGames(resp.data);
+    } catch (err) {
+      console.error("Failed to fetch hero games:", err);
+      setHeroGames([]);
+    } finally {
+      setHeroLoading(false);
+    }
+  }, []);
+
   const loadStatus = useCallback(async () => {
     try {
       const s = await fetchStatus();
@@ -111,6 +135,13 @@ export default function Database() {
     loadGames();
   }, [loadGames]);
 
+  // Hero data: load once on mount, refresh every 10 minutes
+  useEffect(() => {
+    loadHeroGames();
+    const interval = setInterval(loadHeroGames, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadHeroGames]);
+
   // Poll status every 30 seconds
   useEffect(() => {
     loadStatus();
@@ -125,6 +156,8 @@ export default function Database() {
 
   return (
     <>
+      <HeroSection game={heroGames[0] ?? null} loading={heroLoading} />
+      <TopBreakouts games={heroGames.slice(1)} loading={heroLoading} />
       <FreshnessBanner lastSync={lastSync} />
       <FilterBar
         days={days}
