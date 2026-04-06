@@ -212,8 +212,6 @@ class Settings(BaseSettings):
     # Sentry — leave empty to disable error tracking
     sentry_dsn: str = ""
 
-    # Buttondown newsletter — leave empty to disable newsletter posting
-    buttondown_api_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
