@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchPaginated, fetchStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
+import FreshnessBanner from "../components/FreshnessBanner";
 import GameTable from "../components/GameTable";
 import Pagination from "../components/Pagination";
 import { useWatchlist } from "../hooks/useWatchlist";
@@ -124,6 +125,7 @@ export default function Database() {
 
   return (
     <>
+      <FreshnessBanner lastSync={lastSync} />
       <FilterBar
         days={days}
         maxPrice={maxPrice}

@@ -112,6 +112,11 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
               >
                 {game.title}
               </Link>
+              {game.is_multiplayer && (
+                <span className="material-symbols-outlined text-status-info flex-shrink-0" style={{ fontSize: 14 }} title="Multiplayer">
+                  group
+                </span>
+              )}
               {game.has_demo && (
                 <span className="px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-status-info/10 text-status-info border border-status-info/20 flex-shrink-0">
                   &#x2713; DEMO

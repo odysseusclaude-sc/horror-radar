@@ -1084,11 +1084,11 @@ export default function TheAutopsy() {
   const radarData = useMemo(() => {
     if (!latestWithOps) return null;
     const comps = [
-      { label: "Velocity", value: latestWithOps.velocity_component, max: 5.0 },
-      { label: "Decay", value: latestWithOps.decay_component, max: 2.0 },
-      { label: "Reviews", value: latestWithOps.review_component, max: 5.0 },
-      { label: "YouTube", value: latestWithOps.youtube_component, max: 1.8 },
-      { label: "CCU", value: latestWithOps.ccu_component, max: 5.0 },
+      { label: "Rev Momentum", value: latestWithOps.velocity_component, max: 5.0 },
+      { label: "Sentiment", value: latestWithOps.review_component, max: 2.0 },
+      { label: "YouTube Signal", value: latestWithOps.youtube_component, max: 3.0 },
+      { label: "Live Engage", value: latestWithOps.ccu_component, max: 4.0 },
+      { label: "Decay Retention", value: latestWithOps.decay_component, max: 2.0 },
     ];
     const hasAny = comps.some((c) => c.value != null && c.value > 0);
     if (!hasAny) return null;
@@ -2003,14 +2003,16 @@ export default function TheAutopsy() {
                   Latest Components
                 </div>
                 {latestWithOps && [
-                  { label: "Velocity", value: latestWithOps.velocity_component, weight: 0.35, max: 10, color: C.score },
-                  { label: "Decay", value: latestWithOps.decay_component, weight: 0.20, max: 2, color: "#f59e0b" },
-                  { label: "Reviews", value: latestWithOps.review_component, weight: 0.15, max: 5, color: C.reviews },
-                  { label: "YouTube", value: latestWithOps.youtube_component, weight: 0.15, max: 1.8, color: "#38bdf8" },
-                  { label: "CCU", value: latestWithOps.ccu_component, weight: 0.15, max: 5, color: C.ccu },
+                  { label: "Rev Momentum", value: latestWithOps.velocity_component, weight: 0.28, max: 5.0, color: C.score },
+                  { label: "YouTube Signal", value: latestWithOps.youtube_component, weight: 0.18, max: 3.0, color: "#38bdf8" },
+                  { label: "Live Engage", value: latestWithOps.ccu_component, weight: 0.15, max: 4.0, color: C.ccu },
+                  { label: "Disc-Adj Dmnd", value: null, weight: 0.12, max: 3.0, color: "#a78bfa" },
+                  { label: "Sentiment", value: latestWithOps.review_component, weight: 0.10, max: 2.0, color: C.reviews },
+                  { label: "Community Buzz", value: null, weight: 0.10, max: 3.0, color: "#f472b6" },
+                  { label: "Demo Convert", value: null, weight: 0.07, max: 2.5, color: "#34d399" },
                 ].map((comp) => (
                   <div key={comp.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ ...mono, fontSize: 10, color: C.dim, width: 52 }}>{comp.label}</span>
+                    <span style={{ ...mono, fontSize: 10, color: C.dim, width: 80 }}>{comp.label}</span>
                     <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
                       <div
                         style={{
@@ -2031,7 +2033,7 @@ export default function TheAutopsy() {
 
               {/* Explanation */}
               <div style={{ ...heading, fontSize: 11, color: C.dim, lineHeight: 1.6, marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-                OPS v3 measures breakout potential via age-adjusted velocity (35%), velocity decay rate (25%), review volume (15%), YouTube engagement (15%), and creator velocity response (10%). Low decay = sustained interest.
+                OPS v6 measures breakout potential via 7 components: Review Momentum (28%), YouTube Signal (18%), Live Engagement (15%), Discount-Adjusted Demand (12%), Sentiment (10%), Community Buzz (10%), Demo Conversion (7%). Components marked — are not yet computed in this version.
               </div>
             </div>
           </div>
