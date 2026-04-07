@@ -398,10 +398,19 @@ class HealthOut(BaseModel):
     version: str = "0.1.0"
 
 
+class PipelineStatusOut(BaseModel):
+    queue_depth: int = 0
+    dead_letters: int = 0
+    metadata_last_status: str | None = None
+    metadata_last_run: str | None = None
+    metadata_api_calls: int = 0
+
+
 class StatusOut(BaseModel):
     active_scrapers: int = 0
     total_scrapers: int = 12
     last_sync: datetime | None = None
+    pipeline: PipelineStatusOut | None = None
 
 
 # --- Trends schemas ---

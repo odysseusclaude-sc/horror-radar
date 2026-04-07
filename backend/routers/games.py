@@ -10,12 +10,12 @@ from database import get_db
 from collections import defaultdict
 
 from models import (
-    CollectionRun, DeveloperProfile, Game, GameSnapshot, OpsScore,
-    RedditMention, TwitchSnapshot, YoutubeChannel, YoutubeVideo, YoutubeVideoSnapshot,
+    CollectionRun, DeadLetter, DeveloperProfile, Game, GameSnapshot, OpsScore,
+    PendingMetadata, RedditMention, TwitchSnapshot, YoutubeChannel, YoutubeVideo, YoutubeVideoSnapshot,
 )
 from schemas import (
     DeveloperProfileOut, GameDetailOut, GameListOut, GameSnapshotOut, OpsScoreOut,
-    PaginatedResponse, RedditMentionOut, StatusOut, TwitchSnapshotOut, YoutubeChannelBrief,
+    PaginatedResponse, PipelineStatusOut, RedditMentionOut, StatusOut, TwitchSnapshotOut, YoutubeChannelBrief,
     TimelineVideoOut, TimelineSnapshotOut, TimelineEventOut, TimelineResponse,
 )
 
@@ -607,4 +607,28 @@ def get_status(db: Session = Depends(get_db)):
         .filter(CollectionRun.finished_at.isnot(None))
         .scalar()
     )
-    return StatusOut(active_scrapers=active, last_sync=last_run)
+
+    # Queue depth
+    queue_depth = db.query(func.count(PendingMetadata.appid)).filter(
+        PendingMetadata.last_status != "success"
+    ).scalar() or 0
+
+    # Dead letter count
+    dead_count = db.query(func.count(DeadLetter.id)).filter(
+        DeadLetter.status == "dead"
+    ).scalar() or 0
+
+    # Most recent metadata run
+    meta_run = db.query(CollectionRun).filter_by(job_name="metadata").order_by(
+        CollectionRun.started_at.desc()
+    ).first()
+
+    pipeline = PipelineStatusOut(
+        queue_depth=queue_depth,
+        dead_letters=dead_count,
+        metadata_last_status=meta_run.status if meta_run else None,
+        metadata_last_run=meta_run.started_at.isoformat() if meta_run else None,
+        metadata_api_calls=meta_run.api_calls_made if meta_run and meta_run.api_calls_made else 0,
+    )
+
+    return StatusOut(active_scrapers=active, last_sync=last_run, pipeline=pipeline)

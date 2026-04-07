@@ -26,6 +26,38 @@ class RateLimiter:
         self._last_request = asyncio.get_event_loop().time()
 
 
+class BudgetedLimiter:
+    """Rate limiter with a daily call budget cap."""
+
+    def __init__(self, min_interval: float, jitter: float = 0.0, daily_cap: int = 0):
+        self._limiter = RateLimiter(min_interval=min_interval, jitter=jitter)
+        self._daily_cap = daily_cap
+        self._calls_today = 0
+        self._rate_limited_today = 0
+        self._reset_date = None
+
+    def _check_reset(self):
+        today = __import__("datetime").date.today()
+        if self._reset_date != today:
+            self._calls_today = 0
+            self._rate_limited_today = 0
+            self._reset_date = today
+
+    async def acquire(self):
+        self._check_reset()
+        if self._daily_cap and self._calls_today >= self._daily_cap:
+            raise RuntimeError(f"Daily API budget exhausted ({self._daily_cap} calls)")
+        await self._limiter.acquire()
+        self._calls_today += 1
+
+    def record_rate_limit(self):
+        self._rate_limited_today += 1
+
+    @property
+    def stats(self) -> dict:
+        return {"calls_today": self._calls_today, "rate_limited_today": self._rate_limited_today, "daily_cap": self._daily_cap}
+
+
 STEAM_API_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -35,7 +67,7 @@ STEAM_API_HEADERS = {
 }
 
 # Pre-configured rate limiters
-steam_limiter = RateLimiter(min_interval=2.0, jitter=1.0)   # ~200 req/5min with jitter
+steam_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=800)
 steamspy_limiter = RateLimiter(min_interval=15.0)   # ~4 req/min
 twitch_limiter = RateLimiter(min_interval=0.08)     # 800 req/min → use ~12/sec to be safe
 reddit_limiter = RateLimiter(min_interval=0.8)      # ~75 req/min (conservative; Reddit headers unreliable)
@@ -64,6 +96,8 @@ async def fetch_with_retry(
             resp = await client.get(url, params=params, headers=headers, timeout=timeout)
 
             if resp.status_code == 429:
+                if hasattr(limiter, "record_rate_limit"):
+                    limiter.record_rate_limit()
                 # SteamSpy special handling: wait 60s
                 if "steamspy.com" in url:
                     logger.warning("SteamSpy rate limit hit, waiting 60s")

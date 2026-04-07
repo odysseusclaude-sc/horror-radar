@@ -157,6 +157,8 @@ class CollectionRun(Base):
     error_message = Column(Text)
     started_at = Column(DateTime, default=_utcnow)
     finished_at = Column(DateTime)
+    api_calls_made = Column(Integer, default=0)
+    api_calls_rate_limited = Column(Integer, default=0)
 
 
 class OpsScore(Base):

@@ -1,18 +1,21 @@
 """Health and readiness check endpoints.
 
-GET /health  — liveness probe: is the process alive and DB reachable?
-GET /ready   — readiness probe: is the scheduler running and data fresh?
+GET /health           — liveness probe: is the process alive and DB reachable?
+GET /ready            — readiness probe: is the scheduler running and data fresh?
+GET /health/pipeline  — pipeline observability: per-collector freshness + queue stats
 
 Used by UptimeRobot, Docker healthcheck, and CI smoke tests.
 Excluded from Sentry transaction tracing to avoid noise.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import func, text
+from sqlalchemy.orm import Session
 
-from database import engine
+from database import engine, get_db
+from models import CollectionRun, DeadLetter, PendingMetadata
 
 router = APIRouter(tags=["health"])
 
@@ -110,3 +113,54 @@ async def ready() -> JSONResponse:
             status_code=503,
             content={"status": "error", "detail": str(e)},
         )
+
+
+@router.get("/health/pipeline")
+def pipeline_health(db: Session = Depends(get_db)):
+    """Pipeline observability: per-collector freshness and queue stats."""
+    now = datetime.utcnow()
+
+    # Per-collector freshness (hours since last successful run)
+    collectors = ["metadata", "reviews", "ccu", "youtube_scanner", "twitch", "reddit", "ops"]
+    collector_health = {}
+    for name in collectors:
+        run = db.query(CollectionRun).filter_by(job_name=name).filter(
+            CollectionRun.status.in_(["success", "partial"])
+        ).order_by(CollectionRun.finished_at.desc()).first()
+
+        if run and run.finished_at:
+            hours_ago = (now - run.finished_at.replace(tzinfo=None)).total_seconds() / 3600
+            collector_health[name] = {
+                "last_success": run.finished_at.isoformat(),
+                "hours_ago": round(hours_ago, 1),
+                "status": "healthy" if hours_ago < 8 else "stale" if hours_ago < 24 else "dead",
+                "items_processed": run.items_processed,
+                "items_failed": run.items_failed,
+                "api_calls_made": getattr(run, "api_calls_made", 0) or 0,
+            }
+        else:
+            collector_health[name] = {"status": "never_run", "hours_ago": None}
+
+    # Work queue stats
+    queue_stats = {
+        "total_pending": db.query(func.count(PendingMetadata.appid)).filter(
+            PendingMetadata.last_status != "success"
+        ).scalar() or 0,
+        "eligible_now": db.query(func.count(PendingMetadata.appid)).filter(
+            PendingMetadata.last_status != "success",
+            PendingMetadata.next_eligible_at <= now,
+        ).scalar() or 0,
+        "dead_letters": db.query(func.count(DeadLetter.id)).filter(
+            DeadLetter.status == "dead"
+        ).scalar() or 0,
+    }
+
+    return {
+        "timestamp": now.isoformat(),
+        "collectors": collector_health,
+        "queue": queue_stats,
+        "overall": "healthy" if all(
+            v.get("status") == "healthy" for v in collector_health.values()
+            if v.get("status") != "never_run"
+        ) else "degraded",
+    }

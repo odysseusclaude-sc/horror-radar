@@ -83,6 +83,16 @@ async def stale_run_watchdog():
             if _SENTRY_AVAILABLE and settings.sentry_dsn:
                 sentry_sdk.capture_message(msg, level="warning")
 
+    # Clean up expired dead letters
+    from models import DeadLetter
+    with SessionLocal() as db:
+        expired = db.query(DeadLetter).filter(DeadLetter.expires_at < datetime.utcnow()).all()
+        if expired:
+            for dl in expired:
+                db.delete(dl)
+            db.commit()
+            logger.info(f"Dead letter cleanup: removed {len(expired)} expired entries")
+
 
 def _get_latest_run_status(job_name: str) -> str | None:
     """Return the status of the most recent collection_run for a given job.

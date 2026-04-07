@@ -447,6 +447,27 @@ async def run_metadata_fetch(db) -> None:
     """
     from sqlalchemy import or_
 
+    # Reprocess eligible dead letters
+    now = datetime.utcnow()
+    reprocessable = db.query(DeadLetter).filter(
+        DeadLetter.queue_name == "pending_metadata",
+        DeadLetter.status == "dead",
+        DeadLetter.expires_at > now,
+    ).limit(10).all()
+
+    for dl in reprocessable:
+        existing = db.query(PendingMetadata).filter_by(appid=dl.item_key).first()
+        if not existing:
+            db.add(PendingMetadata(
+                appid=dl.item_key,
+                source="requeue",
+                priority=3,
+                attempt_count=0,
+                last_status="pending",
+            ))
+            dl.status = "reprocessing"
+    db.commit()
+
     # Pull up to 50 items from the queue
     items = (
         db.query(PendingMetadata)
@@ -567,6 +588,8 @@ async def run_metadata_fetch(db) -> None:
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
+        run.api_calls_made = steam_limiter.stats["calls_today"] if hasattr(steam_limiter, "stats") else 0
+        run.api_calls_rate_limited = steam_limiter.stats["rate_limited_today"] if hasattr(steam_limiter, "stats") else 0
         db.commit()
 
         logger.info(f"Metadata fetch complete: {processed} games processed, {failed} failed")
