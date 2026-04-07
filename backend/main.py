@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -56,10 +55,6 @@ if _SENTRY_AVAILABLE and settings.sentry_dsn:
     )
     logger.info("Sentry error tracking enabled")
 
-# Maximum time (seconds) to wait for daily_snapshots to complete before
-# firing OPS anyway with a warning. Prevents OPS from being starved
-# indefinitely if snapshots run unusually long.
-_SNAPSHOT_TIMEOUT_SECONDS = 90 * 60  # 90 minutes
 
 
 async def stale_run_watchdog():
@@ -94,68 +89,6 @@ async def stale_run_watchdog():
             logger.info(f"Dead letter cleanup: removed {len(expired)} expired entries")
 
 
-def _get_latest_run_status(job_name: str) -> str | None:
-    """Return the status of the most recent collection_run for a given job.
-
-    Returns None if no run exists.
-    """
-    with SessionLocal() as db:
-        row = db.execute(
-            text(
-                "SELECT status FROM collection_runs "
-                "WHERE job_name = :name "
-                "ORDER BY started_at DESC LIMIT 1"
-            ),
-            {"name": job_name},
-        ).fetchone()
-    return row[0] if row else None
-
-
-async def _wait_for_snapshot_completion(run_id_anchor: datetime, poll_interval: int = 30) -> bool:
-    """Poll collection_runs until both 'reviews' and 'ccu' jobs started
-    after *run_id_anchor* have a terminal status (success/partial/failed/stale).
-
-    Returns True if both completed cleanly (success or partial), False otherwise.
-    Times out after _SNAPSHOT_TIMEOUT_SECONDS and returns False with a warning.
-    """
-    deadline = asyncio.get_event_loop().time() + _SNAPSHOT_TIMEOUT_SECONDS
-    jobs_to_check = ("reviews", "ccu")
-
-    while asyncio.get_event_loop().time() < deadline:
-        await asyncio.sleep(poll_interval)
-        statuses = {}
-        with SessionLocal() as db:
-            for job_name in jobs_to_check:
-                row = db.execute(
-                    text(
-                        "SELECT status FROM collection_runs "
-                        "WHERE job_name = :name AND started_at >= :anchor "
-                        "ORDER BY started_at DESC LIMIT 1"
-                    ),
-                    {"name": job_name, "anchor": run_id_anchor},
-                ).fetchone()
-                statuses[job_name] = row[0] if row else None
-
-        terminal = {"success", "partial", "failed", "stale"}
-        all_done = all(s in terminal for s in statuses.values() if s is not None)
-        all_found = all(s is not None for s in statuses.values())
-
-        if all_found and all_done:
-            clean = all(s in {"success", "partial"} for s in statuses.values())
-            if not clean:
-                logger.warning(
-                    f"Snapshot jobs completed with non-clean statuses: {statuses} — "
-                    "proceeding with OPS anyway to avoid permanent skip"
-                )
-            return clean
-
-    # Timeout reached
-    logger.warning(
-        f"daily_snapshots timed out after {_SNAPSHOT_TIMEOUT_SECONDS // 60}m — "
-        "firing OPS on potentially stale snapshot data"
-    )
-    return False
-
 
 async def discovery_job():
     """Run discovery pipeline — queues new AppIDs into pending_metadata."""
@@ -174,25 +107,19 @@ async def metadata_job():
 
 
 async def daily_snapshots_job():
-    """Run review + CCU snapshots, then chain OPS scoring.
+    """Run review + CCU snapshots sequentially, then chain OPS scoring.
 
-    OPS fires only after both snapshot jobs reach a terminal state, or after
-    a 90-minute timeout (whichever comes first). OPS failures are isolated —
+    Snapshots are awaited directly (no polling needed). OPS failures are isolated —
     they do not affect the snapshot run status.
     """
     logger.info("Starting daily snapshots pipeline")
-    start_anchor = datetime.now(timezone.utc)
 
     await run_review_snapshots()
     await run_ccu_snapshots()
     # Owners disabled — SteamSpy data too coarse/late for breakout detection.
     # Using reviews × 30 heuristic where needed instead.
 
-    # Chain OPS: wait for snapshot jobs to reach terminal status before firing.
-    logger.info("Snapshots dispatched — waiting for completion before chaining OPS")
-    await _wait_for_snapshot_completion(start_anchor)
-
-    logger.info("Firing chained OPS calculation")
+    logger.info("Snapshots complete — firing chained OPS calculation")
     try:
         await run_ops_calculation()
     except Exception as e:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchPaginated, fetchStatus } from "../api/client";
+import { fetchPaginated, fetchStatus, type PipelineStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import FreshnessBanner from "../components/FreshnessBanner";
 import GameTable from "../components/GameTable";
@@ -39,6 +39,7 @@ export default function Database() {
   const [activeScrapers, setActiveScrapers] = useState(0);
   const [totalScrapers, setTotalScrapers] = useState(12);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [pipeline, setPipeline] = useState<PipelineStatus | undefined>(undefined);
 
   const pageSize = 20;
 
@@ -126,6 +127,7 @@ export default function Database() {
       setActiveScrapers(s.active_scrapers);
       setTotalScrapers(s.total_scrapers);
       setLastSync(s.last_sync);
+      setPipeline(s.pipeline);
     } catch {
       // Status is non-critical, ignore errors
     }
@@ -192,6 +194,7 @@ export default function Database() {
         activeScrapers={activeScrapers}
         totalScrapers={totalScrapers}
         lastSync={lastSync}
+        pipeline={pipeline}
       />
       <CompareBar
         compareList={compareList}

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, youtube_limiter
+from collectors._http import fetch_with_retry, youtube_limiter, youtube_quota_exhausted
 from config import settings
 from database import SessionLocal
 from models import CollectionRun, YoutubeVideo, YoutubeVideoSnapshot
@@ -55,6 +55,10 @@ async def run_youtube_stats_refresh():
 
         async with httpx.AsyncClient() as client:
             for i in range(0, len(video_ids), 50):
+                if youtube_quota_exhausted():
+                    logger.error("YouTube daily quota exceeded — aborting stats refresh pipeline")
+                    break
+
                 batch = video_ids[i : i + 50]
 
                 data = await fetch_with_retry(

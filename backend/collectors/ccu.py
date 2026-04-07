@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy import func
 
-from collectors._http import fetch_with_retry, steam_limiter
+from collectors._http import fetch_with_retry, steam_api_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_ccu
@@ -87,7 +87,7 @@ async def run_ccu_snapshots():
                         client,
                         STEAM_CCU_URL,
                         params={"appid": str(game.appid)},
-                        limiter=steam_limiter,
+                        limiter=steam_api_limiter,
                     )
 
                     if not data or "response" not in data:
@@ -135,8 +135,8 @@ async def run_ccu_snapshots():
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_limiter.stats["calls_today"] if hasattr(steam_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_limiter.stats["rate_limited_today"] if hasattr(steam_limiter, "stats") else 0
+        run.api_calls_made = steam_api_limiter.stats["calls_today"] if hasattr(steam_api_limiter, "stats") else 0
+        run.api_calls_rate_limited = steam_api_limiter.stats["rate_limited_today"] if hasattr(steam_api_limiter, "stats") else 0
         db.commit()
 
         logger.info(f"CCU snapshots complete: {processed} updated, {failed} failed")

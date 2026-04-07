@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, steam_limiter
+from collectors._http import fetch_with_retry, steam_api_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 
@@ -85,7 +85,7 @@ async def run_achievement_stats() -> None:
                         client,
                         STEAM_ACHIEVEMENTS_URL,
                         params={"gameid": str(game.appid)},
-                        limiter=steam_limiter,
+                        limiter=steam_api_limiter,
                     )
 
                     achievements = []

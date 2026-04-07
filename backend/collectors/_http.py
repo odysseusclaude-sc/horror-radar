@@ -67,11 +67,27 @@ STEAM_API_HEADERS = {
 }
 
 # Pre-configured rate limiters
-steam_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=800)
+# Store endpoints (appdetails, reviews, store page scraping) — slower, more detectable
+steam_store_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=800)
+
+# Web API endpoints (CCU, achievements, updates) — separate rate budget
+steam_api_limiter = BudgetedLimiter(min_interval=1.0, jitter=0.5, daily_cap=2000)
+
+# Keep steam_limiter as alias for backward compatibility during transition
+steam_limiter = steam_store_limiter
+
 steamspy_limiter = RateLimiter(min_interval=15.0)   # ~4 req/min
 twitch_limiter = RateLimiter(min_interval=0.08)     # 800 req/min → use ~12/sec to be safe
 reddit_limiter = RateLimiter(min_interval=0.8)      # ~75 req/min (conservative; Reddit headers unreliable)
 youtube_limiter = RateLimiter(min_interval=0.25)    # ~4 req/sec (YouTube quota is per-day, but per-user rate is ~10/sec)
+
+# YouTube quota exhaustion flag — set when quotaExceeded is detected, callers abort early
+_youtube_quota_exhausted: bool = False
+
+
+def youtube_quota_exhausted() -> bool:
+    """Returns True if YouTube daily quota has been exhausted this session."""
+    return _youtube_quota_exhausted
 
 
 async def fetch_with_retry(
@@ -127,6 +143,8 @@ async def fetch_with_retry(
                     reason = ""
 
                 if reason == "quotaExceeded":
+                    global _youtube_quota_exhausted
+                    _youtube_quota_exhausted = True
                     logger.error(f"YouTube daily quota exceeded, aborting: {url}")
                     return None
                 else:

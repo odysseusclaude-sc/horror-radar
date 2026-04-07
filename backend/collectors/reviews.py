@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy import func
 
-from collectors._http import fetch_with_retry, steam_limiter
+from collectors._http import fetch_with_retry, steam_store_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_review_count, validate_review_score
@@ -98,7 +98,7 @@ async def run_review_snapshots():
                             "purchase_type": "all",
                             "num_per_page": "0",
                         },
-                        limiter=steam_limiter,
+                        limiter=steam_store_limiter,
                     )
 
                     if not data or "query_summary" not in data:
@@ -155,8 +155,8 @@ async def run_review_snapshots():
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_limiter.stats["calls_today"] if hasattr(steam_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_limiter.stats["rate_limited_today"] if hasattr(steam_limiter, "stats") else 0
+        run.api_calls_made = steam_store_limiter.stats["calls_today"] if hasattr(steam_store_limiter, "stats") else 0
+        run.api_calls_rate_limited = steam_store_limiter.stats["rate_limited_today"] if hasattr(steam_store_limiter, "stats") else 0
         db.commit()
 
         logger.info(f"Review snapshots complete: {processed} snapped, {failed} failed")

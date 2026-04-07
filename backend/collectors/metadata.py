@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter, STEAM_API_HEADERS
+from collectors._http import fetch_with_retry, steam_store_limiter, steamspy_limiter, STEAM_API_HEADERS
 from config import (
     CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS,
     MAJOR_PUBLISHER_TOKENS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
@@ -278,7 +278,7 @@ async def _fetch_and_classify(
         client,
         STEAM_APPDETAILS_URL,
         params={"appids": str(appid), "cc": "us", "l": "en"},
-        limiter=steam_limiter,
+        limiter=steam_store_limiter,
         headers=STEAM_API_HEADERS,
     )
 
@@ -588,8 +588,8 @@ async def run_metadata_fetch(db) -> None:
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_limiter.stats["calls_today"] if hasattr(steam_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_limiter.stats["rate_limited_today"] if hasattr(steam_limiter, "stats") else 0
+        run.api_calls_made = steam_store_limiter.stats["calls_today"] if hasattr(steam_store_limiter, "stats") else 0
+        run.api_calls_rate_limited = steam_store_limiter.stats["rate_limited_today"] if hasattr(steam_store_limiter, "stats") else 0
         db.commit()
 
         logger.info(f"Metadata fetch complete: {processed} games processed, {failed} failed")

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from rapidfuzz import fuzz, process
 
-from collectors._http import fetch_with_retry, youtube_limiter
+from collectors._http import fetch_with_retry, youtube_limiter, youtube_quota_exhausted
 from config import SEED_CHANNELS, settings
 from database import SessionLocal
 from models import CollectionRun, Game, YoutubeChannel, YoutubeVideo
@@ -235,7 +235,19 @@ async def run_youtube_scan():
             # Step 1: Resolve channels
             channels = await _resolve_channels(client)
 
+            if youtube_quota_exhausted():
+                logger.error("YouTube daily quota exceeded — aborting entire YouTube pipeline")
+                run.status = "partial"
+                run.items_processed = processed
+                run.items_failed = failed
+                run.finished_at = datetime.now(timezone.utc)
+                db.commit()
+                return
+
             for ch_data in channels:
+                if youtube_quota_exhausted():
+                    logger.error("YouTube daily quota exceeded — aborting remaining channels")
+                    break
                 # Upsert channel
                 existing_ch = db.query(YoutubeChannel).filter_by(
                     channel_id=ch_data["channel_id"]
@@ -249,6 +261,10 @@ async def run_youtube_scan():
 
                 # Step 2: Fetch recent uploads
                 uploads = await _fetch_recent_uploads(client, ch_data["channel_id"])
+
+                if youtube_quota_exhausted():
+                    logger.error("YouTube daily quota exceeded — aborting after uploads fetch")
+                    break
 
                 # Filter out videos already in DB
                 known_ids = {
@@ -265,6 +281,10 @@ async def run_youtube_scan():
                 # Step 3: Batch fetch stats
                 new_ids = [u["video_id"] for u in new_uploads]
                 stats = await _fetch_video_stats(client, new_ids)
+
+                if youtube_quota_exhausted():
+                    logger.error("YouTube daily quota exceeded — aborting after stats fetch")
+                    break
 
                 # Step 4: Fuzzy match and persist
                 for upload in new_uploads:

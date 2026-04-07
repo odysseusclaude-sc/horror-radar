@@ -34,10 +34,17 @@ export async function fetchOne<T>(endpoint: string): Promise<T> {
   return resp.json();
 }
 
+export interface PipelineStatus {
+  queue_depth: number;
+  dead_letters: number;
+  metadata_last_status: string | null;
+}
+
 export async function fetchStatus(): Promise<{
   active_scrapers: number;
   total_scrapers: number;
   last_sync: string | null;
+  pipeline?: PipelineStatus;
 }> {
   const res = await fetch(`${BASE_URL}/status`);
   if (!res.ok) throw new Error("Status fetch failed");

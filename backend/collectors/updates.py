@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, steam_limiter
+from collectors._http import fetch_with_retry, steam_api_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 
@@ -81,7 +81,7 @@ async def run_update_tracking() -> None:
                         client,
                         STEAM_NEWS_URL,
                         params={"appid": str(game.appid), "count": 20, "maxlength": 0},
-                        limiter=steam_limiter,
+                        limiter=steam_api_limiter,
                     )
 
                     items: list[dict] = []

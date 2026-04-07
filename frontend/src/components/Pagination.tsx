@@ -1,3 +1,9 @@
+interface PipelineStatus {
+  queue_depth: number;
+  dead_letters: number;
+  metadata_last_status: string | null;
+}
+
 interface PaginationProps {
   page: number;
   pageSize: number;
@@ -6,6 +12,7 @@ interface PaginationProps {
   activeScrapers?: number;
   totalScrapers?: number;
   lastSync?: string | null;
+  pipeline?: PipelineStatus;
 }
 
 function timeAgo(isoStr: string | null | undefined): string {
@@ -25,6 +32,7 @@ export default function Pagination({
   activeScrapers = 0,
   totalScrapers = 12,
   lastSync,
+  pipeline,
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize + 1;
@@ -92,6 +100,24 @@ export default function Pagination({
             Last Sync:{" "}
             <span className="text-primary font-mono">{timeAgo(lastSync)}</span>
           </p>
+          {pipeline && pipeline.queue_depth > 0 && (
+            <>
+              <div className="h-4 w-[1px] bg-border-dark" />
+              <span className="text-status-warn font-mono">{pipeline.queue_depth} queued</span>
+            </>
+          )}
+          {pipeline && pipeline.dead_letters > 0 && (
+            <>
+              <div className="h-4 w-[1px] bg-border-dark" />
+              <span className="text-status-neg font-mono">{pipeline.dead_letters} dead</span>
+            </>
+          )}
+          {pipeline && pipeline.metadata_last_status === "circuit_open" && (
+            <>
+              <div className="h-4 w-[1px] bg-border-dark" />
+              <span className="bg-status-neg/20 text-status-neg px-1.5 py-0.5 rounded text-[10px] font-black tracking-widest">CIRCUIT OPEN</span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
