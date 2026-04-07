@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import httpx
 
 from collectors._http import fetch_with_retry, steamspy_limiter
+from config import STRONG_HORROR_TAGS, ANTI_HORROR_TAGS, NON_HORROR_GENRE_TAGS
 from database import SessionLocal
 from models import CollectionRun, Game, DiscardedGame, PendingMetadata
 
@@ -46,9 +47,89 @@ CURATED_SEEDS: list[int] = [
 BATCH_SIZE = 200
 
 
-async def _discover_from_steamspy_tags(client: httpx.AsyncClient) -> set[int]:
-    """Fetch AppIDs from multiple SteamSpy horror-related tag endpoints."""
+def _prefilter_horror_tags(tags: dict) -> str:
+    """Run Layer 0+1 of horror classification on SteamSpy tags alone (no description/genre).
+
+    Used during discovery to categorise games before calling appdetails:
+    - "pass"     → strong horror tags, no hard override — skip Layer 1 in metadata
+    - "ambiguous"→ needs description/genre confirmation — full metadata classification
+    - "fail"     → anti-horror tags overwhelmingly dominate — discard immediately
+
+    Mirror of the Layer 0+1 logic in metadata._is_horror but returns a tier rather
+    than a boolean, and treats description-dependent failures as "ambiguous".
+    """
+    if not tags:
+        return "ambiguous"
+
+    tag_set = set(tags.keys()) if isinstance(tags, dict) else set(tags)
+    anti_matches = ANTI_HORROR_TAGS & tag_set
+
+    # Layer 0: when vote counts are present, ignore unvoted tags
+    has_vote_counts = isinstance(tags, dict) and any(v > 0 for v in tags.values())
+    if has_vote_counts:
+        voted_tags = {k for k, v in tags.items() if v > 0}
+        tag_set = voted_tags
+        anti_matches = ANTI_HORROR_TAGS & tag_set
+
+    strong_matches = STRONG_HORROR_TAGS & tag_set
+    non_horror_matches = NON_HORROR_GENRE_TAGS & tag_set
+
+    # Layer 1: strong horror tags present
+    if strong_matches:
+        # Hard fail: anti-horror overwhelmingly outnumbers strong horror (3+)
+        # This rejection holds even if description mentions horror.
+        if len(anti_matches) >= len(strong_matches) + 3:
+            return "fail"
+
+        # Non-horror genre identity without vote data — need description to confirm
+        if not has_vote_counts and len(non_horror_matches) >= len(strong_matches) + 1:
+            return "ambiguous"
+
+        # Voted non-horror genre tags present (City Builder, Dating Sim, etc.)
+        # Many of these are false positives even with strong tags — need description
+        if has_vote_counts and non_horror_matches:
+            return "ambiguous"
+
+        # Combined anti+non-horror vote weight exceeds horror votes — need description
+        if has_vote_counts:
+            all_non_horror = non_horror_matches | anti_matches
+            if all_non_horror:
+                horror_votes = sum(tags.get(t, 0) for t in strong_matches)
+                non_horror_votes = sum(tags.get(t, 0) for t in all_non_horror)
+                if non_horror_votes > horror_votes:
+                    return "ambiguous"
+
+        # Horror tag is a weak signal (bottom third by votes) — need description
+        if has_vote_counts:
+            sorted_tags = sorted(
+                [(k, v) for k, v in tags.items() if v > 0],
+                key=lambda x: x[1], reverse=True,
+            )
+            voted_count = len(sorted_tags)
+            if voted_count >= 6:
+                bottom_third_start = voted_count * 2 // 3
+                bottom_tag_names = {t[0] for t in sorted_tags[bottom_third_start:]}
+                if strong_matches <= bottom_tag_names:
+                    return "ambiguous"
+
+        return "pass"
+
+    # No strong horror tags — ambiguous (might pass via Layer 2 ambiguous tags + description)
+    return "ambiguous"
+
+
+async def _discover_from_steamspy_tags(
+    client: httpx.AsyncClient,
+) -> tuple[set[int], dict[int, dict]]:
+    """Fetch AppIDs from multiple SteamSpy horror-related tag endpoints.
+
+    Returns:
+        (discovered_appids, appid_to_tags) — tag data per AppID for pre-filtering.
+        Tags are the SteamSpy user-voted tags dict already included in the tag endpoint
+        response (e.g. {"Horror": 142, "Survival Horror": 89}).
+    """
     discovered: set[int] = set()
+    appid_tags: dict[int, dict] = {}
 
     for tag in HORROR_TAGS_TO_QUERY:
         data = await fetch_with_retry(
@@ -62,12 +143,21 @@ async def _discover_from_steamspy_tags(client: httpx.AsyncClient) -> set[int]:
             logger.warning(f"SteamSpy tag '{tag}' returned unexpected format")
             continue
 
-        tag_ids = {int(appid) for appid in data.keys()}
-        logger.info(f"SteamSpy tag '{tag}': {len(tag_ids)} AppIDs")
-        discovered |= tag_ids
+        for appid_str, game_info in data.items():
+            appid = int(appid_str)
+            discovered.add(appid)
+            # Capture tag data for pre-filtering (later tag query overwrites earlier — fine)
+            if isinstance(game_info, dict):
+                raw_tags = game_info.get("tags", {})
+                if isinstance(raw_tags, dict):
+                    appid_tags[appid] = raw_tags
+                elif isinstance(raw_tags, list):
+                    appid_tags[appid] = {t: 0 for t in raw_tags}
+
+        logger.info(f"SteamSpy tag '{tag}': {len(data)} AppIDs")
 
     logger.info(f"SteamSpy total unique AppIDs across all horror tags: {len(discovered)}")
-    return discovered
+    return discovered, appid_tags
 
 
 async def _discover_from_steam_search(client: httpx.AsyncClient) -> set[int]:
@@ -147,7 +237,7 @@ async def run_discovery() -> int:
 
     try:
         async with httpx.AsyncClient() as client:
-            spy_ids = await _discover_from_steamspy_tags(client)
+            spy_ids, spy_tags = await _discover_from_steamspy_tags(client)
             steam_ids = await _discover_from_steam_search(client)
 
         logger.info(f"Steam search found {len(steam_ids - spy_ids)} AppIDs not in SteamSpy (recency gap)")
@@ -155,33 +245,72 @@ async def run_discovery() -> int:
         # Filter out already-known AppIDs (games, discarded, pending)
         known = _get_known_appids()
         new_steam_ids = [a for a in steam_ids if a not in known]  # already release-date ordered
-        new_spy_only = sorted(
+        new_spy_only_raw = sorted(
             (spy_ids | set(CURATED_SEEDS)) - steam_ids - known, reverse=True
         )  # AppID desc as release-date proxy for older catalog
 
+        # Pre-filter SteamSpy-only games using tag data available from the tag endpoint.
+        # This avoids calling appdetails for games that are clearly non-horror.
+        prefiltered: list[int] = []   # passed Layer 0+1 on tags alone
+        ambiguous: list[int] = []     # need description/genre check
+        prefilter_rejected = 0
+
+        from sqlalchemy import text as _text
+        for appid in new_spy_only_raw:
+            tags = spy_tags.get(appid, {})
+            tier = _prefilter_horror_tags(tags)
+            if tier == "fail":
+                # Discard immediately — strong anti-horror, no appdetails call needed
+                existing = db.query(DiscardedGame).filter_by(appid=appid).first()
+                if not existing:
+                    db.add(DiscardedGame(
+                        appid=appid,
+                        title=f"AppID:{appid}",
+                        reason="prefilter_rejected",
+                    ))
+                prefilter_rejected += 1
+            elif tier == "pass":
+                prefiltered.append(appid)
+            else:
+                ambiguous.append(appid)
+
+        if prefilter_rejected:
+            db.commit()
+            logger.info(
+                f"Pre-filter: {len(prefiltered)} pass, {len(ambiguous)} ambiguous, "
+                f"{prefilter_rejected} hard-rejected without appdetails"
+            )
+
         # Batch: only queue up to BATCH_SIZE per run
+        # Priority order: Steam search (newest) → prefiltered → ambiguous
         batch_steam = new_steam_ids[:BATCH_SIZE]
         remaining_capacity = BATCH_SIZE - len(batch_steam)
-        batch_spy = new_spy_only[:remaining_capacity]
+        batch_prefiltered = prefiltered[:remaining_capacity]
+        remaining_capacity -= len(batch_prefiltered)
+        batch_ambiguous = ambiguous[:remaining_capacity]
 
-        total_new = len(new_steam_ids) + len(new_spy_only)
-        total_queued = len(batch_steam) + len(batch_spy)
+        total_new = len(new_steam_ids) + len(prefiltered) + len(ambiguous)
+        total_queued = len(batch_steam) + len(batch_prefiltered) + len(batch_ambiguous)
         remaining = total_new - total_queued
         if remaining > 0:
             logger.info(f"Batching: {total_queued} this run, {remaining} deferred (already in pending_metadata next run)")
 
         # INSERT into pending_metadata with INSERT OR IGNORE
-        from sqlalchemy import text as _text
         queued = 0
         for appid in batch_steam:
             db.execute(_text(
                 "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
             ), {"appid": appid, "source": "discovery", "priority": 1})
             queued += 1
-        for appid in batch_spy:
+        for appid in batch_prefiltered:
             db.execute(_text(
                 "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
-            ), {"appid": appid, "source": "discovery", "priority": 2})
+            ), {"appid": appid, "source": "steamspy_prefiltered", "priority": 1})
+            queued += 1
+        for appid in batch_ambiguous:
+            db.execute(_text(
+                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
+            ), {"appid": appid, "source": "steamspy_ambiguous", "priority": 2})
             queued += 1
 
         run.status = "success"

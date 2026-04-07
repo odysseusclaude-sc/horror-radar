@@ -19,6 +19,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from sqlalchemy import text
 
+from collectors.alerts import send_discord_alert
 from config import settings
 from database import init_db, engine, SessionLocal
 from collectors.discovery import run_discovery
@@ -46,6 +47,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Adaptive scheduling state for metadata_job
+_metadata_health = {"consecutive_successes": 0, "last_status": None}
+_scheduler = None  # Set during lifespan startup — used for adaptive rescheduling
+
 # Sentry — only initialise if DSN is configured and SDK is installed
 if _SENTRY_AVAILABLE and settings.sentry_dsn:
     sentry_sdk.init(
@@ -65,7 +70,15 @@ async def stale_run_watchdog():
     """
     max_age_hours = 2
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    stale_names = []
     with engine.connect() as conn:
+        # Collect job names before updating so we can alert per-job
+        rows = conn.execute(text(
+            "SELECT job_name FROM collection_runs "
+            "WHERE status = 'running' AND started_at < :cutoff"
+        ), {"cutoff": cutoff}).fetchall()
+        stale_names = [r[0] for r in rows]
+
         result = conn.execute(text(
             "UPDATE collection_runs SET status = 'stale', "
             "error_message = :msg, finished_at = CURRENT_TIMESTAMP "
@@ -78,7 +91,17 @@ async def stale_run_watchdog():
             if _SENTRY_AVAILABLE and settings.sentry_dsn:
                 sentry_sdk.capture_message(msg, level="warning")
 
-    # Clean up expired dead letters
+    # Discord alert per stale job
+    for job_name in stale_names:
+        await send_discord_alert(
+            settings.discord_webhook_url,
+            "Stale Job Detected",
+            f"Job `{job_name}` marked stale after 2+ hours without completion.\n"
+            "Pipeline may be hung on a rate-limited API call.",
+            level="warning",
+        )
+
+    # Clean up expired dead letters and check DLQ threshold
     from models import DeadLetter
     with SessionLocal() as db:
         expired = db.query(DeadLetter).filter(DeadLetter.expires_at < datetime.utcnow()).all()
@@ -87,6 +110,21 @@ async def stale_run_watchdog():
                 db.delete(dl)
             db.commit()
             logger.info(f"Dead letter cleanup: removed {len(expired)} expired entries")
+
+        # Alert if live DLQ is accumulating
+        dlq_count = db.query(DeadLetter).filter(
+            DeadLetter.status == "dead",
+            DeadLetter.expires_at > datetime.utcnow(),
+        ).count()
+        if dlq_count >= 10:
+            await send_discord_alert(
+                settings.discord_webhook_url,
+                "Dead Letter Queue Accumulating",
+                f"Dead letter queue: **{dlq_count}** items accumulated.\n"
+                "These AppIDs have failed metadata fetch 5+ times. "
+                "Check rate limits or Steam API availability.",
+                level="warning",
+            )
 
 
 
@@ -97,13 +135,63 @@ async def discovery_job():
 
 
 async def metadata_job():
-    """Pull from pending_metadata queue and fetch + classify each item."""
+    """Pull from pending_metadata queue and fetch + classify each item.
+
+    After each run, adjusts its own schedule based on health:
+    - 3+ consecutive successes → extend to 45 min (pipeline is healthy, no rush)
+    - circuit_open             → shorten to 15 min (retry sooner after breaker)
+    - partial                  → stay at 30 min
+    """
+    global _metadata_health
     logger.info("Starting metadata fetch job")
     db = SessionLocal()
     try:
         await run_metadata_fetch(db)
     finally:
         db.close()
+
+    # Determine run outcome from most recent metadata collection_run
+    if _scheduler is None:
+        return
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text(
+                "SELECT status FROM collection_runs WHERE job_name='metadata' "
+                "ORDER BY started_at DESC LIMIT 1"
+            )).fetchone()
+        last_status = row[0] if row else None
+        _metadata_health["last_status"] = last_status
+
+        if last_status == "success":
+            _metadata_health["consecutive_successes"] += 1
+        elif last_status == "circuit_open":
+            _metadata_health["consecutive_successes"] = 0
+        # partial or other → leave consecutive_successes unchanged
+
+        # Adjust interval
+        if last_status == "circuit_open":
+            new_interval = 15
+        elif _metadata_health["consecutive_successes"] >= 3:
+            new_interval = 45
+        else:
+            new_interval = 30
+
+        current_job = _scheduler.get_job("metadata_job")
+        if current_job:
+            current_trigger = current_job.trigger
+            # Only reschedule if the interval has actually changed
+            current_minutes = getattr(current_trigger, "interval", None)
+            import datetime as _dt
+            if current_minutes is None or current_minutes != _dt.timedelta(minutes=new_interval):
+                _scheduler.reschedule_job(
+                    "metadata_job", trigger="interval", minutes=new_interval
+                )
+                logger.info(
+                    f"Adaptive scheduling: metadata_job rescheduled to every {new_interval} min "
+                    f"(status={last_status}, consecutive_successes={_metadata_health['consecutive_successes']})"
+                )
+    except Exception as e:
+        logger.error(f"Adaptive scheduling error: {e}")
 
 
 async def daily_snapshots_job():
@@ -339,6 +427,8 @@ async def lifespan(app: FastAPI):
 
     scheduler.start()
     health.set_scheduler(scheduler)
+    global _scheduler
+    _scheduler = scheduler
     logger.info("Scheduler started")
 
     yield

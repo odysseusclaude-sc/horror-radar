@@ -212,6 +212,8 @@ class Settings(BaseSettings):
     # Sentry — leave empty to disable error tracking
     sentry_dsn: str = ""
 
+    # Discord webhook for pipeline alerts — leave empty to disable
+    discord_webhook_url: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

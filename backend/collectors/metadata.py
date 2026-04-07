@@ -17,10 +17,11 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from collectors._http import fetch_with_retry, steam_store_limiter, steamspy_limiter, STEAM_API_HEADERS
+from collectors.alerts import send_discord_alert
 from config import (
     CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS,
     MAJOR_PUBLISHER_TOKENS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
-    NON_HORROR_GENRE_TAGS,
+    NON_HORROR_GENRE_TAGS, settings,
 )
 from database import SessionLocal
 from models import CollectionRun, DeadLetter, DiscardedGame, Game, PendingMetadata
@@ -264,15 +265,21 @@ def _classify_subgenre(tags: dict, description: str) -> str | None:
 
 
 async def _fetch_and_classify(
-    client: httpx.AsyncClient, appid: int, trust_horror: bool = False
+    client: httpx.AsyncClient, appid: int, trust_horror: bool = False, source: str = "discovery"
 ) -> tuple[dict | None, str | None]:
     """Fetch metadata + tags, classify as game or discard.
 
-    If trust_horror=True, skip horror tag verification (game came from
-    SteamSpy Horror tag endpoint, so we already know it's horror-tagged).
+    Two-phase classification based on source:
+    - "steamspy_prefiltered": Layer 0+1 already ran in discovery → trust_horror=True,
+      skip all horror classification (appdetails called for metadata only)
+    - "steamspy_ambiguous": needs description/genre → run full classification chain
+    - "discovery" and others: run full classification chain
 
     Returns (game_data, None) on pass, or (None, reason) on discard.
     """
+    # Promote prefiltered games to trust_horror automatically
+    if source == "steamspy_prefiltered":
+        trust_horror = True
     # Fetch Steam appdetails
     steam_data = await fetch_with_retry(
         client,
@@ -511,6 +518,14 @@ async def run_metadata_fetch(db) -> None:
                     run.items_failed = failed
                     run.finished_at = datetime.now(timezone.utc)
                     db.commit()
+                    import asyncio
+                    asyncio.ensure_future(send_discord_alert(
+                        settings.discord_webhook_url,
+                        "Circuit Breaker Opened",
+                        f"Metadata circuit breaker opened — {consecutive_failures} consecutive failures.\n"
+                        f"Queue suspended for 30 minutes. Last item: AppID {item.appid}.",
+                        level="error",
+                    ))
                     return
 
                 # Mark attempt
@@ -519,7 +534,9 @@ async def run_metadata_fetch(db) -> None:
                 db.commit()
 
                 try:
-                    game_data, discard_reason = await _fetch_and_classify(client, item.appid)
+                    game_data, discard_reason = await _fetch_and_classify(
+                        client, item.appid, source=item.source or "discovery"
+                    )
 
                     if discard_reason in ("rate_limited", "fetch_failed"):
                         item.last_status = "failed"
