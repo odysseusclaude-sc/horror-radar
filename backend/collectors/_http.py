@@ -12,20 +12,30 @@ logger = logging.getLogger(__name__)
 class RateLimiter:
     """Per-host rate limiter using asyncio."""
 
-    def __init__(self, min_interval: float = 1.0):
+    def __init__(self, min_interval: float = 1.0, jitter: float = 0.0):
         self._min_interval = min_interval
+        self._jitter = jitter
         self._last_request = 0.0
 
     async def acquire(self):
         now = asyncio.get_event_loop().time()
         elapsed = now - self._last_request
-        if elapsed < self._min_interval:
-            await asyncio.sleep(self._min_interval - elapsed)
+        wait = self._min_interval + (random.uniform(0, self._jitter) if self._jitter else 0)
+        if elapsed < wait:
+            await asyncio.sleep(wait - elapsed)
         self._last_request = asyncio.get_event_loop().time()
 
 
+STEAM_API_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://store.steampowered.com/",
+}
+
 # Pre-configured rate limiters
-steam_limiter = RateLimiter(min_interval=1.5)       # ~200 req/5min
+steam_limiter = RateLimiter(min_interval=2.0, jitter=1.0)   # ~200 req/5min with jitter
 steamspy_limiter = RateLimiter(min_interval=15.0)   # ~4 req/min
 twitch_limiter = RateLimiter(min_interval=0.08)     # 800 req/min → use ~12/sec to be safe
 reddit_limiter = RateLimiter(min_interval=0.8)      # ~75 req/min (conservative; Reddit headers unreliable)
@@ -39,6 +49,7 @@ async def fetch_with_retry(
     limiter: RateLimiter | None = None,
     max_retries: int = 3,
     timeout: float = 30.0,
+    headers: dict | None = None,
 ) -> dict | None:
     """Fetch JSON with exponential backoff retry.
 
@@ -50,7 +61,7 @@ async def fetch_with_retry(
             if limiter:
                 await limiter.acquire()
 
-            resp = await client.get(url, params=params, timeout=timeout)
+            resp = await client.get(url, params=params, headers=headers, timeout=timeout)
 
             if resp.status_code == 429:
                 # SteamSpy special handling: wait 60s

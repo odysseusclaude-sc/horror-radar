@@ -16,14 +16,14 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
-from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter
+from collectors._http import fetch_with_retry, steam_limiter, steamspy_limiter, STEAM_API_HEADERS
 from config import (
     CORE_HORROR_TAGS, HORROR_DESCRIPTION_KEYWORDS, INDIE_PUBLISHERS,
     MAJOR_PUBLISHER_TOKENS, AMBIGUOUS_HORROR_TAGS, STRONG_HORROR_TAGS, ANTI_HORROR_TAGS,
     NON_HORROR_GENRE_TAGS,
 )
 from database import SessionLocal
-from models import CollectionRun, DiscardedGame, Game
+from models import CollectionRun, DeadLetter, DiscardedGame, Game, PendingMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +279,7 @@ async def _fetch_and_classify(
         STEAM_APPDETAILS_URL,
         params={"appids": str(appid), "cc": "us", "l": "en"},
         limiter=steam_limiter,
+        headers=STEAM_API_HEADERS,
     )
 
     if not steam_data:
@@ -393,22 +394,6 @@ async def _fetch_and_classify(
     demo_release_date = None
     if demos and isinstance(demos, list) and len(demos) > 0:
         demo_appid = demos[0].get("appid")
-        # Fetch demo's release date from its own appdetails
-        if demo_appid and client:
-            try:
-                demo_data = await fetch_with_retry(
-                    client,
-                    STEAM_APPDETAILS_URL,
-                    params={"appids": str(demo_appid), "cc": "us", "l": "en"},
-                    limiter=steam_limiter,
-                )
-                if demo_data:
-                    demo_entry = demo_data.get(str(demo_appid), {})
-                    if demo_entry.get("success"):
-                        demo_info = demo_entry.get("data", {}).get("release_date", {})
-                        demo_release_date = _parse_release_date(demo_info.get("date", ""))
-            except Exception as e:
-                logger.debug(f"Could not fetch demo release date for {demo_appid}: {e}")
 
     # Next Fest flag: check if any package group name or category mentions "Next Fest"
     # Steam sometimes includes this in categories or package group titles during events
@@ -449,17 +434,35 @@ async def _fetch_and_classify(
     return game_data, None
 
 
-async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
-    """Fetch metadata for a list of AppIDs and persist results.
+def _backoff_minutes(attempt: int) -> int:
+    """Exponential backoff: 5, 10, 20, 40, 60 minutes (capped)."""
+    return min(60, 5 * (2 ** (attempt - 1)))
 
-    If trust_horror=True, skip horror tag verification (AppIDs came from
-    a known Horror tag source like SteamSpy).
+
+async def run_metadata_fetch(db) -> None:
+    """Pull AppIDs from pending_metadata queue and fetch + classify each one.
+
+    Processes up to 50 items per run. Includes a circuit breaker that suspends
+    processing for 30 minutes if 10 consecutive failures are detected.
     """
-    if not appids:
-        logger.info("No AppIDs to fetch metadata for")
+    from sqlalchemy import or_
+
+    # Pull up to 50 items from the queue
+    items = (
+        db.query(PendingMetadata)
+        .filter(
+            or_(PendingMetadata.last_status != "success", PendingMetadata.last_status.is_(None)),
+            PendingMetadata.next_eligible_at <= datetime.utcnow(),
+        )
+        .order_by(PendingMetadata.priority.asc(), PendingMetadata.next_eligible_at.asc())
+        .limit(50)
+        .all()
+    )
+
+    if not items:
+        logger.info("pending_metadata queue empty — nothing to fetch")
         return
 
-    db = SessionLocal()
     run = CollectionRun(job_name="metadata", status="running")
     db.add(run)
     db.commit()
@@ -467,68 +470,98 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
 
     processed = 0
     failed = 0
-    rate_limit_retries = 0  # Track consecutive rate limits for adaptive backoff
+    consecutive_failures = 0
 
     try:
         async with httpx.AsyncClient() as client:
-            # Build work queue — each item gets up to 3 attempts
-            queue: list[tuple[int, int]] = [(appid, 0) for appid in appids]
+            for item in items:
+                # Circuit breaker: 10 consecutive failures → suspend queue for 30 min
+                if consecutive_failures >= 10:
+                    logger.warning(
+                        f"Circuit breaker triggered after {consecutive_failures} consecutive failures — "
+                        "suspending all pending items for 30 minutes"
+                    )
+                    resume_at = datetime.utcnow() + timedelta(minutes=30)
+                    db.query(PendingMetadata).filter(
+                        or_(PendingMetadata.last_status != "success", PendingMetadata.last_status.is_(None)),
+                    ).update({"next_eligible_at": resume_at}, synchronize_session=False)
+                    run.status = "circuit_open"
+                    run.items_processed = processed
+                    run.items_failed = failed
+                    run.finished_at = datetime.now(timezone.utc)
+                    db.commit()
+                    return
 
-            while queue:
-                appid, attempt = queue.pop(0)
+                # Mark attempt
+                item.last_attempted_at = datetime.utcnow()
+                item.attempt_count = (item.attempt_count or 0) + 1
+                db.commit()
+
                 try:
-                    game_data, discard_reason = await _fetch_and_classify(client, appid, trust_horror=trust_horror)
+                    game_data, discard_reason = await _fetch_and_classify(client, item.appid)
 
-                    # Transient failures: don't permanently discard, just skip
                     if discard_reason in ("rate_limited", "fetch_failed"):
-                        if attempt < 3:
-                            # Put back in queue for retry
-                            queue.append((appid, attempt + 1))
-                            rate_limit_retries += 1
-                            # Adaptive backoff: longer pauses as rate limits pile up
-                            if rate_limit_retries <= 3:
-                                wait = 30
-                            elif rate_limit_retries <= 10:
-                                wait = 60
-                            else:
-                                wait = 90
-                            logger.warning(
-                                f"Steam rate-limited AppID {appid} (attempt {attempt + 1}/3), "
-                                f"pausing {wait}s ({rate_limit_retries} consecutive rate limits)"
+                        item.last_status = "failed"
+                        item.last_error = discard_reason
+                        item.next_eligible_at = datetime.utcnow() + timedelta(minutes=_backoff_minutes(item.attempt_count))
+                        consecutive_failures += 1
+                        failed += 1
+
+                        if item.attempt_count >= 5:
+                            dead = DeadLetter(
+                                queue_name="pending_metadata",
+                                item_key=item.appid,
+                                error_class="TransientFailure",
+                                error_detail=discard_reason,
+                                attempts=item.attempt_count,
+                                first_failed_at=item.added_at or datetime.utcnow(),
+                                last_failed_at=datetime.utcnow(),
+                                expires_at=datetime.utcnow() + timedelta(days=7),
                             )
-                            await asyncio.sleep(wait)
-                        else:
-                            logger.warning(f"AppID {appid}: rate-limited after 3 attempts, skipping (will retry next run)")
-                            failed += 1
+                            db.add(dead)
+                            item.last_status = "dead"
+                            logger.warning(f"AppID {item.appid} moved to dead_letters after {item.attempt_count} attempts")
+
+                        db.commit()
                         continue
 
-                    # Successful API response (not rate-limited) — reset counter
-                    rate_limit_retries = 0
+                    # Successful API call — reset circuit breaker counter
+                    consecutive_failures = 0
 
                     if game_data:
-                        existing = db.query(Game).filter_by(appid=appid).first()
+                        existing = db.query(Game).filter_by(appid=item.appid).first()
                         if existing:
                             for key, value in game_data.items():
                                 setattr(existing, key, value)
                         else:
                             db.add(Game(**game_data))
+                        item.last_status = "success"
                         processed += 1
                     elif discard_reason:
-                        existing = db.query(DiscardedGame).filter_by(appid=appid).first()
+                        existing = db.query(DiscardedGame).filter_by(appid=item.appid).first()
                         if not existing:
                             db.add(DiscardedGame(
-                                appid=appid,
-                                title=f"AppID:{appid}",
+                                appid=item.appid,
+                                title=f"AppID:{item.appid}",
                                 reason=discard_reason,
                             ))
-                        failed += 1
+                        item.last_status = "success"
+                        processed += 1
 
                     db.commit()
 
                 except Exception as e:
-                    logger.error(f"Error processing AppID {appid}: {e}")
+                    logger.error(f"Error processing AppID {item.appid}: {e}")
                     db.rollback()
+                    item.last_status = "failed"
+                    item.last_error = str(e)[:500]
+                    item.next_eligible_at = datetime.utcnow() + timedelta(minutes=_backoff_minutes(item.attempt_count))
+                    consecutive_failures += 1
                     failed += 1
+                    try:
+                        db.commit()
+                    except Exception:
+                        db.rollback()
 
         run.status = "success" if failed == 0 else "partial"
         run.items_processed = processed
@@ -536,7 +569,7 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
 
-        logger.info(f"Metadata fetch complete: {processed} games added, {failed} discarded/failed")
+        logger.info(f"Metadata fetch complete: {processed} games processed, {failed} failed")
 
     except Exception as e:
         run.status = "failed"
@@ -544,8 +577,6 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         logger.exception("Metadata fetch failed")
-    finally:
-        db.close()
 
 
 def backfill_subgenres() -> int:

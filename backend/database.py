@@ -117,6 +117,29 @@ def _run_migrations():
             except Exception:
                 conn.rollback()  # column already exists, safe to ignore
 
+    # Phase 1 — pending_metadata work queue
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS pending_metadata (appid INTEGER PRIMARY KEY, source TEXT DEFAULT 'discovery', priority INTEGER DEFAULT 2, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, next_eligible_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, attempt_count INTEGER DEFAULT 0, last_status TEXT, last_attempted_at TIMESTAMP, last_error TEXT)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS dead_letters (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_name TEXT DEFAULT 'pending_metadata', item_key INTEGER, error_class TEXT, error_detail TEXT, attempts INTEGER DEFAULT 0, first_failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP, status TEXT DEFAULT 'dead')"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text("ALTER TABLE collection_runs ADD COLUMN api_calls_made INTEGER DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text("ALTER TABLE collection_runs ADD COLUMN api_calls_rate_limited INTEGER DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Backfill is_multiplayer from tags JSON for existing games
     import json as _json
     _mp_tags = {"Multiplayer", "Co-op", "Online Co-Op", "Local Co-Op",

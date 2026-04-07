@@ -16,7 +16,7 @@ import httpx
 
 from collectors._http import fetch_with_retry, steamspy_limiter
 from database import SessionLocal
-from models import CollectionRun, Game, DiscardedGame
+from models import CollectionRun, Game, DiscardedGame, PendingMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -116,25 +116,28 @@ async def _discover_from_steam_search(client: httpx.AsyncClient) -> set[int]:
 
 
 def _get_known_appids() -> set[int]:
-    """Get all AppIDs already in games or discarded_games tables."""
+    """Get all AppIDs already in games, discarded_games, or pending_metadata tables."""
     db = SessionLocal()
     try:
         game_ids = {row[0] for row in db.query(Game.appid).all()}
         discarded_ids = {row[0] for row in db.query(DiscardedGame.appid).all()}
-        return game_ids | discarded_ids
+        pending_ids = {row[0] for row in db.query(PendingMetadata.appid).all()}
+        return game_ids | discarded_ids | pending_ids
     finally:
         db.close()
 
 
-async def run_discovery() -> list[int]:
-    """Run game discovery and return batched list of new AppIDs for metadata fetch.
+async def run_discovery() -> int:
+    """Run game discovery and queue new AppIDs into pending_metadata.
 
     Batch ordering:
-    1. Steam search AppIDs first (ordered by actual release date, newest first) —
+    1. Steam search AppIDs first (priority=1, ordered by actual release date, newest first) —
        catches recent full releases including long-running EA titles with low AppIDs.
-    2. SteamSpy-only AppIDs after (sorted by AppID desc as a release-date proxy).
+    2. SteamSpy-only AppIDs after (priority=2, sorted by AppID desc as a release-date proxy).
     This ensures a game like Folklore Hunter (AppID 696220, released Jan 2026 after
     years of EA) is processed within days rather than after 13,000+ higher AppIDs.
+
+    Returns the count of newly queued items.
     """
     db = SessionLocal()
     run = CollectionRun(job_name="discovery", status="running")
@@ -149,33 +152,45 @@ async def run_discovery() -> list[int]:
 
         logger.info(f"Steam search found {len(steam_ids - spy_ids)} AppIDs not in SteamSpy (recency gap)")
 
-        # Merge all sources with curated seeds
-        all_discovered = spy_ids | steam_ids | set(CURATED_SEEDS)
-
-        # Filter out already-known AppIDs
+        # Filter out already-known AppIDs (games, discarded, pending)
         known = _get_known_appids()
         new_steam_ids = [a for a in steam_ids if a not in known]  # already release-date ordered
         new_spy_only = sorted(
             (spy_ids | set(CURATED_SEEDS)) - steam_ids - known, reverse=True
         )  # AppID desc as release-date proxy for older catalog
 
-        # Prioritise Steam search results (recent releases) over SteamSpy backlog
-        new_appids = new_steam_ids + new_spy_only
+        # Batch: only queue up to BATCH_SIZE per run
+        batch_steam = new_steam_ids[:BATCH_SIZE]
+        remaining_capacity = BATCH_SIZE - len(batch_steam)
+        batch_spy = new_spy_only[:remaining_capacity]
 
-        # Batch: only return up to BATCH_SIZE per run
-        batch = new_appids[:BATCH_SIZE]
-
-        remaining = len(new_appids) - len(batch)
+        total_new = len(new_steam_ids) + len(new_spy_only)
+        total_queued = len(batch_steam) + len(batch_spy)
+        remaining = total_new - total_queued
         if remaining > 0:
-            logger.info(f"Batching: {len(batch)} this run, {remaining} remaining for future runs")
+            logger.info(f"Batching: {total_queued} this run, {remaining} deferred (already in pending_metadata next run)")
+
+        # INSERT into pending_metadata with INSERT OR IGNORE
+        from sqlalchemy import text as _text
+        queued = 0
+        for appid in batch_steam:
+            db.execute(_text(
+                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
+            ), {"appid": appid, "source": "discovery", "priority": 1})
+            queued += 1
+        for appid in batch_spy:
+            db.execute(_text(
+                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
+            ), {"appid": appid, "source": "discovery", "priority": 2})
+            queued += 1
 
         run.status = "success"
-        run.items_processed = len(batch)
+        run.items_processed = queued
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
 
-        logger.info(f"Discovery complete: {len(batch)} AppIDs queued (of {len(new_appids)} new)")
-        return batch
+        logger.info(f"Discovery complete: {queued} AppIDs queued into pending_metadata (of {total_new} new)")
+        return queued
 
     except Exception as e:
         run.status = "failed"
@@ -183,6 +198,6 @@ async def run_discovery() -> list[int]:
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         logger.exception("Discovery failed")
-        return []
+        return 0
     finally:
         db.close()

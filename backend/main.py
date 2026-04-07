@@ -147,12 +147,20 @@ async def _wait_for_snapshot_completion(run_id_anchor: datetime, poll_interval: 
     return False
 
 
-async def steam_pipeline_job():
-    """Run discovery → metadata fetch pipeline."""
-    logger.info("Starting Steam discovery + metadata pipeline")
-    new_appids = await run_discovery()
-    if new_appids:
-        await run_metadata_fetch(new_appids, trust_horror=True)
+async def discovery_job():
+    """Run discovery pipeline — queues new AppIDs into pending_metadata."""
+    logger.info("Starting Steam discovery job")
+    await run_discovery()
+
+
+async def metadata_job():
+    """Pull from pending_metadata queue and fetch + classify each item."""
+    logger.info("Starting metadata fetch job")
+    db = SessionLocal()
+    try:
+        await run_metadata_fetch(db)
+    finally:
+        db.close()
 
 
 async def daily_snapshots_job():
@@ -207,17 +215,30 @@ async def lifespan(app: FastAPI):
 
     scheduler = AsyncIOScheduler()
 
-    # Steam pipeline (discovery + metadata): every 6h at fixed anchors
+    # Discovery job: every 6h at fixed anchors — queues new AppIDs into pending_metadata
     # 00:00 / 06:00 / 12:00 / 18:00 UTC = 08:00 / 14:00 / 20:00 / 02:00 SGT
     scheduler.add_job(
-        steam_pipeline_job,
+        discovery_job,
         "cron",
         hour="0,6,12,18",
         minute=0,
-        id="steam_pipeline",
+        id="discovery_job",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
+    )
+
+    # Metadata job: every 30 minutes — pulls from pending_metadata queue
+    scheduler.add_job(
+        metadata_job,
+        "cron",
+        minute="*/30",
+        id="metadata_job",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
+        jitter=300,
     )
 
     # Daily snapshots → OPS chain: 04:00 UTC = 12:00 SGT
@@ -233,6 +254,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # YouTube pipeline: daily 05:00 UTC = 13:00 SGT
@@ -246,6 +268,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Twitch: every 6h at fixed anchors — 01:00 run hits US prime time peak
@@ -259,6 +282,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Reddit: daily at 02:00 UTC = 10:00 SGT
@@ -272,6 +296,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Steam extras (update tracking → achievement stats): daily at 03:00 UTC = 11:00 SGT
@@ -285,6 +310,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Developer profiles: weekly on Monday at 05:30 UTC = 13:30 SGT
@@ -298,6 +324,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Watchdog: mark stale jobs every hour
@@ -309,6 +336,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # OPS diagnostics: Monday at 06:00 UTC = 14:00 SGT (after dev profiles)
@@ -322,6 +350,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Tier 2 YouTube channel discovery: Monday at 06:30 UTC = 14:30 SGT
@@ -337,6 +366,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Weekly analysis report: Monday at 04:00 UTC = 12:00 SGT
@@ -351,6 +381,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     # Weekly newsletter: Monday at 07:00 UTC = 15:00 SGT
@@ -366,6 +397,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
+        jitter=300,
     )
 
     scheduler.start()

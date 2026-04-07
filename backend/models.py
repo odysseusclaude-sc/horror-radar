@@ -260,3 +260,32 @@ class DataAnomaly(Base):
     actual_value = Column(Float, nullable=False)
     detected_at = Column(DateTime, nullable=False, default=_utcnow)
     resolved = Column(Integer, default=0)
+
+
+class PendingMetadata(Base):
+    __tablename__ = "pending_metadata"
+
+    appid = Column(Integer, primary_key=True)
+    source = Column(String, default="discovery")       # discovery | manual | requeue
+    priority = Column(Integer, default=2)              # 1=urgent, 2=normal, 3=low
+    added_at = Column(DateTime, default=datetime.utcnow)
+    next_eligible_at = Column(DateTime, default=datetime.utcnow)
+    attempt_count = Column(Integer, default=0)
+    last_status = Column(String, nullable=True)        # pending | failed | success | dead
+    last_attempted_at = Column(DateTime, nullable=True)
+    last_error = Column(String, nullable=True)
+
+
+class DeadLetter(Base):
+    __tablename__ = "dead_letters"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    queue_name = Column(String, default="pending_metadata")
+    item_key = Column(Integer)                         # appid
+    error_class = Column(String, nullable=True)
+    error_detail = Column(String, nullable=True)
+    attempts = Column(Integer, default=0)
+    first_failed_at = Column(DateTime, default=datetime.utcnow)
+    last_failed_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime)                      # 7 days TTL
+    status = Column(String, default="dead")            # dead | reprocessing | resolved
