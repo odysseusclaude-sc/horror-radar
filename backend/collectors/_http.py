@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as _dt
 import logging
 import random
 
@@ -37,7 +38,7 @@ class BudgetedLimiter:
         self._reset_date = None
 
     def _check_reset(self):
-        today = __import__("datetime").date.today()
+        today = _dt.date.today()
         if self._reset_date != today:
             self._calls_today = 0
             self._rate_limited_today = 0

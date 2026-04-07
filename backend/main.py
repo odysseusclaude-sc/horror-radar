@@ -142,7 +142,6 @@ async def metadata_job():
     - circuit_open             → shorten to 15 min (retry sooner after breaker)
     - partial                  → stay at 30 min
     """
-    global _metadata_health
     logger.info("Starting metadata fetch job")
     db = SessionLocal()
     try:
@@ -181,8 +180,7 @@ async def metadata_job():
             current_trigger = current_job.trigger
             # Only reschedule if the interval has actually changed
             current_minutes = getattr(current_trigger, "interval", None)
-            import datetime as _dt
-            if current_minutes is None or current_minutes != _dt.timedelta(minutes=new_interval):
+            if current_minutes is None or current_minutes != timedelta(minutes=new_interval):
                 _scheduler.reschedule_job(
                     "metadata_job", trigger="interval", minutes=new_interval
                 )

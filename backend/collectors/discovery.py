@@ -16,6 +16,7 @@ import httpx
 
 from collectors._http import fetch_with_retry, steamspy_limiter
 from config import STRONG_HORROR_TAGS, ANTI_HORROR_TAGS, NON_HORROR_GENRE_TAGS
+from sqlalchemy import text as _text
 from database import SessionLocal
 from models import CollectionRun, Game, DiscardedGame, PendingMetadata
 
@@ -255,7 +256,6 @@ async def run_discovery() -> int:
         ambiguous: list[int] = []     # need description/genre check
         prefilter_rejected = 0
 
-        from sqlalchemy import text as _text
         for appid in new_spy_only_raw:
             tags = spy_tags.get(appid, {})
             tier = _prefilter_horror_tags(tags)

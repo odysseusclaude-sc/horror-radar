@@ -518,8 +518,7 @@ async def run_metadata_fetch(db) -> None:
                     run.items_failed = failed
                     run.finished_at = datetime.now(timezone.utc)
                     db.commit()
-                    import asyncio
-                    asyncio.ensure_future(send_discord_alert(
+                    asyncio.create_task(send_discord_alert(
                         settings.discord_webhook_url,
                         "Circuit Breaker Opened",
                         f"Metadata circuit breaker opened — {consecutive_failures} consecutive failures.\n"
