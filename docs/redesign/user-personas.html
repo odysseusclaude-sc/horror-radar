@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horror Radar - User Personas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #111314;
+    --surface: #1a1a1c;
+    --surface-hover: #222224;
+    --border: #2a2420;
+    --border-light: #3a3430;
+    --primary: #802626;
+    --primary-glow: rgba(128, 38, 38, 0.25);
+    --secondary: #bb7125;
+    --tertiary: #a36aa5;
+    --text-main: #e8e0d4;
+    --text-mid: #a09080;
+    --text-dim: #6b6058;
+    --status-green: #5ec269;
+    --status-amber: #e8a832;
+    --status-red: #e25535;
+    --status-blue: #6b9ddb;
+    --status-violet: #b07db2;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-main);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Header --- */
+  .page-header {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 32px 32px;
+  }
+
+  .page-header h1 {
+    font-size: 2.369rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--text-main), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .page-header .subtitle {
+    font-size: 1.125rem;
+    color: var(--text-mid);
+    max-width: 680px;
+    line-height: 1.7;
+  }
+
+  .page-header .meta {
+    margin-top: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .meta span::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* --- Grid --- */
+  .persona-grid {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px 64px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+  }
+
+  @media (max-width: 840px) {
+    .persona-grid { grid-template-columns: 1fr; }
+    .page-header { padding: 32px 20px 24px; }
+    .persona-grid { padding: 0 20px 48px; }
+  }
+
+  /* --- Persona Card --- */
+  .persona-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+  }
+
+  .persona-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-light);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px var(--border-light);
+  }
+
+  .persona-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .persona-card:nth-child(1)::before { background: var(--status-red); }
+  .persona-card:nth-child(2)::before { background: var(--secondary); }
+  .persona-card:nth-child(3)::before { background: var(--status-green); }
+  .persona-card:nth-child(4)::before { background: var(--status-blue); }
+
+  /* --- Card Header --- */
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 28px 28px 0;
+  }
+
+  .avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .persona-card:nth-child(1) .avatar { background: linear-gradient(135deg, #802626, #a03030); }
+  .persona-card:nth-child(2) .avatar { background: linear-gradient(135deg, #8a5a1a, #bb7125); }
+  .persona-card:nth-child(3) .avatar { background: linear-gradient(135deg, #3a7a42, #5ec269); }
+  .persona-card:nth-child(4) .avatar { background: linear-gradient(135deg, #4a6da0, #6b9ddb); }
+
+  .avatar::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: border-color 0.25s ease;
+  }
+
+  .persona-card:hover .avatar::after {
+    border-color: var(--border-light);
+  }
+
+  .header-text h2 {
+    font-size: 1.333rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .header-text .role {
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    margin-top: 2px;
+  }
+
+  .header-text .experience {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.688rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+  }
+
+  /* --- Card Body --- */
+  .card-body {
+    padding: 20px 28px 28px;
+  }
+
+  /* --- Quote --- */
+  .quote {
+    padding: 16px 20px;
+    background: rgba(128, 38, 38, 0.08);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 24px;
+    font-style: italic;
+    font-size: 0.9375rem;
+    color: var(--text-main);
+    line-height: 1.6;
+  }
+
+  /* --- Scenario --- */
+  .scenario {
+    padding: 14px 18px;
+    background: rgba(187, 113, 37, 0.06);
+    border: 1px solid rgba(187, 113, 37, 0.15);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    line-height: 1.65;
+  }
+
+  .scenario-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.688rem;
+    font-weight: 600;
+    color: var(--secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  /* --- Sections --- */
+  .section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.688rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title.goals { color: var(--status-green); }
+  .section-title.pains { color: var(--status-red); }
+  .section-title.metrics { color: var(--status-blue); }
+  .section-title.wishlist { color: var(--status-violet); }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section {
+    margin-bottom: 20px;
+  }
+
+  .section:last-child {
+    margin-bottom: 0;
+  }
+
+  .section ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .section ul li {
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    padding-left: 18px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .section ul li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+  }
+
+  .section.goals-section ul li::before { background: var(--status-green); }
+  .section.pains-section ul li::before { background: var(--status-red); }
+  .section.wishlist-section ul li::before { background: var(--status-violet); }
+
+  /* --- Metrics Tags --- */
+  .metrics-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .metric-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(107, 157, 219, 0.1);
+    color: var(--status-blue);
+    border: 1px solid rgba(107, 157, 219, 0.2);
+    white-space: nowrap;
+  }
+
+  /* --- Divider --- */
+  .card-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 28px;
+  }
+
+  /* --- Footer --- */
+  .page-footer {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+    text-align: center;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+  }
+
+  .page-footer a {
+    color: var(--secondary);
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>User Personas</h1>
+  <p class="subtitle">Four primary user archetypes who rely on Horror Radar to discover breakout indie horror games. Each persona drives specific feature priorities and navigation decisions.</p>
+  <div class="meta">
+    <span>Horror Radar Redesign</span>
+    <span>Information Architecture</span>
+    <span>April 2026</span>
+  </div>
+</header>
+
+<main class="persona-grid">
+
+  <!-- Persona 1: Content Creator -->
+  <article class="persona-card">
+    <div class="card-header">
+      <div class="avatar">MK</div>
+      <div class="header-text">
+        <h2>Maya Kim</h2>
+        <div class="role">Content Creator / Horror YouTuber</div>
+        <div class="experience">75K subscribers &middot; 3 years on YouTube</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="quote">"I need to find the Lethal Company before everyone else does."</div>
+
+      <div class="scenario">
+        <div class="scenario-label">A Day in the Life</div>
+        Maya checks Horror Radar every morning before recording. She filters for games released in the last 14 days with high OPS but low YouTube coverage &mdash; the sweet spot where quality meets opportunity. When she finds a candidate, she scans the Steam reviews for gameplay hooks she can turn into video titles, then races to publish before Insym or ManlyBadassHero beat her to it.
+      </div>
+
+      <div class="section goals-section">
+        <div class="section-title goals">Goals</div>
+        <ul>
+          <li>Find breakout games before larger channels cover them (first-mover advantage)</li>
+          <li>Assess whether a game has enough content for a full playthrough series</li>
+          <li>Track which games are gaining momentum so she can time her uploads</li>
+        </ul>
+      </div>
+
+      <div class="section pains-section">
+        <div class="section-title pains">Pain Points</div>
+        <ul>
+          <li>No way to see which games have low YouTube coverage but high quality (blind spots hidden in API)</li>
+          <li>Can't save a shortlist of candidates to compare later &mdash; has to screenshot or remember</li>
+          <li>Missing games that later blow up because she didn't check for 2 days</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title metrics">Key Metrics</div>
+        <div class="metrics-tags">
+          <span class="metric-tag">YouTube coverage gap</span>
+          <span class="metric-tag">OPS 7-day trend</span>
+          <span class="metric-tag">Review velocity</span>
+          <span class="metric-tag">48h early adoption</span>
+          <span class="metric-tag">Channel subscriber reach</span>
+        </div>
+      </div>
+
+      <div class="section wishlist-section">
+        <div class="section-title wishlist">Feature Wishlist</div>
+        <ul>
+          <li>Blind spot view: games with high review scores but zero or minimal YouTube coverage</li>
+          <li>Watchlist with email/push alerts when a saved game's OPS spikes</li>
+          <li>YouTube coverage timeline showing which channels covered a game and when</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- Persona 2: Publisher Scout -->
+  <article class="persona-card">
+    <div class="card-header">
+      <div class="avatar">DP</div>
+      <div class="header-text">
+        <h2>David Park</h2>
+        <div class="role">Publisher Scout / Business Development</div>
+        <div class="experience">Indie publisher &middot; 6 years in games industry</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="quote">"Show me games that are overperforming with zero marketing &mdash; that's where the opportunity is."</div>
+
+      <div class="scenario">
+        <div class="scenario-label">A Day in the Life</div>
+        David reviews Horror Radar every Monday morning as part of his scouting pipeline. He sorts by OPS descending, then clicks into individual games to study developer profiles and velocity trajectories. When he spots a solo dev whose first game is pulling 90% positive reviews and climbing OPS, he adds them to his CRM and schedules an outreach email before a competing publisher notices.
+      </div>
+
+      <div class="section goals-section">
+        <div class="section-title goals">Goals</div>
+        <ul>
+          <li>Identify developers with breakout potential to offer publishing deals early</li>
+          <li>Compare game performance metrics side-by-side to prioritize outreach</li>
+          <li>Track OPS trajectory over weeks to distinguish genuine breakouts from spikes</li>
+        </ul>
+      </div>
+
+      <div class="section pains-section">
+        <div class="section-title pains">Pain Points</div>
+        <ul>
+          <li>Can't compare multiple games side-by-side &mdash; has to open each in a separate tab</li>
+          <li>Developer history and track record not visible from the main table</li>
+          <li>No CSV/API export to feed data into his existing scouting CRM</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title metrics">Key Metrics</div>
+        <div class="metrics-tags">
+          <span class="metric-tag">OPS trajectory</span>
+          <span class="metric-tag">Developer track record</span>
+          <span class="metric-tag">Review sentiment %</span>
+          <span class="metric-tag">Decay retention</span>
+          <span class="metric-tag">Price &times; volume ratio</span>
+        </div>
+      </div>
+
+      <div class="section wishlist-section">
+        <div class="section-title wishlist">Feature Wishlist</div>
+        <ul>
+          <li>Side-by-side comparison mode for 2-4 games with normalized charts</li>
+          <li>CSV export of filtered game lists with all metrics</li>
+          <li>Developer profile page showing their full game history and aggregate stats</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- Persona 3: Community Curator -->
+  <article class="persona-card">
+    <div class="card-header">
+      <div class="avatar">RJ</div>
+      <div class="header-text">
+        <h2>Rachel Jensen</h2>
+        <div class="role">Steam Curator / Reddit Moderator</div>
+        <div class="experience">r/HorrorGaming mod &middot; 2K curator followers</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="quote">"My community trusts me to find the gems before they go mainstream."</div>
+
+      <div class="scenario">
+        <div class="scenario-label">A Day in the Life</div>
+        Rachel browses Horror Radar twice a week, usually on Wednesday evenings and Sunday mornings. She focuses on review sentiment and community buzz signals &mdash; Reddit mention counts, Twitch viewer spikes, and whether a game has a demo. When she finds a strong candidate, she writes a curator review on Steam and shares a recommendation post on r/HorrorGaming, but currently has to manually copy every data point she wants to cite.
+      </div>
+
+      <div class="section goals-section">
+        <div class="section-title goals">Goals</div>
+        <ul>
+          <li>Surface high-quality games her community would enjoy, prioritizing sentiment over hype</li>
+          <li>Share curated recommendations with supporting data and context</li>
+          <li>Track games over time to write follow-up reviews after patches and updates</li>
+        </ul>
+      </div>
+
+      <div class="section pains-section">
+        <div class="section-title pains">Pain Points</div>
+        <ul>
+          <li>No share or export &mdash; has to screenshot metrics or manually type them into posts</li>
+          <li>Can't create or maintain lists of recommended games within Horror Radar</li>
+          <li>No way to track a game's trajectory after initial discovery (no notifications or watchlist)</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title metrics">Key Metrics</div>
+        <div class="metrics-tags">
+          <span class="metric-tag">Review score %</span>
+          <span class="metric-tag">Reddit mentions</span>
+          <span class="metric-tag">Twitch streams</span>
+          <span class="metric-tag">Demo availability</span>
+          <span class="metric-tag">Community buzz composite</span>
+        </div>
+      </div>
+
+      <div class="section wishlist-section">
+        <div class="section-title wishlist">Feature Wishlist</div>
+        <ul>
+          <li>One-click share card that generates a formatted image or link with key stats</li>
+          <li>Personal watchlist with custom notes and status tags (recommended, playing, backlog)</li>
+          <li>Weekly digest email summarizing new high-quality games and trending breakouts</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- Persona 4: Gaming Journalist -->
+  <article class="persona-card">
+    <div class="card-header">
+      <div class="avatar">AV</div>
+      <div class="header-text">
+        <h2>Alex Vasquez</h2>
+        <div class="role">Gaming Journalist / Freelance Writer</div>
+        <div class="experience">Freelance &middot; Covers indie games for 3 outlets</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="quote">"I need the data to tell the story &mdash; what's happening in indie horror right now?"</div>
+
+      <div class="scenario">
+        <div class="scenario-label">A Day in the Life</div>
+        Alex visits Horror Radar once or twice a month when researching trend pieces. He dives deep into the Trends page, looking for subgenre momentum shifts, pricing patterns, and demo impact data that can anchor a data-driven article. When he finds a compelling angle &mdash; like psychological horror overtaking survival horror in OPS &mdash; he needs to pull specific numbers to cite, but currently has no way to export or deep-link to specific data views.
+      </div>
+
+      <div class="section goals-section">
+        <div class="section-title goals">Goals</div>
+        <ul>
+          <li>Identify market-level trends and subgenre shifts for data-driven articles</li>
+          <li>Pull specific, citable data points with timestamps for journalistic credibility</li>
+          <li>Find compelling breakout stories with clear before/after narratives</li>
+        </ul>
+      </div>
+
+      <div class="section pains-section">
+        <div class="section-title pains">Pain Points</div>
+        <ul>
+          <li>No CSV export &mdash; can't extract data for charts in his articles</li>
+          <li>Trends page is very long with no section navigation or anchor links for bookmarking</li>
+          <li>No historical comparison &mdash; can't see how this month compares to last month</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title metrics">Key Metrics</div>
+        <div class="metrics-tags">
+          <span class="metric-tag">Subgenre momentum</span>
+          <span class="metric-tag">Market pulse 12-week</span>
+          <span class="metric-tag">Price intelligence</span>
+          <span class="metric-tag">Demo impact</span>
+          <span class="metric-tag">Breakout stories</span>
+        </div>
+      </div>
+
+      <div class="section wishlist-section">
+        <div class="section-title wishlist">Feature Wishlist</div>
+        <ul>
+          <li>CSV/JSON export of any data view with date range filtering</li>
+          <li>Trends page section navigation with anchor links and table of contents</li>
+          <li>Historical snapshots &mdash; compare this month's market pulse to previous months</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+</main>
+
+<footer class="page-footer">
+  Horror Radar &middot; Information Architecture &middot; User Personas &middot; April 2026
+</footer>
+
+</body>
+</html>

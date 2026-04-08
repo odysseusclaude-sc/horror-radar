@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horror Radar - Customer Journey Maps &amp; Navigation Restructuring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #111314;
+    --surface: #1a1a1c;
+    --surface-alt: #1e1e20;
+    --surface-hover: #222224;
+    --border: #2a2420;
+    --border-light: #3a3430;
+    --primary: #802626;
+    --primary-soft: rgba(128,38,38,0.15);
+    --secondary: #bb7125;
+    --secondary-soft: rgba(187,113,37,0.12);
+    --tertiary: #a36aa5;
+    --tertiary-soft: rgba(163,106,165,0.12);
+    --text-main: #e8e0d4;
+    --text-mid: #a09080;
+    --text-dim: #6b6058;
+    --green: #5ec269;
+    --green-soft: rgba(94,194,105,0.12);
+    --green-border: rgba(94,194,105,0.25);
+    --amber: #e8a832;
+    --amber-soft: rgba(232,168,50,0.12);
+    --amber-border: rgba(232,168,50,0.25);
+    --red: #e25535;
+    --red-soft: rgba(226,85,53,0.12);
+    --red-border: rgba(226,85,53,0.25);
+    --blue: #6b9ddb;
+    --blue-soft: rgba(107,157,219,0.12);
+    --blue-border: rgba(107,157,219,0.25);
+    --violet: #b07db2;
+    --violet-soft: rgba(176,125,178,0.12);
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-main);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Layout --- */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  @media (max-width: 840px) {
+    .container { padding: 0 16px; }
+  }
+
+  /* --- Page Header --- */
+  .page-header {
+    padding: 48px 0 32px;
+  }
+
+  .page-header h1 {
+    font-size: 2.369rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--text-main), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .page-header .subtitle {
+    font-size: 1.125rem;
+    color: var(--text-mid);
+    max-width: 760px;
+    line-height: 1.7;
+  }
+
+  .page-header .meta {
+    margin-top: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .meta span::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* --- Table of Contents --- */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+
+  .toc h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+  }
+
+  .toc a {
+    color: var(--text-mid);
+    text-decoration: none;
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+    display: block;
+  }
+
+  .toc a:hover {
+    background: var(--surface-hover);
+    color: var(--text-main);
+  }
+
+  .toc a .num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    margin-right: 8px;
+    font-size: 0.75rem;
+  }
+
+  /* --- Section Headers --- */
+  .section-header {
+    margin: 56px 0 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-header h2 {
+    font-size: 1.777rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+
+  .section-header .persona-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+
+  .tag-creator { background: var(--red-soft); color: var(--red); border: 1px solid var(--red-border); }
+  .tag-scout { background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-border); }
+  .tag-curator { background: var(--green-soft); color: var(--green); border: 1px solid var(--green-border); }
+  .tag-journalist { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue-border); }
+
+  /* --- Journey Container --- */
+  .journey-pair {
+    margin-bottom: 48px;
+  }
+
+  .journey-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .journey-label.current { color: var(--text-dim); }
+  .journey-label.proposed { color: var(--green); }
+
+  .journey-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* --- Journey Timeline --- */
+  .journey-timeline {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .journey-timeline::before {
+    content: '';
+    position: absolute;
+    top: 32px;
+    left: 24px;
+    right: 24px;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .journey-timeline {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .journey-timeline::before { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .journey-timeline {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* --- Journey Step --- */
+  .journey-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 16px;
+    position: relative;
+    transition: border-color 0.2s, transform 0.2s;
+    z-index: 1;
+  }
+
+  .journey-step:hover {
+    border-color: var(--border-light);
+    transform: translateY(-2px);
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface-alt);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .step-phase {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .step-action {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .step-touchpoint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    padding: 3px 8px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1px solid rgba(128,38,38,0.25);
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .proposed .step-touchpoint {
+    background: var(--green-soft);
+    color: var(--green);
+    border-color: var(--green-border);
+  }
+
+  .step-emotion {
+    font-size: 0.8125rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .emotion-icon {
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+
+  .emotion-satisfied { color: var(--green); }
+  .emotion-neutral { color: var(--amber); }
+  .emotion-frustrated { color: var(--red); }
+  .emotion-delighted { color: var(--violet); }
+
+  .step-detail {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .step-detail .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .step-detail.pain .label { color: var(--red); }
+  .step-detail.opp .label { color: var(--green); }
+  .step-detail p { color: var(--text-mid); }
+
+  /* --- Navigation Section --- */
+  .nav-section {
+    margin: 64px 0 48px;
+    padding-top: 48px;
+    border-top: 2px solid var(--border);
+  }
+
+  .nav-section h2 {
+    font-size: 1.777rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .nav-section .intro {
+    color: var(--text-mid);
+    font-size: 1rem;
+    max-width: 720px;
+    line-height: 1.7;
+    margin-bottom: 36px;
+  }
+
+  /* --- Nav Comparison --- */
+  .nav-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  @media (max-width: 840px) {
+    .nav-compare { grid-template-columns: 1fr; }
+  }
+
+  .nav-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+
+  .nav-box h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-box.current h3 { color: var(--text-dim); }
+  .nav-box.proposed h3 { color: var(--green); }
+
+  .nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+  }
+
+  .nav-item:hover {
+    border-color: var(--border-light);
+  }
+
+  .nav-item .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .nav-item .nav-text {
+    flex: 1;
+  }
+
+  .nav-item .nav-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .nav-item .nav-desc {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .nav-item .nav-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.5625rem;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .nav-tag.existing { background: var(--secondary-soft); color: var(--secondary); }
+  .nav-tag.new { background: var(--green-soft); color: var(--green); }
+  .nav-tag.restructured { background: var(--violet-soft); color: var(--violet); }
+
+  /* --- Persona Flow Map --- */
+  .flow-map {
+    margin-top: 48px;
+  }
+
+  .flow-map h3 {
+    font-size: 1.333rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  @media (max-width: 1000px) {
+    .flow-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .flow-grid { grid-template-columns: 1fr; }
+  }
+
+  .flow-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .flow-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-light);
+  }
+
+  .flow-card .flow-persona {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .flow-card:nth-child(1) .flow-persona { color: var(--red); }
+  .flow-card:nth-child(2) .flow-persona { color: var(--amber); }
+  .flow-card:nth-child(3) .flow-persona { color: var(--green); }
+  .flow-card:nth-child(4) .flow-persona { color: var(--blue); }
+
+  .flow-card .flow-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .flow-card .flow-primary {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .flow-route {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .flow-route .flow-page {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--surface-hover);
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+  }
+
+  .flow-route .flow-arrow {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+  }
+
+  .flow-route .flow-page.highlight {
+    border-color: var(--green-border);
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  /* --- Footer --- */
+  .page-footer {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- ===== PAGE HEADER ===== -->
+<header class="page-header">
+  <h1>Customer Journey Maps</h1>
+  <p class="subtitle">Current-state and proposed-state journeys for each persona, plus a navigation restructuring proposal based on primary user workflows.</p>
+  <div class="meta">
+    <span>Horror Radar Redesign</span>
+    <span>Information Architecture</span>
+    <span>April 2026</span>
+  </div>
+</header>
+
+<!-- ===== TABLE OF CONTENTS ===== -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <div class="toc-grid">
+    <a href="#journey-creator"><span class="num">01</span> Maya Kim &mdash; Content Creator</a>
+    <a href="#journey-scout"><span class="num">02</span> David Park &mdash; Publisher Scout</a>
+    <a href="#journey-curator"><span class="num">03</span> Rachel Jensen &mdash; Community Curator</a>
+    <a href="#journey-journalist"><span class="num">04</span> Alex Vasquez &mdash; Gaming Journalist</a>
+    <a href="#nav-restructure"><span class="num">05</span> Navigation Restructuring</a>
+    <a href="#persona-flows"><span class="num">06</span> Persona Flow Mapping</a>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- JOURNEY 1: CONTENT CREATOR                                    -->
+<!-- ============================================================ -->
+<section id="journey-creator">
+  <div class="section-header">
+    <span class="persona-tag tag-creator">Content Creator</span>
+    <h2>Maya Kim &mdash; Horror YouTuber</h2>
+  </div>
+
+  <div class="journey-pair">
+    <div class="journey-label current">Current State</div>
+    <div class="journey-timeline">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Hears about Horror Radar from another creator in a Discord server</div>
+        <div class="step-touchpoint">External / Word of mouth</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F914;</span> <span class="emotion-neutral">Curious</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No onboarding &mdash; lands on Database page with no context for what OPS means</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>First-visit tooltip or quick explainer for OPS and key metrics</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Sees Database table, tries clicking column headers to sort by date</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>OPS column has numbers but no legend; doesn't know what 60 vs 30 means</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Inline OPS scale indicator or hover tooltip with component breakdown</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Filters by newest, sorts by OPS descending, scans YouTube column</div>
+        <div class="step-touchpoint">/ Database + Filter Bar</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F612;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Can't filter for "high OPS + low YouTube coverage" &mdash; has to manually scan each row</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Dedicated "Blind Spots" filter or Discover page surfacing coverage gaps</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Clicks into a game to see review sentiment and YouTube coverage detail</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Game detail is 2,400 lines of UI &mdash; overwhelming, hard to find YouTube section</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Sticky section nav in Game Detail; anchor directly to YouTube coverage block</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Opens Steam page in new tab, adds to personal spreadsheet</div>
+        <div class="step-touchpoint">External / manual</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F612;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No bookmark, watchlist, or export &mdash; copies data manually into a Google Sheet</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>One-click "Add to Watchlist" with OPS spike alerts</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Comes back next day, repeats same filter/sort workflow</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No "new since last visit" indicator; has to remember where she left off</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Badge or filter for "new games since last visit"; saved filter presets</p></div>
+      </div>
+    </div>
+
+    <div class="journey-label proposed">Proposed State</div>
+    <div class="journey-timeline proposed">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Clicks link from Discord; lands on Discover page with curated blind spots</div>
+        <div class="step-touchpoint">/discover</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Onboarding banner explains OPS in one sentence; blind spot games shown prominently</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Sees "Creator Opportunities" section: high-OPS games with minimal YouTube coverage</div>
+        <div class="step-touchpoint">/discover</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F60D;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Exactly the view she needs exists as a first-class feature, not a manual filter</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Adds 3 candidates to Watchlist directly from Discover cards</div>
+        <div class="step-touchpoint">/discover + /watchlist</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Watchlist persists between sessions; shows OPS trajectory sparkline</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Taps into game detail, jumps directly to YouTube tab via section nav</div>
+        <div class="step-touchpoint">/game/:appid#youtube</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Section navigation in game detail; YouTube coverage timeline visible at a glance</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Clicks "Open on Steam" from game detail; game already in Watchlist</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>No manual data copying needed; watchlist serves as her scouting pipeline</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Gets email alert: a watchlisted game's OPS spiked 15 points overnight</div>
+        <div class="step-touchpoint">Email alert + /watchlist</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Proactive alerts replace daily manual checking; she acts on signal, not routine</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JOURNEY 2: PUBLISHER SCOUT                                    -->
+<!-- ============================================================ -->
+<section id="journey-scout">
+  <div class="section-header">
+    <span class="persona-tag tag-scout">Publisher Scout</span>
+    <h2>David Park &mdash; Business Development</h2>
+  </div>
+
+  <div class="journey-pair">
+    <div class="journey-label current">Current State</div>
+    <div class="journey-timeline">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Finds Horror Radar via a games industry newsletter mention</div>
+        <div class="step-touchpoint">External / newsletter</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F914;</span> <span class="emotion-neutral">Curious</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No clear value proposition for publishers on landing; looks like a consumer tool</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Persona-aware landing or a "For Publishers" callout highlighting scouting features</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Sorts Database by OPS, sees top games but wants developer context</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Developer name shown but no link to profile or track record</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Clickable developer name linking to aggregated developer profile page</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Opens 5 game detail pages in separate tabs to compare metrics</div>
+        <div class="step-touchpoint">/game/:appid (x5 tabs)</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F621;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No side-by-side comparison; switching tabs to compare OPS trajectories</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Compare mode: select 2-4 games and view normalized metrics side-by-side</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Reads Game Detail for top candidate, looks for velocity trajectory</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>OPS history exists but decay retention and 7-day forecast are buried in details</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Prominent "Trajectory" summary card showing momentum direction and forecast</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Manually types game data into CRM, searches Steam for developer contact</div>
+        <div class="step-touchpoint">External / manual</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F621;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No export; all data entry into CRM is manual and error-prone</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>CSV export of selected games; direct link to developer Steam page</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Returns next Monday, sorts by OPS again, can't remember which games he already checked</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F612;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No history of viewed games; re-evaluates games he's already passed on</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Watchlist with status tags (contacted, passed, watching); "seen" indicators in table</p></div>
+      </div>
+    </div>
+
+    <div class="journey-label proposed">Proposed State</div>
+    <div class="journey-timeline proposed">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Newsletter links to a specific Radar Pick spotlight with strong OPS data</div>
+        <div class="step-touchpoint">/radar-pick</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Immediately sees a concrete breakout example with professional data presentation</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Navigates to Database; developer names are clickable links to profiles</div>
+        <div class="step-touchpoint">/ Database + /developer/:id</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Developer profiles show track record, total games, average review score</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Selects 3 games via checkboxes, clicks "Compare" to see side-by-side view</div>
+        <div class="step-touchpoint">/compare</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Normalized charts, OPS component breakdown, developer info all in one view</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Sees trajectory card on game detail: "Climbing &mdash; OPS +12 in 7 days"</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Trajectory and forecast are hero-level elements, not buried in the page</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Exports 3 games as CSV with all metrics; adds to Watchlist as "Contacted"</div>
+        <div class="step-touchpoint">CSV export + /watchlist</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Direct CSV download feeds into existing CRM workflow; watchlist tracks status</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Opens Watchlist Monday; sees trajectory updates for all tracked games</div>
+        <div class="step-touchpoint">/watchlist</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Watchlist is his weekly dashboard; no wasted time re-evaluating old games</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JOURNEY 3: COMMUNITY CURATOR                                  -->
+<!-- ============================================================ -->
+<section id="journey-curator">
+  <div class="section-header">
+    <span class="persona-tag tag-curator">Community Curator</span>
+    <h2>Rachel Jensen &mdash; Steam Curator</h2>
+  </div>
+
+  <div class="journey-pair">
+    <div class="journey-label current">Current State</div>
+    <div class="journey-timeline">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Searches "indie horror game tracker" after missing a breakout game her community loved</div>
+        <div class="step-touchpoint">Google search</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Horror Radar doesn't rank well for generic searches; relies on word of mouth</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>SEO-optimized landing page; shareable Radar Pick pages that drive organic traffic</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Browses Database; focuses on review score % column and looks for demos</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No demo filter visible; has to check game details one by one</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Demo availability badge in table row; "Has Demo" toggle in filter bar</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Finds a game with 92% positive reviews, opens detail page to check community signals</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Reddit and Twitch data exist but are deep in the game detail page</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>"Community Buzz" composite score visible in table; section anchors in detail</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Reads Reddit mentions and Twitch stats to gauge organic community interest</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Data is there but not synthesized &mdash; has to mentally combine Reddit + Twitch + reviews</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Community health summary card that aggregates all non-YouTube community signals</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Writes curator review on Steam; manually types stats into a Reddit recommendation post</div>
+        <div class="step-touchpoint">External / manual</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F621;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No share functionality; screenshots look poor on dark theme due to JPEG compression</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Share card generator: PNG with key stats formatted for Reddit/Discord/Twitter</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Returns next week; no memory of what she recommended last time</div>
+        <div class="step-touchpoint">/ Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F612;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No recommendation history; can't track which games she already reviewed</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Watchlist with "Recommended" tag; list export for curator profile</p></div>
+      </div>
+    </div>
+
+    <div class="journey-label proposed">Proposed State</div>
+    <div class="journey-timeline proposed">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Sees a Horror Radar share card posted by another curator on Reddit</div>
+        <div class="step-touchpoint">Reddit / share card</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Share cards drive organic discovery; link goes directly to the game detail page</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Lands on game detail with clear community health card; toggles demo filter in Database</div>
+        <div class="step-touchpoint">/game/:appid + / Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Demo filter in filter bar; community buzz composite visible in table</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Filters for games with demos and high sentiment; browses Discover page gems</div>
+        <div class="step-touchpoint">/discover + / Database</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Gem scores surface quality games that deserve attention; demo filter saves time</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Reviews community health summary: Reddit growing, 3 Twitch streamers this week</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Community signals synthesized into a single health card with trend indicators</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Generates share card with one click; posts to r/HorrorGaming with formatted stats</div>
+        <div class="step-touchpoint">Share card generator</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Professional-looking share cards with Horror Radar branding drive both credibility and organic traffic</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Opens Watchlist to see updates on previously recommended games</div>
+        <div class="step-touchpoint">/watchlist</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Watchlist doubles as a recommendation log; weekly digest keeps her informed</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JOURNEY 4: GAMING JOURNALIST                                  -->
+<!-- ============================================================ -->
+<section id="journey-journalist">
+  <div class="section-header">
+    <span class="persona-tag tag-journalist">Gaming Journalist</span>
+    <h2>Alex Vasquez &mdash; Freelance Writer</h2>
+  </div>
+
+  <div class="journey-pair">
+    <div class="journey-label current">Current State</div>
+    <div class="journey-timeline">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Colleague shares a Horror Radar Trends page link in a Slack channel</div>
+        <div class="step-touchpoint">Slack / direct link</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F914;</span> <span class="emotion-neutral">Curious</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Link goes to top of Trends page; the specific insight that was shared is far down</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Section anchor links on Trends so colleagues can share specific sections</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Scrolls through Trends page; impressed by data depth but loses orientation</div>
+        <div class="step-touchpoint">/trends</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F610;</span> <span class="emotion-neutral">Neutral</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Very long page with no TOC or section navigation; has to scroll to find subgenre data</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Sticky sidebar TOC with section highlights as user scrolls</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Finds subgenre momentum data; wants to extract numbers for an article</div>
+        <div class="step-touchpoint">/trends</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F621;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No CSV export; has to screenshot charts or manually transcribe numbers</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Per-section CSV/JSON export button; "Copy as table" for markdown/text</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Clicks into specific breakout games to find narrative hooks for article</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Good detail but no "story summary" &mdash; has to piece together the narrative himself</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Auto-generated breakout narrative: "Released on X, hit Y reviews by day Z, covered by A and B"</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Writes article draft in Google Docs, manually citing Horror Radar data</div>
+        <div class="step-touchpoint">External / manual</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F612;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>Can't deep-link to specific data views; citations are fragile</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Permalink for any data view with timestamp; embeddable chart widgets</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Returns a month later for next article; can't compare to previous month's data</div>
+        <div class="step-touchpoint">/trends</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F621;</span> <span class="emotion-frustrated">Frustrated</span></div>
+        <div class="step-detail pain"><span class="label">Pain</span><p>No historical snapshots; only shows current state, no month-over-month</p></div>
+        <div class="step-detail opp"><span class="label">Opportunity</span><p>Date range selector on Trends; archive of weekly/monthly snapshots</p></div>
+      </div>
+    </div>
+
+    <div class="journey-label proposed">Proposed State</div>
+    <div class="journey-timeline proposed">
+      <div class="journey-step">
+        <div class="step-number">1</div>
+        <div class="step-phase">Discovery</div>
+        <div class="step-action">Colleague shares anchor link directly to "Subgenre Momentum" section</div>
+        <div class="step-touchpoint">/trends#subgenre-momentum</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Anchor links enable precise sharing; lands exactly on the relevant section</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">2</div>
+        <div class="step-phase">First Visit</div>
+        <div class="step-action">Sticky sidebar TOC shows all Trends sections; clicks to navigate instantly</div>
+        <div class="step-touchpoint">/trends</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>TOC provides orientation on long page; current section highlighted as user scrolls</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">3</div>
+        <div class="step-phase">Core Task</div>
+        <div class="step-action">Clicks "Export CSV" button next to subgenre chart; data downloads instantly</div>
+        <div class="step-touchpoint">/trends + CSV export</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Per-section export means he gets exactly the data he needs, formatted for analysis</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">4</div>
+        <div class="step-phase">Evaluation</div>
+        <div class="step-action">Reads auto-generated breakout narrative on game detail page</div>
+        <div class="step-touchpoint">/game/:appid</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x1F929;</span> <span class="emotion-delighted">Delighted</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Narrative summary provides the story angle; timeline visualizes the breakout arc</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">5</div>
+        <div class="step-phase">Action</div>
+        <div class="step-action">Copies permalink to Trends snapshot; embeds chart in article draft</div>
+        <div class="step-touchpoint">Permalink + embed</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Permalinks provide stable citations; embeddable widgets keep data live</p></div>
+      </div>
+      <div class="journey-step">
+        <div class="step-number">6</div>
+        <div class="step-phase">Return</div>
+        <div class="step-action">Sets Trends date range to compare April vs March; writes month-over-month piece</div>
+        <div class="step-touchpoint">/trends (date range)</div>
+        <div class="step-emotion"><span class="emotion-icon">&#x2705;</span> <span class="emotion-satisfied">Satisfied</span></div>
+        <div class="step-detail opp"><span class="label">Improvement</span><p>Historical comparison enables trend articles; archived data provides longitudinal view</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- NAVIGATION RESTRUCTURING                                      -->
+<!-- ============================================================ -->
+<section id="nav-restructure" class="nav-section">
+  <h2>Navigation Restructuring</h2>
+  <p class="intro">The current 4-page structure serves data exploration well but misses the discovery, comparison, and persistence workflows that all four personas need. The proposed navigation adds targeted entry points without abandoning the existing structure.</p>
+
+  <div class="nav-compare">
+    <!-- Current Nav -->
+    <div class="nav-box current">
+      <h3>Current Navigation (4 pages)</h3>
+      <div class="nav-items">
+        <div class="nav-item">
+          <div class="icon" style="background: var(--primary-soft);">&#x1F4CA;</div>
+          <div class="nav-text">
+            <div class="nav-name">Database</div>
+            <div class="nav-desc">Game table with filters, sorting, pagination</div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--secondary-soft);">&#x1F525;</div>
+          <div class="nav-text">
+            <div class="nav-name">Radar Pick</div>
+            <div class="nav-desc">Editorial spotlight on top OPS game</div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--tertiary-soft);">&#x1F4C8;</div>
+          <div class="nav-text">
+            <div class="nav-name">Trends</div>
+            <div class="nav-desc">Market intelligence dashboard (very long page)</div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--blue-soft);">&#x1F3AE;</div>
+          <div class="nav-text">
+            <div class="nav-name">Game Detail</div>
+            <div class="nav-desc">Per-game autopsy (accessed via click, not in nav)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposed Nav -->
+    <div class="nav-box proposed">
+      <h3>Proposed Navigation (6 pages + 2 utilities)</h3>
+      <div class="nav-items">
+        <div class="nav-item">
+          <div class="icon" style="background: var(--green-soft);">&#x1F50D;</div>
+          <div class="nav-text">
+            <div class="nav-name">Discover</div>
+            <div class="nav-desc">Blind spots, gems, creator opportunities, rising games</div>
+          </div>
+          <span class="nav-tag new">New</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--primary-soft);">&#x1F4CA;</div>
+          <div class="nav-text">
+            <div class="nav-name">Database</div>
+            <div class="nav-desc">Full game table with enhanced filters (demo, multiplayer, subgenre)</div>
+          </div>
+          <span class="nav-tag existing">Enhanced</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--secondary-soft);">&#x1F525;</div>
+          <div class="nav-text">
+            <div class="nav-name">Radar Pick</div>
+            <div class="nav-desc">Editorial spotlight with shareable Radar Pick cards</div>
+          </div>
+          <span class="nav-tag existing">Enhanced</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--tertiary-soft);">&#x1F4C8;</div>
+          <div class="nav-text">
+            <div class="nav-name">Trends</div>
+            <div class="nav-desc">Market intelligence with TOC, section anchors, date range selector</div>
+          </div>
+          <span class="nav-tag restructured">Restructured</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--amber-soft);">&#x2B50;</div>
+          <div class="nav-text">
+            <div class="nav-name">Watchlist</div>
+            <div class="nav-desc">Saved games with status tags, OPS trajectory, and alerts</div>
+          </div>
+          <span class="nav-tag new">New</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon" style="background: var(--blue-soft);">&#x1F3AE;</div>
+          <div class="nav-text">
+            <div class="nav-name">Game Detail</div>
+            <div class="nav-desc">Per-game autopsy with section nav, share card, breakout narrative</div>
+          </div>
+          <span class="nav-tag restructured">Restructured</span>
+        </div>
+        <div class="nav-item" style="opacity: 0.7;">
+          <div class="icon" style="background: var(--surface-hover);">&#x1F4E4;</div>
+          <div class="nav-text">
+            <div class="nav-name">Export (utility)</div>
+            <div class="nav-desc">CSV/JSON export from any data view; per-section on Trends</div>
+          </div>
+          <span class="nav-tag new">New</span>
+        </div>
+        <div class="nav-item" style="opacity: 0.7;">
+          <div class="icon" style="background: var(--surface-hover);">&#x1F517;</div>
+          <div class="nav-text">
+            <div class="nav-name">Share (utility)</div>
+            <div class="nav-desc">Share cards, permalinks, embeddable widgets</div>
+          </div>
+          <span class="nav-tag new">New</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- PERSONA FLOW MAPPING                                          -->
+<!-- ============================================================ -->
+<section id="persona-flows" class="flow-map" style="margin-bottom: 64px;">
+  <h3>Persona Primary Flows &rarr; Navigation</h3>
+  <p style="color: var(--text-mid); font-size: 0.9375rem; margin-bottom: 24px; max-width: 680px;">How each persona's primary workflow maps to the proposed navigation. Highlighted pages are the new or restructured touchpoints that directly address each persona's core need.</p>
+
+  <div class="flow-grid">
+    <!-- Creator Flow -->
+    <div class="flow-card">
+      <div class="flow-persona">Maya Kim &mdash; Content Creator</div>
+      <div class="flow-name">Daily Scouting Flow</div>
+      <div class="flow-primary">Primary need: Find high-quality games with low YouTube coverage</div>
+      <div class="flow-route" style="margin-top: 12px;">
+        <span class="flow-page highlight">Discover</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Game Detail</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Watchlist</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Alert</span>
+      </div>
+      <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 10px;">Discover page eliminates the need to manually cross-reference OPS with YouTube coverage. Watchlist alerts replace daily checking.</p>
+    </div>
+
+    <!-- Scout Flow -->
+    <div class="flow-card">
+      <div class="flow-persona">David Park &mdash; Publisher Scout</div>
+      <div class="flow-name">Weekly Scouting Pipeline</div>
+      <div class="flow-primary">Primary need: Compare game trajectories and export for CRM</div>
+      <div class="flow-route" style="margin-top: 12px;">
+        <span class="flow-page">Database</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Game Detail</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Compare</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Export</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Watchlist</span>
+      </div>
+      <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 10px;">Compare mode and CSV export feed directly into his existing CRM workflow. Watchlist tracks outreach status across weeks.</p>
+    </div>
+
+    <!-- Curator Flow -->
+    <div class="flow-card">
+      <div class="flow-persona">Rachel Jensen &mdash; Community Curator</div>
+      <div class="flow-name">Biweekly Recommendation Flow</div>
+      <div class="flow-primary">Primary need: Find quality games and share with community</div>
+      <div class="flow-route" style="margin-top: 12px;">
+        <span class="flow-page highlight">Discover</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Database</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Game Detail</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Share</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Watchlist</span>
+      </div>
+      <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 10px;">Share cards turn discovery into community content. Discover page surfaces gems. Watchlist serves as her recommendation history.</p>
+    </div>
+
+    <!-- Journalist Flow -->
+    <div class="flow-card">
+      <div class="flow-persona">Alex Vasquez &mdash; Gaming Journalist</div>
+      <div class="flow-name">Monthly Research Flow</div>
+      <div class="flow-primary">Primary need: Extract citable trend data and breakout narratives</div>
+      <div class="flow-route" style="margin-top: 12px;">
+        <span class="flow-page highlight">Trends</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page highlight">Export</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Game Detail</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-page">Radar Pick</span>
+      </div>
+      <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 10px;">Restructured Trends page with TOC and export enables his entire research workflow. Permalinks provide stable citations for articles.</p>
+    </div>
+  </div>
+</section>
+
+</div><!-- /.container -->
+
+<footer class="page-footer">
+  Horror Radar &middot; Information Architecture &middot; Customer Journeys &amp; Navigation &middot; April 2026
+</footer>
+
+</body>
+</html>

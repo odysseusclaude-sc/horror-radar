@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horror Radar — Radar Pick (Redesign Mockup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #111314;
+      --surface:      #1a1a1c;
+      --surface-hover: #222224;
+      --border:       #2a2420;
+      --border-light: #3a342e;
+      --primary:      #802626;
+      --primary-text: #c04040;
+      --primary-hover:#9a3333;
+      --secondary:    #bb7125;
+      --tertiary:     #a36aa5;
+      --text-main:    #e8e0d4;
+      --text-mid:     #a09080;
+      --text-dim:     #918377;
+      --status-green: #5ec269;
+      --status-amber: #e8a832;
+      --status-red:   #e25535;
+      --status-blue:  #6b9ddb;
+      --status-violet:#b07db2;
+
+      --ts-xs:   0.75rem;
+      --ts-sm:   0.875rem;
+      --ts-base: 1rem;
+      --ts-lg:   1.3125rem;
+      --ts-xl:   1.75rem;
+      --ts-2xl:  2.375rem;
+      --ts-3xl:  3.1875rem;
+
+      --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+      --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+      --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+
+      --font-display: 'Public Sans', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+      --font-serif:   'Playfair Display', Georgia, serif;
+    }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-display);
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .skip-link {
+      position: absolute; top: -100%; left: var(--sp-4);
+      background: var(--primary-text); color: var(--bg);
+      padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-md);
+      font-weight: 600; z-index: 1000; text-decoration: none;
+    }
+    .skip-link:focus { top: var(--sp-4); }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .site-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .site-logo {
+      display: flex; align-items: center; gap: var(--sp-3);
+      text-decoration: none; color: var(--text-main);
+    }
+    .site-logo-icon {
+      width: 28px; height: 28px; background: var(--primary);
+      border-radius: var(--radius-sm); display: flex;
+      align-items: center; justify-content: center; font-size: var(--ts-sm);
+    }
+    .site-logo-text { font-weight: 700; font-size: var(--ts-lg); letter-spacing: -0.5px; }
+    .site-logo-text span { color: var(--primary-text); }
+
+    .site-nav { display: flex; gap: var(--sp-1); }
+    .site-nav a {
+      color: var(--text-mid); text-decoration: none; font-size: var(--ts-sm);
+      font-weight: 500; padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-md); transition: color 0.15s, background 0.15s;
+    }
+    .site-nav a:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+    .site-nav a.active { color: var(--text-main); background: rgba(255,255,255,0.06); }
+    .site-nav a:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-3) var(--sp-6);
+      font-size: var(--ts-xs); color: var(--text-dim);
+    }
+    .breadcrumb a { color: var(--text-dim); text-decoration: none; transition: color 0.15s; }
+    .breadcrumb a:hover { color: var(--text-main); }
+    .breadcrumb-sep { opacity: 0.5; }
+    .breadcrumb-current { color: var(--text-mid); }
+
+    /* ============================================================
+       HERO
+       ============================================================ */
+    .hero {
+      position: relative;
+      background: linear-gradient(180deg, rgba(128,38,38,0.15) 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: var(--sp-10) var(--sp-6) var(--sp-8);
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(128,38,38,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--sp-5); position: relative; z-index: 1;
+      flex-wrap: wrap; gap: var(--sp-3);
+    }
+    .hero-label {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: var(--ts-xs); font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--secondary);
+      background: rgba(187,113,37,0.1); padding: var(--sp-1) var(--sp-3);
+      border-radius: 100px; border: 1px solid rgba(187,113,37,0.2);
+    }
+    .hero-actions {
+      display: flex; gap: var(--sp-2);
+    }
+    .hero-btn {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: var(--sp-2) var(--sp-3);
+      color: var(--text-mid); font-family: var(--font-display);
+      font-size: var(--ts-xs); font-weight: 500;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .hero-btn:hover { color: var(--text-main); border-color: var(--text-dim); }
+    .hero-btn:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .hero-content { position: relative; z-index: 1; }
+
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: var(--ts-3xl);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: var(--sp-3);
+      max-width: 700px;
+    }
+    .hero-developer {
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+      margin-bottom: var(--sp-5);
+    }
+    .hero-developer a {
+      color: var(--primary-text); text-decoration: none;
+    }
+    .hero-developer a:hover { text-decoration: underline; }
+
+    .hero-ops-row {
+      display: flex; align-items: center; gap: var(--sp-5);
+      flex-wrap: wrap;
+    }
+    .hero-ops-score {
+      display: flex; align-items: baseline; gap: var(--sp-2);
+    }
+    .hero-ops-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-3xl);
+      font-weight: 600;
+      color: var(--status-green);
+      line-height: 1;
+    }
+    .hero-ops-label {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--text-dim);
+    }
+    .hero-tier-badge {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      font-weight: 600;
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--radius-sm);
+      background: rgba(94,194,105,0.12);
+      color: var(--status-green);
+      letter-spacing: 0.5px;
+    }
+    .hero-percentile {
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+    }
+    .hero-percentile strong {
+      color: var(--secondary);
+      font-family: var(--font-mono);
+    }
+    .hero-conf {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: rgba(94,194,105,0.12);
+      color: var(--status-green);
+      font-weight: 500;
+    }
+
+    .hero-summary {
+      margin-top: var(--sp-5);
+      font-size: var(--ts-base);
+      color: var(--text-mid);
+      max-width: 640px;
+      line-height: 1.7;
+      border-left: 3px solid var(--secondary);
+      padding-left: var(--sp-4);
+    }
+    .hero-summary strong { color: var(--text-main); font-weight: 600; }
+
+    .hero-meta-row {
+      display: flex; gap: var(--sp-4); margin-top: var(--sp-5); flex-wrap: wrap;
+    }
+    .hero-meta-chip {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: var(--ts-xs); color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 100px; padding: var(--sp-1) var(--sp-3);
+    }
+    .hero-meta-chip .icon { font-size: var(--ts-sm); }
+    .hero-meta-chip strong { color: var(--text-main); font-weight: 500; }
+
+    /* ============================================================
+       METRICS
+       ============================================================ */
+    .section-title {
+      font-size: var(--ts-lg);
+      font-weight: 700;
+      margin-bottom: var(--sp-4);
+      padding: 0 var(--sp-6);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .section-title .icon { color: var(--secondary); font-size: var(--ts-base); }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--sp-4);
+      padding: 0 var(--sp-6) var(--sp-8);
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      transition: border-color 0.2s;
+    }
+    .metric-card:hover { border-color: var(--border-light); }
+    .metric-header {
+      display: flex; align-items: center; gap: var(--sp-2);
+      margin-bottom: var(--sp-3);
+    }
+    .metric-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--ts-base);
+    }
+    .metric-icon.reviews { background: rgba(94,194,105,0.1); color: var(--status-green); }
+    .metric-icon.ccu     { background: rgba(107,157,219,0.1); color: var(--status-blue); }
+    .metric-icon.youtube  { background: rgba(226,85,53,0.1); color: var(--status-red); }
+    .metric-icon.price   { background: rgba(187,113,37,0.1); color: var(--secondary); }
+    .metric-icon.demo    { background: rgba(176,125,178,0.1); color: var(--status-violet); }
+    .metric-icon.age     { background: rgba(232,168,50,0.1); color: var(--status-amber); }
+
+    .metric-label {
+      font-size: var(--ts-xs); color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+    }
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xl);
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: var(--sp-1);
+    }
+    .metric-context {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .metric-context strong { color: var(--status-green); font-weight: 500; }
+    .metric-context .amber { color: var(--status-amber); }
+
+    /* ============================================================
+       SIGNAL EVIDENCE
+       ============================================================ */
+    .evidence-section {
+      padding: var(--sp-4) var(--sp-6) var(--sp-8);
+    }
+    .evidence-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--sp-4); flex-wrap: wrap; gap: var(--sp-2);
+    }
+    .evidence-title {
+      font-size: var(--ts-lg); font-weight: 700;
+      display: flex; align-items: center; gap: var(--sp-2);
+    }
+    .evidence-title .icon { color: var(--secondary); }
+    .evidence-count {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 2px var(--sp-3);
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--sp-4);
+    }
+    .evidence-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      position: relative;
+    }
+    .evidence-card-num {
+      position: absolute;
+      top: var(--sp-3); right: var(--sp-3);
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .evidence-card-type {
+      font-size: var(--ts-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--sp-2);
+    }
+    .evidence-card-type.youtube { color: var(--status-red); }
+    .evidence-card-type.steam   { color: var(--status-blue); }
+    .evidence-card-type.community { color: var(--status-violet); }
+
+    .evidence-card-title {
+      font-size: var(--ts-sm);
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: var(--sp-2);
+    }
+    .evidence-card-body {
+      font-size: var(--ts-xs);
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+    .evidence-card-body strong { color: var(--text-main); font-weight: 500; }
+    .evidence-card-confidence {
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      margin-top: var(--sp-3);
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    .evidence-card-confidence.strong {
+      background: rgba(94,194,105,0.1);
+      color: var(--status-green);
+    }
+    .evidence-card-confidence.moderate {
+      background: rgba(232,168,50,0.1);
+      color: var(--status-amber);
+    }
+
+    /* ============================================================
+       OPS ANATOMY
+       ============================================================ */
+    .anatomy-section {
+      padding: var(--sp-4) var(--sp-6) var(--sp-8);
+    }
+    .anatomy-title {
+      font-size: var(--ts-lg); font-weight: 700;
+      margin-bottom: var(--sp-2);
+      display: flex; align-items: center; gap: var(--sp-2);
+    }
+    .anatomy-title .icon { color: var(--secondary); }
+    .anatomy-desc {
+      font-size: var(--ts-sm); color: var(--text-mid);
+      margin-bottom: var(--sp-5); max-width: 560px;
+    }
+
+    .anatomy-bars {
+      display: flex; flex-direction: column; gap: var(--sp-4);
+      max-width: 600px;
+    }
+    .anatomy-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 60px;
+      gap: var(--sp-3);
+      align-items: center;
+    }
+    .anatomy-label {
+      font-size: var(--ts-sm); font-weight: 600; color: var(--text-main);
+    }
+    .anatomy-label-sub {
+      font-size: 10px; color: var(--text-dim); font-weight: 400;
+    }
+    .anatomy-bar-track {
+      height: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .anatomy-bar-fill {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      border-radius: var(--radius-sm);
+      transition: width 0.6s ease;
+    }
+    .anatomy-bar-fill.velocity { background: linear-gradient(90deg, var(--status-green), rgba(94,194,105,0.6)); }
+    .anatomy-bar-fill.decay    { background: linear-gradient(90deg, var(--status-amber), rgba(232,168,50,0.6)); }
+    .anatomy-bar-fill.reviews  { background: linear-gradient(90deg, var(--status-blue), rgba(107,157,219,0.6)); }
+    .anatomy-bar-fill.youtube  { background: linear-gradient(90deg, var(--status-red), rgba(226,85,53,0.6)); }
+    .anatomy-bar-fill.ccu      { background: linear-gradient(90deg, var(--status-violet), rgba(176,125,178,0.6)); }
+
+    .anatomy-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--text-main);
+      text-align: right;
+    }
+    .anatomy-value .max { color: var(--text-dim); }
+
+    .anatomy-total {
+      margin-top: var(--sp-5);
+      padding-top: var(--sp-4);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--sp-4);
+      font-size: var(--ts-sm);
+    }
+    .anatomy-total-label { color: var(--text-mid); font-weight: 600; }
+    .anatomy-total-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xl);
+      font-weight: 600;
+      color: var(--status-green);
+    }
+    .anatomy-total-formula {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    /* ============================================================
+       TRAJECTORY CHART (CSS mockup)
+       ============================================================ */
+    .trajectory-section {
+      padding: var(--sp-4) var(--sp-6) var(--sp-8);
+    }
+    .trajectory-title {
+      font-size: var(--ts-lg); font-weight: 700;
+      margin-bottom: var(--sp-4);
+      display: flex; align-items: center; gap: var(--sp-2);
+    }
+    .trajectory-title .icon { color: var(--secondary); }
+
+    .trajectory-chart {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+    .chart-y-axis {
+      position: absolute; left: var(--sp-3); top: var(--sp-4); bottom: var(--sp-8);
+      display: flex; flex-direction: column; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    }
+    .chart-x-axis {
+      position: absolute; bottom: var(--sp-2); left: var(--sp-10); right: var(--sp-4);
+      display: flex; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    }
+    .chart-grid {
+      position: absolute;
+      left: var(--sp-10); right: var(--sp-4); top: var(--sp-4); bottom: var(--sp-8);
+    }
+    .chart-grid-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 1px solid rgba(42,36,32,0.5);
+    }
+    /* SVG line path mockup */
+    .chart-svg {
+      position: absolute;
+      left: var(--sp-10); right: var(--sp-4); top: var(--sp-4); bottom: var(--sp-8);
+    }
+    .chart-svg svg { width: 100%; height: 100%; }
+    .chart-zoom-hint {
+      position: absolute; bottom: var(--sp-8); right: var(--sp-4);
+      font-size: 10px; color: var(--text-dim);
+      background: rgba(26,26,28,0.9);
+      padding: 2px var(--sp-2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--sp-1);
+    }
+
+    /* ============================================================
+       PREVIOUS PICKS
+       ============================================================ */
+    .picks-section {
+      padding: var(--sp-4) var(--sp-6) var(--sp-8);
+    }
+    .picks-title {
+      font-size: var(--ts-lg); font-weight: 700;
+      margin-bottom: var(--sp-4);
+      display: flex; align-items: center; gap: var(--sp-2);
+    }
+    .picks-title .icon { color: var(--secondary); }
+
+    .picks-list {
+      display: flex; flex-direction: column; gap: var(--sp-2);
+    }
+    .pick-row {
+      display: flex; align-items: center; gap: var(--sp-4);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4) var(--sp-5);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .pick-row:hover { border-color: var(--border-light); background: var(--surface-hover); }
+    .pick-row:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .pick-rank {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      width: 20px; text-align: center;
+      flex-shrink: 0;
+    }
+    .pick-thumb {
+      width: 40px; height: 40px;
+      background: var(--border);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--ts-xs); color: var(--text-dim);
+    }
+    .pick-info { flex: 1; min-width: 0; }
+    .pick-name {
+      font-weight: 600; font-size: var(--ts-sm);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pick-meta {
+      font-size: var(--ts-xs); color: var(--text-dim);
+      display: flex; gap: var(--sp-3); flex-wrap: wrap;
+    }
+    .pick-ops {
+      font-family: var(--font-mono); font-size: var(--ts-sm); font-weight: 600;
+      flex-shrink: 0;
+    }
+    .pick-ops.high { color: var(--status-green); }
+    .pick-ops.mid  { color: var(--status-amber); }
+
+    .pick-status {
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      font-family: var(--font-mono);
+      font-size: 10px; font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .pick-status.climbing {
+      background: rgba(94,194,105,0.1); color: var(--status-green);
+    }
+    .pick-status.steady {
+      background: rgba(232,168,50,0.1); color: var(--status-amber);
+    }
+    .pick-status.peaked {
+      background: rgba(226,85,53,0.1); color: var(--status-red);
+    }
+    .pick-status-icon { font-size: var(--ts-sm); }
+
+    .pick-chevron {
+      color: var(--text-dim); font-size: var(--ts-base); flex-shrink: 0;
+      transition: color 0.15s, transform 0.15s;
+    }
+    .pick-row:hover .pick-chevron { color: var(--text-main); transform: translateX(2px); }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-6);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: var(--ts-xs); color: var(--text-dim);
+      flex-wrap: wrap; gap: var(--sp-2);
+    }
+    .footer-left, .footer-right { display: flex; align-items: center; gap: var(--sp-4); }
+    .footer-status { display: flex; align-items: center; gap: var(--sp-2); }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--status-green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* ============================================================
+       MOCKUP NOTE
+       ============================================================ */
+    .mockup-meta {
+      background: rgba(187,113,37,0.08);
+      border: 1px dashed var(--secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4) var(--sp-6);
+      margin: var(--sp-6);
+      font-size: var(--ts-xs); color: var(--secondary);
+    }
+    .mockup-meta h3 { font-size: var(--ts-sm); margin-bottom: var(--sp-2); }
+    .mockup-meta ul { padding-left: var(--sp-5); }
+    .mockup-meta li { margin-bottom: var(--sp-1); }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 768px) {
+      .site-nav { display: none; }
+      .site-header { padding: var(--sp-3) var(--sp-4); }
+      .breadcrumb { padding: var(--sp-2) var(--sp-4); }
+      .hero { padding: var(--sp-6) var(--sp-4) var(--sp-5); }
+      .hero-title { font-size: var(--ts-2xl); }
+      .hero-ops-value { font-size: var(--ts-2xl); }
+      .section-title { padding: 0 var(--sp-4); }
+      .metrics-grid { padding: 0 var(--sp-4) var(--sp-6); grid-template-columns: 1fr 1fr; }
+      .evidence-section { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
+      .evidence-grid { grid-template-columns: 1fr; }
+      .anatomy-section { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
+      .anatomy-row { grid-template-columns: 80px 1fr 50px; }
+      .trajectory-section { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
+      .picks-section { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
+      .site-footer { padding: var(--sp-2) var(--sp-4); }
+    }
+    @media (max-width: 480px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .hero-ops-row { flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+      .hero-meta-row { flex-direction: column; }
+      .hero-actions { width: 100%; }
+      .hero-btn { flex: 1; justify-content: center; }
+    }
+    @media (min-width: 1280px) {
+      .site-header { padding: var(--sp-4) var(--sp-10); }
+      .breadcrumb { padding: var(--sp-3) var(--sp-10); }
+      .hero { padding: var(--sp-12) var(--sp-10) var(--sp-10); }
+      .section-title { padding: 0 var(--sp-10); }
+      .metrics-grid { padding: 0 var(--sp-10) var(--sp-8); }
+      .evidence-section { padding: var(--sp-4) var(--sp-10) var(--sp-8); }
+      .anatomy-section { padding: var(--sp-4) var(--sp-10) var(--sp-8); }
+      .trajectory-section { padding: var(--sp-4) var(--sp-10) var(--sp-8); }
+      .picks-section { padding: var(--sp-4) var(--sp-10) var(--sp-8); }
+      .site-footer { padding: var(--sp-3) var(--sp-10); }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- HEADER -->
+  <header class="site-header" role="banner">
+    <a href="#" class="site-logo" aria-label="Horror Radar home">
+      <div class="site-logo-icon" aria-hidden="true">&#x1F56E;</div>
+      <div class="site-logo-text">Horror<span>Radar</span></div>
+    </a>
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <a href="#">Database</a>
+      <a href="#" class="active" aria-current="page">Radar Pick</a>
+      <a href="#">Trends</a>
+      <a href="#">Discover</a>
+    </nav>
+  </header>
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="#">Database</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current" aria-current="page">Radar Pick</span>
+  </nav>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         HERO
+         ============================================================ -->
+    <section class="hero" aria-label="Featured game">
+      <div class="hero-top-bar">
+        <div class="hero-label">
+          <span aria-hidden="true">&#x1F4E1;</span>
+          Signal Fire &mdash; This Week's Pick
+        </div>
+        <div class="hero-actions">
+          <button class="hero-btn" aria-label="Copy link to this page">
+            <span aria-hidden="true">&#x1F517;</span> Copy Link
+          </button>
+          <button class="hero-btn" aria-label="Export summary as text">
+            <span aria-hidden="true">&#x1F4CB;</span> Export Summary
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-content">
+        <h1 class="hero-title">Hollowfield</h1>
+        <p class="hero-developer">
+          by <a href="#">Dread Works Studio</a> &middot; Psychological Horror
+        </p>
+
+        <div class="hero-ops-row">
+          <div class="hero-ops-score">
+            <span class="hero-ops-value">78</span>
+            <span class="hero-ops-label">OPS</span>
+          </div>
+          <span class="hero-tier-badge">BREAKOUT</span>
+          <span class="hero-conf">HIGH confidence</span>
+          <span class="hero-percentile"><strong>94th</strong> percentile</span>
+        </div>
+
+        <div class="hero-summary">
+          <strong>Hollowfield is outperforming 94% of indie horror releases this quarter.</strong>
+          In just 12 days, it has accumulated reviews at 3.5x the median rate for its price tier,
+          attracted coverage from 3 major YouTube creators, and sustained strong concurrent player
+          numbers well past the typical launch-day spike.
+        </div>
+
+        <div class="hero-meta-row">
+          <span class="hero-meta-chip">
+            <span class="icon" aria-hidden="true">&#x1F4B0;</span>
+            <strong>$14.99</strong>
+          </span>
+          <span class="hero-meta-chip">
+            <span class="icon" aria-hidden="true">&#x1F4C5;</span>
+            <strong>12 days</strong> since launch
+          </span>
+          <span class="hero-meta-chip">
+            <span class="icon" aria-hidden="true">&#x1F3AE;</span>
+            Demo available
+          </span>
+          <span class="hero-meta-chip">
+            <span class="icon" aria-hidden="true">&#x2B50;</span>
+            <strong>92%</strong> positive
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         METRIC TILES
+         ============================================================ -->
+    <h2 class="section-title" style="margin-top: var(--sp-6);">
+      <span class="icon" aria-hidden="true">&#x1F4CA;</span>
+      Key Metrics
+    </h2>
+    <div class="metrics-grid">
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon reviews" aria-hidden="true">&#x2B50;</div>
+          <span class="metric-label">Reviews</span>
+        </div>
+        <div class="metric-value">42</div>
+        <p class="metric-context">
+          <strong>3.5x the median</strong> for the $10-20 price tier at 12 days.
+          92% positive review ratio.
+        </p>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon ccu" aria-hidden="true">&#x1F3AE;</div>
+          <span class="metric-label">Peak CCU</span>
+        </div>
+        <div class="metric-value">156</div>
+        <p class="metric-context">
+          <strong>2.4x peer median</strong> concurrent players. Still elevated 12 days post-launch (typical decay is 7 days).
+        </p>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon youtube" aria-hidden="true">&#x25B6;</div>
+          <span class="metric-label">YouTube Coverage</span>
+        </div>
+        <div class="metric-value">3 creators</div>
+        <p class="metric-context">
+          IGP (4.2M subs), Insym (2.1M subs), CJUGames (450K subs). Combined reach: <strong>6.75M subscribers</strong>.
+        </p>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon price" aria-hidden="true">&#x1F4B0;</div>
+          <span class="metric-label">Price Tier</span>
+        </div>
+        <div class="metric-value">$14.99</div>
+        <p class="metric-context">
+          Mid-range pricing. Review volume modifier: <span class="amber">1.15x</span> (reviews are weighted higher for paid games).
+        </p>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon demo" aria-hidden="true">&#x1F579;</div>
+          <span class="metric-label">Demo Performance</span>
+        </div>
+        <div class="metric-value">94%</div>
+        <p class="metric-context">
+          28 demo reviews at 94% positive. Demo-to-purchase conversion signal is <strong>strong</strong>.
+        </p>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon age" aria-hidden="true">&#x23F1;</div>
+          <span class="metric-label">Launch Velocity</span>
+        </div>
+        <div class="metric-value">3.5/day</div>
+        <p class="metric-context">
+          Average reviews per day across first 12 days. Week 1 median is 1.14/day &mdash; this is <strong>3.1x above</strong>.
+        </p>
+      </article>
+    </div>
+
+    <!-- ============================================================
+         SIGNAL EVIDENCE
+         ============================================================ -->
+    <section class="evidence-section" aria-label="Signal evidence">
+      <div class="evidence-header">
+        <h2 class="evidence-title">
+          <span class="icon" aria-hidden="true">&#x1F50D;</span>
+          Signal Evidence
+        </h2>
+        <span class="evidence-count">4 of 5 signals available</span>
+      </div>
+
+      <div class="evidence-grid">
+        <article class="evidence-card">
+          <span class="evidence-card-num">1</span>
+          <div class="evidence-card-type youtube">YouTube</div>
+          <h3 class="evidence-card-title">IGP published a dedicated video (Day 3)</h3>
+          <p class="evidence-card-body">
+            IGP (<strong>4.2M subscribers</strong>) posted a 32-minute playthrough on Day 3 post-launch.
+            The video reached <strong>180K views</strong> in 48 hours, a 0.043 views-to-subscriber ratio
+            (above the 0.074 channel median threshold).
+          </p>
+          <span class="evidence-card-confidence strong">STRONG signal</span>
+        </article>
+
+        <article class="evidence-card">
+          <span class="evidence-card-num">2</span>
+          <div class="evidence-card-type youtube">YouTube</div>
+          <h3 class="evidence-card-title">Insym and CJUGames followed (Days 5-7)</h3>
+          <p class="evidence-card-body">
+            Two additional tracked creators covered the game within the first week. Insym (<strong>2.1M subs</strong>)
+            and CJUGames (<strong>450K subs</strong>) both posted full playthroughs, confirming multi-creator
+            interest beyond a single influencer push.
+          </p>
+          <span class="evidence-card-confidence strong">STRONG signal</span>
+        </article>
+
+        <article class="evidence-card">
+          <span class="evidence-card-num">3</span>
+          <div class="evidence-card-type steam">Steam</div>
+          <h3 class="evidence-card-title">Review velocity sustained past Day 7</h3>
+          <p class="evidence-card-body">
+            Most indie horror games see review velocity drop <strong>8x</strong> after launch week (1.14/day to 0.14/day median).
+            Hollowfield maintained <strong>2.8 reviews/day</strong> into Day 12, suggesting organic discovery
+            beyond the initial creator push.
+          </p>
+          <span class="evidence-card-confidence strong">STRONG signal</span>
+        </article>
+
+        <article class="evidence-card">
+          <span class="evidence-card-num">4</span>
+          <div class="evidence-card-type community">Community</div>
+          <h3 class="evidence-card-title">Reddit traction in r/HorrorGaming</h3>
+          <p class="evidence-card-body">
+            A discussion post in r/HorrorGaming reached <strong>89 upvotes</strong> and <strong>23 comments</strong>
+            on Day 6. The community sentiment is positive, with multiple commenters comparing
+            it to other recent psychological horror breakouts.
+          </p>
+          <span class="evidence-card-confidence moderate">MODERATE signal</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         OPS ANATOMY
+         ============================================================ -->
+    <section class="anatomy-section" aria-label="OPS score breakdown">
+      <h2 class="anatomy-title">
+        <span class="icon" aria-hidden="true">&#x1F9EC;</span>
+        OPS Anatomy
+      </h2>
+      <p class="anatomy-desc">
+        How each component contributes to Hollowfield's OPS of 78. Bars show value relative to maximum cap.
+      </p>
+
+      <div class="anatomy-bars" role="list">
+        <div class="anatomy-row" role="listitem">
+          <div>
+            <div class="anatomy-label">Velocity</div>
+            <div class="anatomy-label-sub">35% weight</div>
+          </div>
+          <div class="anatomy-bar-track" role="progressbar" aria-valuenow="3.8" aria-valuemin="0" aria-valuemax="5.0" aria-label="Velocity: 3.8 of 5.0">
+            <div class="anatomy-bar-fill velocity" style="width: 76%;"></div>
+          </div>
+          <div class="anatomy-value">3.8 <span class="max">/ 5.0</span></div>
+        </div>
+
+        <div class="anatomy-row" role="listitem">
+          <div>
+            <div class="anatomy-label">Decay</div>
+            <div class="anatomy-label-sub">20% weight</div>
+          </div>
+          <div class="anatomy-bar-track" role="progressbar" aria-valuenow="1.6" aria-valuemin="0" aria-valuemax="2.0" aria-label="Decay retention: 1.6 of 2.0">
+            <div class="anatomy-bar-fill decay" style="width: 80%;"></div>
+          </div>
+          <div class="anatomy-value">1.6 <span class="max">/ 2.0</span></div>
+        </div>
+
+        <div class="anatomy-row" role="listitem">
+          <div>
+            <div class="anatomy-label">Reviews</div>
+            <div class="anatomy-label-sub">15% weight</div>
+          </div>
+          <div class="anatomy-bar-track" role="progressbar" aria-valuenow="2.1" aria-valuemin="0" aria-valuemax="5.0" aria-label="Reviews: 2.1 of 5.0">
+            <div class="anatomy-bar-fill reviews" style="width: 42%;"></div>
+          </div>
+          <div class="anatomy-value">2.1 <span class="max">/ 5.0</span></div>
+        </div>
+
+        <div class="anatomy-row" role="listitem">
+          <div>
+            <div class="anatomy-label">YouTube</div>
+            <div class="anatomy-label-sub">15% weight</div>
+          </div>
+          <div class="anatomy-bar-track" role="progressbar" aria-valuenow="1.2" aria-valuemin="0" aria-valuemax="2.0" aria-label="YouTube: 1.2 of 2.0">
+            <div class="anatomy-bar-fill youtube" style="width: 60%;"></div>
+          </div>
+          <div class="anatomy-value">1.2 <span class="max">/ 2.0</span></div>
+        </div>
+
+        <div class="anatomy-row" role="listitem">
+          <div>
+            <div class="anatomy-label">CCU</div>
+            <div class="anatomy-label-sub">15% weight</div>
+          </div>
+          <div class="anatomy-bar-track" role="progressbar" aria-valuenow="2.4" aria-valuemin="0" aria-valuemax="5.0" aria-label="CCU: 2.4 of 5.0">
+            <div class="anatomy-bar-fill ccu" style="width: 48%;"></div>
+          </div>
+          <div class="anatomy-value">2.4 <span class="max">/ 5.0</span></div>
+        </div>
+      </div>
+
+      <div class="anatomy-total">
+        <span class="anatomy-total-label">Final Score</span>
+        <span class="anatomy-total-value">78</span>
+        <span class="anatomy-total-formula">5/5 components &middot; no coverage penalty</span>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TRAJECTORY CHART
+         ============================================================ -->
+    <section class="trajectory-section" aria-label="OPS trajectory">
+      <h2 class="trajectory-title">
+        <span class="icon" aria-hidden="true">&#x1F4C8;</span>
+        OPS Trajectory
+      </h2>
+
+      <div class="trajectory-chart" role="img" aria-label="Line chart showing OPS score over 12 days, rising from 15 to 78">
+        <!-- Y axis -->
+        <div class="chart-y-axis">
+          <span>100</span>
+          <span>75</span>
+          <span>50</span>
+          <span>25</span>
+          <span>0</span>
+        </div>
+        <!-- Grid lines -->
+        <div class="chart-grid">
+          <div class="chart-grid-line" style="top: 0%;"></div>
+          <div class="chart-grid-line" style="top: 25%;"></div>
+          <div class="chart-grid-line" style="top: 50%;"></div>
+          <div class="chart-grid-line" style="top: 75%;"></div>
+          <div class="chart-grid-line" style="top: 100%;"></div>
+        </div>
+        <!-- SVG line -->
+        <div class="chart-svg">
+          <svg viewBox="0 0 500 140" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(94,194,105,0.3)"/>
+                <stop offset="100%" stop-color="rgba(94,194,105,0)"/>
+              </linearGradient>
+            </defs>
+            <!-- Area fill -->
+            <path d="M0,119 L42,112 L83,98 L125,84 L167,77 L208,63 L250,49 L292,42 L333,35 L375,33 L417,31 L458,30 L500,28 L500,140 L0,140 Z" fill="url(#lineGrad)"/>
+            <!-- Line -->
+            <polyline points="0,119 42,112 83,98 125,84 167,77 208,63 250,49 292,42 333,35 375,33 417,31 458,30 500,28"
+              fill="none" stroke="#5ec269" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Dots -->
+            <circle cx="0" cy="119" r="3" fill="#5ec269"/>
+            <circle cx="125" cy="84" r="3" fill="#5ec269"/>
+            <circle cx="250" cy="49" r="3" fill="#5ec269"/>
+            <circle cx="375" cy="33" r="3" fill="#5ec269"/>
+            <circle cx="500" cy="28" r="4" fill="#5ec269" stroke="#111314" stroke-width="2"/>
+          </svg>
+        </div>
+        <!-- X axis -->
+        <div class="chart-x-axis">
+          <span>Day 1</span>
+          <span>Day 3</span>
+          <span>Day 5</span>
+          <span>Day 7</span>
+          <span>Day 9</span>
+          <span>Day 12</span>
+        </div>
+        <!-- Zoom hint -->
+        <div class="chart-zoom-hint">
+          <span aria-hidden="true">&#x1F50D;</span> Drag to zoom
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PREVIOUS PICKS
+         ============================================================ -->
+    <section class="picks-section" aria-label="Previous radar picks">
+      <h2 class="picks-title">
+        <span class="icon" aria-hidden="true">&#x1F4DC;</span>
+        Previous Picks
+      </h2>
+
+      <div class="picks-list" role="list">
+        <a href="#" class="pick-row" role="listitem">
+          <span class="pick-rank">#2</span>
+          <div class="pick-thumb" aria-hidden="true">SS</div>
+          <div class="pick-info">
+            <div class="pick-name">The Stalking Stairs</div>
+            <div class="pick-meta">
+              <span>Pixel Haunt Games</span>
+              <span>23 days</span>
+              <span>156 reviews</span>
+            </div>
+          </div>
+          <span class="pick-ops high">65</span>
+          <span class="pick-status climbing">
+            <span class="pick-status-icon" aria-hidden="true">&#x2191;</span> Climbing
+          </span>
+          <span class="pick-chevron" aria-hidden="true">&#x203A;</span>
+        </a>
+
+        <a href="#" class="pick-row" role="listitem">
+          <span class="pick-rank">#3</span>
+          <div class="pick-thumb" aria-hidden="true">WE</div>
+          <div class="pick-info">
+            <div class="pick-name">Whispers of the Eyeless</div>
+            <div class="pick-meta">
+              <span>Void Interactive</span>
+              <span>31 days</span>
+              <span>89 reviews</span>
+            </div>
+          </div>
+          <span class="pick-ops mid">55</span>
+          <span class="pick-status steady">
+            <span class="pick-status-icon" aria-hidden="true">&#x2192;</span> Steady
+          </span>
+          <span class="pick-chevron" aria-hidden="true">&#x203A;</span>
+        </a>
+
+        <a href="#" class="pick-row" role="listitem">
+          <span class="pick-rank">#4</span>
+          <div class="pick-thumb" aria-hidden="true">NJ</div>
+          <div class="pick-info">
+            <div class="pick-name">Nightjar</div>
+            <div class="pick-meta">
+              <span>Abyssal Studios</span>
+              <span>5 days</span>
+              <span>28 reviews</span>
+            </div>
+          </div>
+          <span class="pick-ops mid">41</span>
+          <span class="pick-status climbing">
+            <span class="pick-status-icon" aria-hidden="true">&#x2191;</span> Climbing
+          </span>
+          <span class="pick-chevron" aria-hidden="true">&#x203A;</span>
+        </a>
+
+        <a href="#" class="pick-row" role="listitem">
+          <span class="pick-rank">#5</span>
+          <div class="pick-thumb" aria-hidden="true">DP</div>
+          <div class="pick-info">
+            <div class="pick-name">Dispatch</div>
+            <div class="pick-meta">
+              <span>Terminal Echo</span>
+              <span>67 days</span>
+              <span>312 reviews</span>
+            </div>
+          </div>
+          <span class="pick-ops mid">22</span>
+          <span class="pick-status peaked">
+            <span class="pick-status-icon" aria-hidden="true">&#x2193;</span> Peaked
+          </span>
+          <span class="pick-chevron" aria-hidden="true">&#x203A;</span>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-left">
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Active Scrapers: <strong style="color:var(--text-main);">10/12</strong></span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Last Sync: <strong style="color:var(--text-main);">4 min ago</strong></span>
+      </div>
+      <span style="color:var(--text-dim);">v4.0 &middot; OPS v4</span>
+    </div>
+  </footer>
+
+  <!-- MOCKUP NOTE -->
+  <aside class="mockup-meta" aria-label="Design notes">
+    <h3>Design Mockup Notes &mdash; Radar Pick (Signal Fire)</h3>
+    <ul>
+      <li><strong>Hero:</strong> Responsive layout, no fixed pixel widths. OPS score + tier + confidence shown prominently.</li>
+      <li><strong>OPS context:</strong> Inline editorial summary explains what OPS 78 means for THIS game (94th percentile, 3.5x median), not just raw numbers.</li>
+      <li><strong>Metric tiles:</strong> Each metric has an icon + contextual explanation comparing to peer medians ("42 reviews in 12 days is 3.5x the median").</li>
+      <li><strong>Evidence blocks:</strong> Card layout with type labels (YOUTUBE/STEAM/COMMUNITY), numbered badges, severity indicators (STRONG/MODERATE signal).</li>
+      <li><strong>"4 of 5 signals available":</strong> Header shows signal coverage count so users know data completeness.</li>
+      <li><strong>OPS Anatomy:</strong> Horizontal bar chart with label, value/max, and percentage fill. Clear visual mapping of each component's contribution.</li>
+      <li><strong>Trajectory chart:</strong> CSS+SVG line chart with "Drag to zoom" hint addressing D-11 (invisible brush/zoom).</li>
+      <li><strong>Previous Picks:</strong> Right chevron for click affordance (D-06). Status icons alongside text: up-arrow Climbing, right-arrow Steady, down-arrow Peaked.</li>
+      <li><strong>Share:</strong> "Copy Link" and "Export Summary" buttons in hero area for journalist persona.</li>
+      <li><strong>Breadcrumb:</strong> "Database > Radar Pick" navigation (CM-04).</li>
+      <li><strong>Accessibility:</strong> Skip link, semantic HTML, aria-labels, focus-visible outlines, corrected colors.</li>
+    </ul>
+  </aside>
+
+</body>
+</html>

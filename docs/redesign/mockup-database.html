@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horror Radar — Database (Redesign Mockup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Occult Amber palette */
+      --bg:           #111314;
+      --surface:      #1a1a1c;
+      --surface-hover: #222224;
+      --border:       #2a2420;
+      --border-light: #3a342e;
+      --primary:      #802626;
+      --primary-text: #c04040;
+      --primary-hover:#9a3333;
+      --secondary:    #bb7125;
+      --tertiary:     #a36aa5;
+      --text-main:    #e8e0d4;
+      --text-mid:     #a09080;
+      --text-dim:     #918377;
+      --status-green: #5ec269;
+      --status-amber: #e8a832;
+      --status-red:   #e25535;
+      --status-blue:  #6b9ddb;
+      --status-violet:#b07db2;
+
+      /* Type scale — major fourths */
+      --ts-xs:   0.75rem;   /* 12px */
+      --ts-sm:   0.875rem;  /* 14px */
+      --ts-base: 1rem;      /* 16px */
+      --ts-lg:   1.3125rem; /* 21px */
+      --ts-xl:   1.75rem;   /* 28px */
+      --ts-2xl:  2.375rem;  /* 38px */
+      --ts-3xl:  3.1875rem; /* 51px */
+
+      /* Spacing */
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 24px;
+      --sp-8: 32px;
+      --sp-10: 40px;
+      --sp-12: 48px;
+
+      /* Radius */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+
+      /* Fonts */
+      --font-display: 'Public Sans', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+      --font-serif:   'Playfair Display', Georgia, serif;
+    }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-display);
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Skip navigation */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: var(--sp-4);
+      background: var(--primary-text);
+      color: var(--bg);
+      padding: var(--sp-2) var(--sp-4);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      z-index: 1000;
+      text-decoration: none;
+    }
+    .skip-link:focus {
+      top: var(--sp-4);
+    }
+
+    /* ============================================================
+       HEADER / NAV
+       ============================================================ */
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .site-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      text-decoration: none;
+      color: var(--text-main);
+    }
+    .site-logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ts-sm);
+    }
+    .site-logo-text {
+      font-weight: 700;
+      font-size: var(--ts-lg);
+      letter-spacing: -0.5px;
+    }
+    .site-logo-text span { color: var(--primary-text); }
+
+    .site-nav {
+      display: flex;
+      gap: var(--sp-1);
+    }
+    .site-nav a {
+      color: var(--text-mid);
+      text-decoration: none;
+      font-size: var(--ts-sm);
+      font-weight: 500;
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-md);
+      transition: color 0.15s, background 0.15s;
+    }
+    .site-nav a:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+    .site-nav a.active {
+      color: var(--text-main);
+      background: rgba(255,255,255,0.06);
+    }
+    .site-nav a:focus-visible {
+      outline: 2px solid var(--primary-text);
+      outline-offset: 2px;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-3) var(--sp-6);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+    }
+    .breadcrumb a {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .breadcrumb a:hover { color: var(--text-main); }
+    .breadcrumb-sep { opacity: 0.5; }
+    .breadcrumb-current { color: var(--text-mid); }
+
+    /* ============================================================
+       OPS ONBOARDING BANNER
+       ============================================================ */
+    .ops-banner {
+      margin: var(--sp-4) var(--sp-6);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5) var(--sp-6);
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .ops-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp-3);
+    }
+    .ops-banner-title {
+      font-size: var(--ts-lg);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .ops-banner-title .icon { color: var(--secondary); }
+    .ops-banner-dismiss {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: var(--sp-2);
+      font-size: var(--ts-base);
+      border-radius: var(--radius-sm);
+      transition: color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+    .ops-banner-dismiss:hover { color: var(--text-main); background: rgba(255,255,255,0.06); }
+    .ops-banner-dismiss:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .ops-banner-desc {
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+      margin-bottom: var(--sp-5);
+      max-width: 640px;
+      line-height: 1.6;
+    }
+    .ops-components-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--sp-3);
+    }
+    .ops-comp-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3) var(--sp-4);
+      text-align: center;
+    }
+    .ops-comp-weight {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      margin-bottom: var(--sp-1);
+    }
+    .ops-comp-name {
+      font-weight: 600;
+      font-size: var(--ts-sm);
+      margin-bottom: var(--sp-1);
+    }
+    .ops-comp-icon {
+      font-size: var(--ts-lg);
+      margin-bottom: var(--sp-1);
+    }
+    .ops-comp-desc {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    .ops-banner-formula {
+      margin-top: var(--sp-4);
+      padding-top: var(--sp-4);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      flex-wrap: wrap;
+    }
+    .ops-formula-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .ops-formula-code {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--secondary);
+      background: rgba(187,113,37,0.08);
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--radius-sm);
+    }
+    .ops-scale {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+    }
+    .ops-scale-bar {
+      display: flex;
+      height: 6px;
+      width: 120px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .ops-scale-seg { flex: 1; }
+    .ops-scale-seg.red { background: var(--status-red); }
+    .ops-scale-seg.amber { background: var(--status-amber); }
+    .ops-scale-seg.green { background: var(--status-green); }
+
+    .ops-confidence-legend {
+      display: flex;
+      gap: var(--sp-4);
+      margin-top: var(--sp-3);
+      padding-top: var(--sp-3);
+      border-top: 1px solid var(--border);
+    }
+    .conf-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+    }
+    .conf-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+    .conf-badge.high { background: rgba(94,194,105,0.15); color: var(--status-green); }
+    .conf-badge.med  { background: rgba(232,168,50,0.15); color: var(--status-amber); }
+    .conf-badge.low  { background: rgba(226,85,53,0.15); color: var(--status-red); }
+
+    /* ============================================================
+       FILTER BAR
+       ============================================================ */
+    .filter-section {
+      padding: var(--sp-3) var(--sp-6);
+    }
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      flex-wrap: wrap;
+    }
+    .filter-toggle-mobile {
+      display: none;
+      align-items: center;
+      gap: var(--sp-2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-2) var(--sp-3);
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-size: var(--ts-sm);
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .filter-toggle-mobile:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+    .filter-badge {
+      background: var(--primary-text);
+      color: var(--bg);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .filter-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .filter-control {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+
+    /* Slider-like display (static mockup) */
+    .filter-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-1) var(--sp-3);
+    }
+    .filter-slider-track {
+      width: 80px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      position: relative;
+    }
+    .filter-slider-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: var(--secondary);
+      border-radius: 2px;
+    }
+    .filter-slider-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      background: var(--text-main);
+      border-radius: 50%;
+      border: 2px solid var(--secondary);
+    }
+    .filter-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-main);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* Sort select */
+    .filter-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-1) var(--sp-3);
+      padding-right: var(--sp-6);
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-size: var(--ts-sm);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23918377' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      cursor: pointer;
+    }
+    .filter-select:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    /* Filter chips */
+    .filter-chips {
+      display: flex;
+      gap: var(--sp-2);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+      background: rgba(187,113,37,0.1);
+      border: 1px solid rgba(187,113,37,0.25);
+      border-radius: 100px;
+      padding: 2px var(--sp-2) 2px var(--sp-3);
+      font-size: var(--ts-xs);
+      color: var(--secondary);
+    }
+    .filter-chip-remove {
+      background: none;
+      border: none;
+      color: var(--secondary);
+      cursor: pointer;
+      font-size: var(--ts-sm);
+      padding: 0 2px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+      line-height: 1;
+    }
+    .filter-chip-remove:hover { opacity: 1; }
+
+    .filter-reset {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-1) var(--sp-3);
+      color: var(--text-dim);
+      font-family: var(--font-display);
+      font-size: var(--ts-xs);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .filter-reset:hover { color: var(--text-main); border-color: var(--text-dim); }
+    .filter-reset:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .filter-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+    }
+
+    /* ============================================================
+       ACTIVE FILTER CHIPS ROW
+       ============================================================ */
+    .active-filters {
+      padding: 0 var(--sp-6) var(--sp-3);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      flex-wrap: wrap;
+    }
+    .active-filters-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      margin-right: var(--sp-1);
+    }
+
+    /* ============================================================
+       TABLE
+       ============================================================ */
+    .table-wrap {
+      padding: 0 var(--sp-6) var(--sp-6);
+      overflow-x: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--ts-sm);
+    }
+    .data-table thead { position: sticky; top: 56px; z-index: 10; }
+    .data-table th {
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-4);
+      text-align: left;
+      font-weight: 600;
+      font-size: var(--ts-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .data-table th:hover { color: var(--text-main); }
+    .data-table th:focus-visible { outline: 2px solid var(--primary-text); outline-offset: -2px; }
+
+    .th-content {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+    .sort-arrows {
+      display: flex;
+      flex-direction: column;
+      font-size: 8px;
+      line-height: 1;
+      color: var(--border-light);
+    }
+    .sort-arrows .active { color: var(--secondary); }
+    .th-active { color: var(--secondary) !important; }
+
+    .ops-header-help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid var(--text-dim);
+      font-size: 10px;
+      color: var(--text-dim);
+      cursor: help;
+      margin-left: var(--sp-1);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .ops-header-help:hover { border-color: var(--text-main); color: var(--text-main); }
+
+    .data-table td {
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom: 1px solid rgba(42,36,32,0.5);
+      vertical-align: middle;
+    }
+    .data-table tbody tr {
+      transition: background 0.15s;
+    }
+    .data-table tbody tr:hover { background: var(--surface-hover); }
+    .data-table tbody tr:focus-within { outline: 2px solid var(--primary-text); outline-offset: -2px; }
+
+    /* Game cell */
+    .game-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      min-width: 220px;
+    }
+    .game-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      overflow: hidden;
+    }
+    .game-info { min-width: 0; }
+    .game-title {
+      font-weight: 600;
+      font-size: var(--ts-sm);
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+    .game-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .game-title a:hover { color: var(--primary-text); }
+    .game-developer {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+    .game-subgenre {
+      font-size: 10px;
+      color: var(--tertiary);
+      background: rgba(163,106,165,0.1);
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    /* Days badge */
+    .days-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+    .days-badge.new {
+      background: rgba(94,194,105,0.12);
+      color: var(--status-green);
+    }
+    .days-badge.mid {
+      background: rgba(232,168,50,0.12);
+      color: var(--status-amber);
+    }
+    .days-badge.old {
+      background: rgba(226,85,53,0.12);
+      color: var(--status-red);
+    }
+    .days-icon { font-size: 10px; }
+
+    /* Price */
+    .price-cell {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--text-main);
+    }
+    .price-free {
+      color: var(--status-green);
+      font-weight: 500;
+    }
+
+    /* Reviews */
+    .reviews-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .review-count {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--text-main);
+    }
+    .review-trend {
+      font-size: var(--ts-xs);
+      display: flex;
+      align-items: center;
+    }
+    .review-trend.up { color: var(--status-green); }
+    .review-trend.down { color: var(--status-red); }
+
+    /* Score */
+    .score-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+    .score-skull { font-size: var(--ts-sm); }
+    .score-val {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      font-weight: 500;
+    }
+    .score-val.high { color: var(--status-green); }
+    .score-val.mid  { color: var(--status-amber); }
+    .score-val.low  { color: var(--status-red); }
+
+    /* Delta */
+    .delta-cell {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+    }
+    .delta-pos { color: var(--status-green); }
+    .delta-neg { color: var(--status-red); }
+    .delta-zero { color: var(--text-dim); }
+
+    /* CCU */
+    .ccu-cell {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      color: var(--text-main);
+    }
+
+    /* YouTube */
+    .yt-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: 180px;
+    }
+    .yt-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(226,85,53,0.1);
+      color: var(--status-red);
+      white-space: nowrap;
+    }
+    .yt-badge.reach {
+      background: rgba(107,157,219,0.12);
+      color: var(--status-blue);
+    }
+
+    /* OPS cell */
+    .ops-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .ops-score {
+      font-family: var(--font-mono);
+      font-size: var(--ts-base);
+      font-weight: 600;
+      min-width: 28px;
+    }
+    .ops-score.breakout { color: var(--status-green); }
+    .ops-score.rising   { color: var(--status-amber); }
+    .ops-score.quiet    { color: var(--text-dim); }
+
+    .ops-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .ops-tier {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .ops-tier.breakout { color: var(--status-green); }
+    .ops-tier.rising   { color: var(--status-amber); }
+    .ops-tier.quiet    { color: var(--text-dim); }
+
+    .ops-conf {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 0px 4px;
+      border-radius: 2px;
+      letter-spacing: 0.3px;
+    }
+    .ops-conf.high { background: rgba(94,194,105,0.12); color: var(--status-green); }
+    .ops-conf.med  { background: rgba(232,168,50,0.12); color: var(--status-amber); }
+    .ops-conf.low  { background: rgba(226,85,53,0.12); color: var(--status-red); }
+
+    /* ============================================================
+       ERROR STATE
+       ============================================================ */
+    .error-state {
+      display: none; /* Toggle to flex to show */
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-12) var(--sp-6);
+      text-align: center;
+      gap: var(--sp-4);
+    }
+    .error-state.visible { display: flex; }
+    .error-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(226,85,53,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ts-2xl);
+      color: var(--status-red);
+    }
+    .error-title {
+      font-size: var(--ts-lg);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .error-desc {
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+      max-width: 400px;
+    }
+    .error-retry {
+      background: var(--primary-text);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--radius-md);
+      padding: var(--sp-2) var(--sp-5);
+      font-family: var(--font-display);
+      font-size: var(--ts-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .error-retry:hover { background: var(--primary-hover); }
+    .error-retry:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+    .error-code {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+    }
+
+    /* ============================================================
+       PAGINATION
+       ============================================================ */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-2);
+      padding: var(--sp-4) var(--sp-6);
+    }
+    .page-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-2) var(--sp-3);
+      color: var(--text-mid);
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      min-width: 36px;
+      text-align: center;
+    }
+    .page-btn:hover { color: var(--text-main); border-color: var(--text-dim); }
+    .page-btn.active {
+      background: var(--primary-text);
+      color: var(--bg);
+      border-color: var(--primary-text);
+    }
+    .page-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .page-btn:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    /* ============================================================
+       FOOTER STATUS BAR
+       ============================================================ */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-6);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+      position: sticky;
+      bottom: 0;
+    }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .status-dot.warn { background: var(--status-amber); }
+    .status-dot.error { background: var(--status-red); }
+
+    /* ============================================================
+       OPS TOOLTIP (hover popover simulation)
+       ============================================================ */
+    .ops-tooltip-trigger {
+      position: relative;
+      cursor: help;
+    }
+    .ops-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-3) var(--sp-4);
+      width: 240px;
+      z-index: 50;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .ops-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--border);
+    }
+    .ops-tooltip-trigger:hover .ops-tooltip,
+    .ops-tooltip-trigger:focus .ops-tooltip { display: block; }
+    .ops-tooltip-title {
+      font-size: var(--ts-xs);
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: var(--sp-2);
+    }
+    .ops-tooltip-body {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 768px) {
+      .site-nav { display: none; }
+      .site-header { padding: var(--sp-3) var(--sp-4); }
+      .breadcrumb { padding: var(--sp-2) var(--sp-4); }
+
+      .ops-banner { margin: var(--sp-3) var(--sp-4); padding: var(--sp-4); }
+      .ops-components-grid { grid-template-columns: repeat(2, 1fr); }
+      .ops-banner-formula { flex-direction: column; align-items: flex-start; }
+
+      .filter-section { padding: var(--sp-3) var(--sp-4); }
+      .filter-bar .filter-group,
+      .filter-bar .filter-divider { display: none; }
+      .filter-toggle-mobile { display: flex; }
+      .filter-bar.expanded .filter-group { display: flex; }
+      .filter-bar.expanded .filter-divider { display: block; }
+      .filter-bar.expanded {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .active-filters { padding: 0 var(--sp-4) var(--sp-2); }
+      .table-wrap { padding: 0 var(--sp-4) var(--sp-4); }
+      .data-table th, .data-table td { padding: var(--sp-2) var(--sp-3); }
+      .game-cell { min-width: 160px; }
+      .game-title { max-width: 120px; }
+
+      .site-footer { padding: var(--sp-2) var(--sp-4); }
+      .pagination { padding: var(--sp-3) var(--sp-4); }
+    }
+
+    @media (max-width: 480px) {
+      .ops-components-grid { grid-template-columns: 1fr; }
+      .ops-confidence-legend { flex-direction: column; gap: var(--sp-2); }
+    }
+
+    @media (min-width: 1280px) {
+      .site-header { padding: var(--sp-4) var(--sp-10); }
+      .breadcrumb { padding: var(--sp-3) var(--sp-10); }
+      .ops-banner { margin: var(--sp-4) var(--sp-10); }
+      .filter-section { padding: var(--sp-3) var(--sp-10); }
+      .active-filters { padding: 0 var(--sp-10) var(--sp-3); }
+      .table-wrap { padding: 0 var(--sp-10) var(--sp-6); }
+      .site-footer { padding: var(--sp-3) var(--sp-10); }
+      .pagination { padding: var(--sp-4) var(--sp-10); }
+    }
+
+    /* ============================================================
+       MOCKUP ANNOTATION
+       ============================================================ */
+    .mockup-meta {
+      background: rgba(187,113,37,0.08);
+      border: 1px dashed var(--secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4) var(--sp-6);
+      margin: var(--sp-6);
+      font-size: var(--ts-xs);
+      color: var(--secondary);
+    }
+    .mockup-meta h3 {
+      font-size: var(--ts-sm);
+      margin-bottom: var(--sp-2);
+    }
+    .mockup-meta ul { padding-left: var(--sp-5); }
+    .mockup-meta li { margin-bottom: var(--sp-1); }
+
+    /* Error state demo section */
+    .error-demo {
+      margin: var(--sp-6);
+      border: 1px dashed var(--status-red);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-2);
+    }
+    .error-demo-label {
+      font-size: var(--ts-xs);
+      color: var(--status-red);
+      text-align: center;
+      padding: var(--sp-1);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <a href="#" class="site-logo" aria-label="Horror Radar home">
+      <div class="site-logo-icon" aria-hidden="true">&#x1F56E;</div>
+      <div class="site-logo-text">Horror<span>Radar</span></div>
+    </a>
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <a href="#" class="active" aria-current="page">Database</a>
+      <a href="#">Radar Pick</a>
+      <a href="#">Trends</a>
+      <a href="#">Discover</a>
+    </nav>
+  </header>
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="#">Home</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current" aria-current="page">Database</span>
+  </nav>
+
+  <!-- ============================================================
+       OPS ONBOARDING BANNER
+       ============================================================ -->
+  <aside class="ops-banner" role="complementary" aria-label="OPS score explanation">
+    <div class="ops-banner-header">
+      <div class="ops-banner-title">
+        <span class="icon" aria-hidden="true">&#x26A1;</span>
+        What is OPS (Overperformance Score)?
+      </div>
+      <button class="ops-banner-dismiss" aria-label="Dismiss OPS explanation" title="Dismiss">&#x2715;</button>
+    </div>
+
+    <p class="ops-banner-desc">
+      OPS measures how much a game is outperforming its peers in the first 90 days after release.
+      A score of 60+ signals a potential breakout. It combines 5 real-time engagement signals:
+    </p>
+
+    <div class="ops-components-grid" role="list">
+      <div class="ops-comp-card" role="listitem">
+        <div class="ops-comp-icon" aria-hidden="true">&#x1F4C8;</div>
+        <div class="ops-comp-name">Velocity</div>
+        <div class="ops-comp-weight">35% weight</div>
+        <div class="ops-comp-desc">Review growth rate vs. age-adjusted median</div>
+      </div>
+      <div class="ops-comp-card" role="listitem">
+        <div class="ops-comp-icon" aria-hidden="true">&#x1F504;</div>
+        <div class="ops-comp-name">Decay</div>
+        <div class="ops-comp-weight">20% weight</div>
+        <div class="ops-comp-desc">Week 2-4 velocity held vs. launch week</div>
+      </div>
+      <div class="ops-comp-card" role="listitem">
+        <div class="ops-comp-icon" aria-hidden="true">&#x2B50;</div>
+        <div class="ops-comp-name">Reviews</div>
+        <div class="ops-comp-weight">15% weight</div>
+        <div class="ops-comp-desc">Total review count vs. price-adjusted median</div>
+      </div>
+      <div class="ops-comp-card" role="listitem">
+        <div class="ops-comp-icon" aria-hidden="true">&#x25B6;</div>
+        <div class="ops-comp-name">YouTube</div>
+        <div class="ops-comp-weight">15% weight</div>
+        <div class="ops-comp-desc">Creator coverage + view performance</div>
+      </div>
+      <div class="ops-comp-card" role="listitem">
+        <div class="ops-comp-icon" aria-hidden="true">&#x1F3AE;</div>
+        <div class="ops-comp-name">CCU</div>
+        <div class="ops-comp-weight">15% weight</div>
+        <div class="ops-comp-desc">Peak concurrent players vs. peer median</div>
+      </div>
+    </div>
+
+    <div class="ops-banner-formula">
+      <span class="ops-formula-label">Score range</span>
+      <div class="ops-scale">
+        <span>0</span>
+        <div class="ops-scale-bar">
+          <div class="ops-scale-seg red"></div>
+          <div class="ops-scale-seg amber"></div>
+          <div class="ops-scale-seg green"></div>
+        </div>
+        <span>100</span>
+      </div>
+      <span class="ops-formula-label" style="margin-left: var(--sp-4);">Tiers</span>
+      <span class="ops-formula-code">0-29 Quiet</span>
+      <span class="ops-formula-code">30-59 Rising</span>
+      <span class="ops-formula-code">60+ Breakout</span>
+    </div>
+
+    <div class="ops-confidence-legend">
+      <div class="conf-item">
+        <span class="conf-badge high">HIGH</span>
+        <span>5/5 signals active</span>
+      </div>
+      <div class="conf-item">
+        <span class="conf-badge med">MED</span>
+        <span>3-4 signals active</span>
+      </div>
+      <div class="conf-item">
+        <span class="conf-badge low">LOW</span>
+        <span>1-2 signals active</span>
+      </div>
+    </div>
+  </aside>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         FILTER BAR
+         ============================================================ -->
+    <section class="filter-section" aria-label="Filters">
+      <div class="filter-bar" role="group" aria-label="Filter controls">
+        <!-- Mobile toggle -->
+        <button class="filter-toggle-mobile" aria-label="Toggle filters, 2 active" aria-expanded="false">
+          <span aria-hidden="true">&#x2699;</span>
+          Filters
+          <span class="filter-badge" aria-label="2 active filters">2</span>
+        </button>
+
+        <div class="filter-group" role="group" aria-label="Days since launch filter">
+          <label class="filter-label" for="filter-days" id="filter-days-label">Days</label>
+          <div class="filter-slider-wrap" id="filter-days" role="slider" aria-valuemin="1" aria-valuemax="90" aria-valuenow="45" aria-labelledby="filter-days-label">
+            <div class="filter-slider-track">
+              <div class="filter-slider-fill" style="width: 50%;"></div>
+              <div class="filter-slider-thumb" style="left: 50%;"></div>
+            </div>
+            <span class="filter-value">1-45d</span>
+          </div>
+        </div>
+
+        <div class="filter-divider" aria-hidden="true"></div>
+
+        <div class="filter-group" role="group" aria-label="Maximum price filter">
+          <label class="filter-label" for="filter-price" id="filter-price-label">Max Price</label>
+          <div class="filter-slider-wrap" id="filter-price" role="slider" aria-valuemin="0" aria-valuemax="60" aria-valuenow="20" aria-labelledby="filter-price-label">
+            <div class="filter-slider-track">
+              <div class="filter-slider-fill" style="width: 33%;"></div>
+              <div class="filter-slider-thumb" style="left: 33%;"></div>
+            </div>
+            <span class="filter-value">$20</span>
+          </div>
+        </div>
+
+        <div class="filter-divider" aria-hidden="true"></div>
+
+        <div class="filter-group" role="group" aria-label="Sort order">
+          <label class="filter-label" for="filter-sort">Sort</label>
+          <select class="filter-select" id="filter-sort">
+            <option>OPS (High to Low)</option>
+            <option>Newest First</option>
+            <option>Velocity</option>
+            <option>Reviews</option>
+            <option>CCU</option>
+          </select>
+        </div>
+
+        <div class="filter-divider" aria-hidden="true"></div>
+
+        <button class="filter-reset" aria-label="Reset all filters to defaults">Reset Filters</button>
+      </div>
+    </section>
+
+    <!-- Active filter chips -->
+    <div class="active-filters" aria-label="Active filters">
+      <span class="active-filters-label">Active:</span>
+      <div class="filter-chip">
+        Days: 1-45
+        <button class="filter-chip-remove" aria-label="Remove days filter">&#x2715;</button>
+      </div>
+      <div class="filter-chip">
+        Max: $20
+        <button class="filter-chip-remove" aria-label="Remove price filter">&#x2715;</button>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         DATA TABLE
+         ============================================================ -->
+    <div class="table-wrap">
+      <table class="data-table" role="grid" aria-label="Horror indie game database">
+        <thead>
+          <tr>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Game & Developer
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Days
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Price
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Reviews
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Score %
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                &#x394; Rev 7D
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                Peak CCU
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" tabindex="0">
+              <div class="th-content">
+                YouTube
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span>&#x25BC;</span></span>
+              </div>
+            </th>
+            <th scope="col" class="th-active" tabindex="0" aria-sort="descending">
+              <div class="th-content">
+                OPS
+                <span class="sort-arrows" aria-hidden="true"><span>&#x25B2;</span><span class="active">&#x25BC;</span></span>
+                <span class="ops-header-help ops-tooltip-trigger" tabindex="0" aria-label="What is OPS?">
+                  ?
+                  <div class="ops-tooltip" role="tooltip">
+                    <div class="ops-tooltip-title">Overperformance Score</div>
+                    <div class="ops-tooltip-body">
+                      Measures how much a game outperforms peers across 5 signals: velocity, decay retention, reviews, YouTube, and CCU. 60+ = Breakout.
+                    </div>
+                  </div>
+                </span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row 1: Hollowfield -->
+          <tr>
+            <td>
+              <div class="game-cell">
+                <div class="game-thumb" aria-hidden="true">HF</div>
+                <div class="game-info">
+                  <div class="game-title"><a href="#">Hollowfield</a></div>
+                  <div class="game-developer">Dread Works Studio</div>
+                  <div class="game-subgenre">Psychological Horror</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="days-badge mid"><span class="days-icon" aria-hidden="true">&#x25D0;</span> 12d</span></td>
+            <td><span class="price-cell">$14.99</span></td>
+            <td>
+              <div class="reviews-cell">
+                <span class="review-count">42</span>
+                <span class="review-trend up" aria-label="Trending up">&#x25B2; +8</span>
+              </div>
+            </td>
+            <td>
+              <div class="score-cell">
+                <span class="score-skull" aria-hidden="true">&#x1F480;</span>
+                <span class="score-val high">92%</span>
+              </div>
+            </td>
+            <td><span class="delta-cell delta-pos">+14</span></td>
+            <td><span class="ccu-cell">156</span></td>
+            <td>
+              <div class="yt-cell">
+                <span class="yt-badge">IGP</span>
+                <span class="yt-badge">Insym</span>
+                <span class="yt-badge reach">HIGH REACH</span>
+              </div>
+            </td>
+            <td>
+              <div class="ops-cell">
+                <span class="ops-score breakout">78</span>
+                <div class="ops-meta">
+                  <span class="ops-tier breakout">Breakout</span>
+                  <span class="ops-conf high">HIGH</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Row 2: The Stalking Stairs -->
+          <tr>
+            <td>
+              <div class="game-cell">
+                <div class="game-thumb" aria-hidden="true">SS</div>
+                <div class="game-info">
+                  <div class="game-title"><a href="#">The Stalking Stairs</a></div>
+                  <div class="game-developer">Pixel Haunt Games</div>
+                  <div class="game-subgenre">Survival Horror</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="days-badge mid"><span class="days-icon" aria-hidden="true">&#x25D0;</span> 23d</span></td>
+            <td><span class="price-cell">$9.99</span></td>
+            <td>
+              <div class="reviews-cell">
+                <span class="review-count">156</span>
+                <span class="review-trend up" aria-label="Trending up">&#x25B2; +12</span>
+              </div>
+            </td>
+            <td>
+              <div class="score-cell">
+                <span class="score-skull" aria-hidden="true">&#x1F480;</span>
+                <span class="score-val high">88%</span>
+              </div>
+            </td>
+            <td><span class="delta-cell delta-pos">+23</span></td>
+            <td><span class="ccu-cell">89</span></td>
+            <td>
+              <div class="yt-cell">
+                <span class="yt-badge">ManlyBadass</span>
+                <span class="yt-badge">CJUGames</span>
+              </div>
+            </td>
+            <td>
+              <div class="ops-cell">
+                <span class="ops-score breakout">65</span>
+                <div class="ops-meta">
+                  <span class="ops-tier breakout">Breakout</span>
+                  <span class="ops-conf high">HIGH</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Row 3: Whispers of the Eyeless -->
+          <tr>
+            <td>
+              <div class="game-cell">
+                <div class="game-thumb" aria-hidden="true">WE</div>
+                <div class="game-info">
+                  <div class="game-title"><a href="#">Whispers of the Eyeless</a></div>
+                  <div class="game-developer">Void Interactive</div>
+                  <div class="game-subgenre">Psychological Horror</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="days-badge old"><span class="days-icon" aria-hidden="true">&#x25D0;</span> 31d</span></td>
+            <td><span class="price-cell price-free">Free</span></td>
+            <td>
+              <div class="reviews-cell">
+                <span class="review-count">89</span>
+                <span class="review-trend up" aria-label="Trending up">&#x25B2; +5</span>
+              </div>
+            </td>
+            <td>
+              <div class="score-cell">
+                <span class="score-skull" aria-hidden="true">&#x1F480;</span>
+                <span class="score-val high">85%</span>
+              </div>
+            </td>
+            <td><span class="delta-cell delta-pos">+9</span></td>
+            <td><span class="ccu-cell">72</span></td>
+            <td>
+              <div class="yt-cell">
+                <span class="yt-badge">Fooster</span>
+              </div>
+            </td>
+            <td>
+              <div class="ops-cell">
+                <span class="ops-score rising">55</span>
+                <div class="ops-meta">
+                  <span class="ops-tier rising">Rising</span>
+                  <span class="ops-conf med">MED</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Row 4: Nightjar -->
+          <tr>
+            <td>
+              <div class="game-cell">
+                <div class="game-thumb" aria-hidden="true">NJ</div>
+                <div class="game-info">
+                  <div class="game-title"><a href="#">Nightjar</a></div>
+                  <div class="game-developer">Abyssal Studios</div>
+                  <div class="game-subgenre">Cosmic Horror</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="days-badge new"><span class="days-icon" aria-hidden="true">&#x2728;</span> 5d</span></td>
+            <td><span class="price-cell">$7.99</span></td>
+            <td>
+              <div class="reviews-cell">
+                <span class="review-count">28</span>
+                <span class="review-trend up" aria-label="Trending up">&#x25B2; +18</span>
+              </div>
+            </td>
+            <td>
+              <div class="score-cell">
+                <span class="score-skull" aria-hidden="true">&#x1F480;</span>
+                <span class="score-val high">96%</span>
+              </div>
+            </td>
+            <td><span class="delta-cell delta-pos">+22</span></td>
+            <td><span class="ccu-cell">201</span></td>
+            <td>
+              <div class="yt-cell">
+                <span class="yt-badge">IGP</span>
+              </div>
+            </td>
+            <td>
+              <div class="ops-cell">
+                <span class="ops-score rising">41</span>
+                <div class="ops-meta">
+                  <span class="ops-tier rising">Rising</span>
+                  <span class="ops-conf low">LOW</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Row 5: Dispatch -->
+          <tr>
+            <td>
+              <div class="game-cell">
+                <div class="game-thumb" aria-hidden="true">DP</div>
+                <div class="game-info">
+                  <div class="game-title"><a href="#">Dispatch</a></div>
+                  <div class="game-developer">Terminal Echo</div>
+                  <div class="game-subgenre">Action Horror</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="days-badge old"><span class="days-icon" aria-hidden="true">&#x25D0;</span> 67d</span></td>
+            <td><span class="price-cell">$19.99</span></td>
+            <td>
+              <div class="reviews-cell">
+                <span class="review-count">312</span>
+                <span class="review-trend down" aria-label="Trending down">&#x25BC; -2</span>
+              </div>
+            </td>
+            <td>
+              <div class="score-cell">
+                <span class="score-skull" aria-hidden="true">&#x1F480;</span>
+                <span class="score-val mid">71%</span>
+              </div>
+            </td>
+            <td><span class="delta-cell delta-neg">-4</span></td>
+            <td><span class="ccu-cell">18</span></td>
+            <td>
+              <div class="yt-cell">
+                <span class="yt-badge">GamerSault</span>
+              </div>
+            </td>
+            <td>
+              <div class="ops-cell">
+                <span class="ops-score quiet">22</span>
+                <div class="ops-meta">
+                  <span class="ops-tier quiet">Quiet</span>
+                  <span class="ops-conf med">MED</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav class="pagination" aria-label="Table pagination">
+      <button class="page-btn" disabled aria-label="Previous page">&laquo;</button>
+      <button class="page-btn active" aria-label="Page 1" aria-current="page">1</button>
+      <button class="page-btn" aria-label="Page 2">2</button>
+      <button class="page-btn" aria-label="Page 3">3</button>
+      <button class="page-btn" aria-label="Next page">&raquo;</button>
+    </nav>
+
+    <!-- ============================================================
+         ERROR STATE DEMO
+         ============================================================ -->
+    <div class="error-demo">
+      <div class="error-demo-label">Error State (shown when API fails)</div>
+      <div class="error-state visible">
+        <div class="error-icon" aria-hidden="true">&#x26A0;</div>
+        <h2 class="error-title">Unable to load game data</h2>
+        <p class="error-desc">
+          The backend server did not respond. This may be due to a temporary outage or network issue.
+        </p>
+        <button class="error-retry">
+          &#x21BB; Retry Connection
+        </button>
+        <p class="error-code">Error 502 &middot; Gateway timeout &middot; 3 seconds ago</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       FOOTER STATUS BAR
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-left">
+      <span>Showing <strong style="color:var(--text-main);">1-5</strong> of <strong style="color:var(--text-main);">47</strong> Games</span>
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Active Scrapers: <strong style="color:var(--text-main);">10/12</strong></span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Last Sync: <strong style="color:var(--text-main);">4 min ago</strong></span>
+      </div>
+      <span style="color:var(--text-dim);">v4.0 &middot; OPS v4</span>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       MOCKUP ANNOTATION
+       ============================================================ -->
+  <aside class="mockup-meta" aria-label="Design notes">
+    <h3>Design Mockup Notes &mdash; Database Page</h3>
+    <ul>
+      <li><strong>CM-01 / CM-02:</strong> OPS onboarding banner explains score, components, tiers, and confidence labels (HIGH/MED/LOW replaces dots)</li>
+      <li><strong>D-01:</strong> Mobile filter toggle shows "Filters" text + active count badge (2)</li>
+      <li><strong>D-02:</strong> "Reset Filters" button appears when filters differ from defaults</li>
+      <li><strong>A-01:</strong> All column headers have sort arrows; active sort column (OPS) is highlighted</li>
+      <li><strong>S-01:</strong> Days badges use icons alongside color (sparkle for new, half-circle for mid/old). OPS column shows text tier labels.</li>
+      <li><strong>F-01:</strong> Proper error state with retry button (demo shown below table)</li>
+      <li><strong>CM-04:</strong> Breadcrumb navigation added below header</li>
+      <li><strong>Accessibility:</strong> Skip link, scope="col" on headers, aria-labels on buttons, focus-visible outlines, corrected colors (#c04040, #918377)</li>
+      <li><strong>Filter chips:</strong> Active filters shown as removable pills above the table for quick state awareness</li>
+    </ul>
+  </aside>
+
+</body>
+</html>

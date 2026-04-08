@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horror Radar — Hollowfield Detail (Redesign Mockup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #111314;
+      --surface:      #1a1a1c;
+      --surface-hover: #222224;
+      --border:       #2a2420;
+      --border-light: #3a342e;
+      --primary:      #802626;
+      --primary-text: #c04040;
+      --primary-hover:#9a3333;
+      --secondary:    #bb7125;
+      --tertiary:     #a36aa5;
+      --text-main:    #e8e0d4;
+      --text-mid:     #a09080;
+      --text-dim:     #918377;
+      --status-green: #5ec269;
+      --status-amber: #e8a832;
+      --status-red:   #e25535;
+      --status-blue:  #6b9ddb;
+      --status-violet:#b07db2;
+
+      --ts-xs:   0.75rem;
+      --ts-sm:   0.875rem;
+      --ts-base: 1rem;
+      --ts-lg:   1.3125rem;
+      --ts-xl:   1.75rem;
+      --ts-2xl:  2.375rem;
+      --ts-3xl:  3.1875rem;
+
+      --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+      --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+      --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+
+      --font-display: 'Public Sans', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+      --font-serif:   'Playfair Display', Georgia, serif;
+    }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-display);
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .skip-link {
+      position: absolute; top: -100%; left: var(--sp-4);
+      background: var(--primary-text); color: var(--bg);
+      padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-md);
+      font-weight: 600; z-index: 1000; text-decoration: none;
+    }
+    .skip-link:focus { top: var(--sp-4); }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .site-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .site-logo {
+      display: flex; align-items: center; gap: var(--sp-3);
+      text-decoration: none; color: var(--text-main);
+    }
+    .site-logo-icon {
+      width: 28px; height: 28px; background: var(--primary);
+      border-radius: var(--radius-sm); display: flex;
+      align-items: center; justify-content: center; font-size: var(--ts-sm);
+    }
+    .site-logo-text { font-weight: 700; font-size: var(--ts-lg); letter-spacing: -0.5px; }
+    .site-logo-text span { color: var(--primary-text); }
+
+    .site-nav { display: flex; gap: var(--sp-1); }
+    .site-nav a {
+      color: var(--text-mid); text-decoration: none; font-size: var(--ts-sm);
+      font-weight: 500; padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-md); transition: color 0.15s, background 0.15s;
+    }
+    .site-nav a:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+    .site-nav a.active { color: var(--text-main); background: rgba(255,255,255,0.06); }
+    .site-nav a:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .breadcrumb {
+      display: flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-3) var(--sp-6);
+      font-size: var(--ts-xs); color: var(--text-dim);
+    }
+    .breadcrumb a { color: var(--text-dim); text-decoration: none; transition: color 0.15s; }
+    .breadcrumb a:hover { color: var(--text-main); }
+    .breadcrumb-sep { opacity: 0.5; }
+    .breadcrumb-current { color: var(--text-mid); }
+
+    /* ============================================================
+       LAYOUT: SIDEBAR + MAIN
+       ============================================================ */
+    .page-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 100px);
+    }
+
+    /* Section nav sidebar */
+    .section-nav {
+      position: sticky;
+      top: 57px; /* header height */
+      height: calc(100vh - 57px);
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      padding: var(--sp-5) 0;
+      overflow-y: auto;
+    }
+    .section-nav-title {
+      font-size: var(--ts-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      padding: 0 var(--sp-4) var(--sp-3);
+    }
+    .section-nav-list {
+      list-style: none;
+    }
+    .section-nav-list a {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-4);
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .section-nav-list a:hover {
+      color: var(--text-main);
+      background: rgba(255,255,255,0.03);
+    }
+    .section-nav-list a.active {
+      color: var(--text-main);
+      border-left-color: var(--secondary);
+      background: rgba(187,113,37,0.05);
+    }
+    .section-nav-list a:focus-visible {
+      outline: 2px solid var(--primary-text);
+      outline-offset: -2px;
+    }
+    .section-nav-list .nav-icon {
+      font-size: var(--ts-sm);
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* Mobile section nav (top bar) */
+    .section-nav-mobile {
+      display: none;
+      position: sticky;
+      top: 57px;
+      z-index: 50;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: var(--sp-2) var(--sp-4);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .section-nav-mobile::-webkit-scrollbar { display: none; }
+    .section-nav-mobile-list {
+      display: flex;
+      gap: var(--sp-1);
+      list-style: none;
+      white-space: nowrap;
+    }
+    .section-nav-mobile-list a {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-1);
+      padding: var(--sp-2) var(--sp-3);
+      font-size: var(--ts-xs);
+      font-weight: 500;
+      color: var(--text-mid);
+      text-decoration: none;
+      border-radius: 100px;
+      border: 1px solid transparent;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .section-nav-mobile-list a:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+    .section-nav-mobile-list a.active {
+      color: var(--secondary);
+      border-color: rgba(187,113,37,0.3);
+      background: rgba(187,113,37,0.08);
+    }
+
+    .page-content {
+      padding: var(--sp-6);
+      max-width: 900px;
+    }
+
+    /* ============================================================
+       OVERVIEW SECTION
+       ============================================================ */
+    .game-header {
+      display: flex;
+      gap: var(--sp-5);
+      margin-bottom: var(--sp-6);
+      flex-wrap: wrap;
+    }
+    .game-cover {
+      width: 160px;
+      height: 200px;
+      background: var(--border);
+      border-radius: var(--radius-lg);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ts-2xl);
+      color: var(--text-dim);
+    }
+    .game-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .game-header-title {
+      font-family: var(--font-serif);
+      font-size: var(--ts-2xl);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: var(--sp-2);
+    }
+    .game-header-dev {
+      font-size: var(--ts-sm);
+      color: var(--text-mid);
+      margin-bottom: var(--sp-3);
+    }
+    .game-header-dev a { color: var(--primary-text); text-decoration: none; }
+    .game-header-dev a:hover { text-decoration: underline; }
+
+    .game-badges {
+      display: flex;
+      gap: var(--sp-2);
+      flex-wrap: wrap;
+      margin-bottom: var(--sp-4);
+    }
+    .game-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-1);
+      font-size: var(--ts-xs);
+      font-weight: 500;
+      padding: 3px var(--sp-3);
+      border-radius: 100px;
+      border: 1px solid;
+    }
+    .game-badge.subgenre {
+      color: var(--tertiary);
+      border-color: rgba(163,106,165,0.3);
+      background: rgba(163,106,165,0.08);
+    }
+    .game-badge.demo {
+      color: var(--status-blue);
+      border-color: rgba(107,157,219,0.3);
+      background: rgba(107,157,219,0.08);
+    }
+    .game-badge.dev-track {
+      color: var(--status-green);
+      border-color: rgba(94,194,105,0.3);
+      background: rgba(94,194,105,0.08);
+    }
+    .game-badge.price-tag {
+      color: var(--secondary);
+      border-color: rgba(187,113,37,0.3);
+      background: rgba(187,113,37,0.08);
+    }
+
+    .overview-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: var(--sp-3);
+    }
+    .overview-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4);
+    }
+    .overview-stat-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: var(--sp-1);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+    .overview-stat-label .icon { font-size: var(--ts-sm); }
+    .overview-stat-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xl);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .overview-stat-value.green { color: var(--status-green); }
+    .overview-stat-value.amber { color: var(--status-amber); }
+    .overview-stat-sub {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      margin-top: var(--sp-1);
+    }
+
+    /* ============================================================
+       SECTION HEADINGS
+       ============================================================ */
+    .content-section {
+      margin-bottom: var(--sp-10);
+      scroll-margin-top: 80px;
+    }
+    .content-section-title {
+      font-size: var(--ts-lg);
+      font-weight: 700;
+      margin-bottom: var(--sp-4);
+      padding-bottom: var(--sp-2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .content-section-title .icon {
+      color: var(--secondary);
+      font-size: var(--ts-base);
+    }
+
+    /* ============================================================
+       TIMELINE (CSS CHART)
+       ============================================================ */
+    .timeline-chart {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      margin-bottom: var(--sp-4);
+      position: relative;
+    }
+    .timeline-zoom-control {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-4);
+      padding-bottom: var(--sp-3);
+      border-bottom: 1px solid var(--border);
+    }
+    .timeline-zoom-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+    .timeline-zoom-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--sp-1) var(--sp-3);
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .timeline-zoom-btn:hover { color: var(--text-main); border-color: var(--text-dim); }
+    .timeline-zoom-btn.active {
+      color: var(--secondary);
+      border-color: rgba(187,113,37,0.4);
+      background: rgba(187,113,37,0.08);
+    }
+    .timeline-zoom-btn:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+
+    .timeline-drag-hint {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      padding: 2px var(--sp-2);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+
+    .timeline-area {
+      height: 180px;
+      position: relative;
+    }
+    /* Phase bands */
+    .phase-band {
+      position: absolute;
+      top: 0;
+      bottom: 24px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: var(--sp-2);
+    }
+    .phase-band-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 2px var(--sp-2);
+      border-radius: 3px;
+      align-self: flex-start;
+    }
+    .phase-band.demo-phase {
+      left: 0; width: 15%;
+      background: rgba(176,125,178,0.06);
+      border: 1px solid rgba(176,125,178,0.15);
+    }
+    .phase-band.demo-phase .phase-band-label { color: var(--status-violet); background: rgba(176,125,178,0.12); }
+    .phase-band.launch {
+      left: 16%; width: 18%;
+      background: rgba(94,194,105,0.06);
+      border: 1px solid rgba(94,194,105,0.15);
+    }
+    .phase-band.launch .phase-band-label { color: var(--status-green); background: rgba(94,194,105,0.12); }
+    .phase-band.discovery {
+      left: 35%; width: 40%;
+      background: rgba(232,168,50,0.06);
+      border: 1px solid rgba(232,168,50,0.15);
+    }
+    .phase-band.discovery .phase-band-label { color: var(--status-amber); background: rgba(232,168,50,0.12); }
+    .phase-band.settling {
+      left: 76%; width: 24%;
+      background: rgba(145,131,119,0.06);
+      border: 1px solid rgba(145,131,119,0.15);
+    }
+    .phase-band.settling .phase-band-label { color: var(--text-dim); background: rgba(145,131,119,0.12); }
+
+    /* Y axis in chart */
+    .timeline-y {
+      position: absolute;
+      left: 0; top: 0; bottom: 24px;
+      width: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      text-align: right;
+      padding-right: var(--sp-1);
+    }
+    /* X axis */
+    .timeline-x {
+      position: absolute;
+      bottom: 0; left: 30px; right: 0;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+    /* SVG line overlay */
+    .timeline-svg {
+      position: absolute;
+      left: 30px; right: 0; top: 0; bottom: 24px;
+    }
+    .timeline-svg svg { width: 100%; height: 100%; }
+
+    .phase-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--sp-3);
+    }
+    .phase-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4);
+    }
+    .phase-card-label {
+      font-size: var(--ts-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--sp-2);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+    }
+    .phase-card-label.demo    { color: var(--status-violet); }
+    .phase-card-label.launch  { color: var(--status-green); }
+    .phase-card-label.discovery { color: var(--status-amber); }
+    .phase-card-label.settling { color: var(--text-dim); }
+
+    .phase-card-range {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      margin-bottom: var(--sp-2);
+    }
+    .phase-card-stat {
+      font-size: var(--ts-xs);
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+    .phase-card-stat strong { color: var(--text-main); font-weight: 500; }
+
+    .phase-card-signifier {
+      margin-top: var(--sp-3);
+      font-size: 10px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .phase-card-signifier:hover { color: var(--text-main); }
+
+    /* ============================================================
+       CREATOR IMPACT
+       ============================================================ */
+    .creator-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--sp-4);
+    }
+    .creator-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      transition: border-color 0.2s;
+    }
+    .creator-card:hover { border-color: var(--border-light); }
+
+    .creator-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-4);
+    }
+    .creator-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ts-sm);
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+    .creator-info { min-width: 0; }
+    .creator-name {
+      font-weight: 600;
+      font-size: var(--ts-sm);
+    }
+    .creator-subs {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+    }
+
+    .creator-video-title {
+      font-size: var(--ts-xs);
+      color: var(--text-mid);
+      margin-bottom: var(--sp-3);
+      line-height: 1.5;
+    }
+    .creator-video-title strong { color: var(--text-main); font-weight: 500; }
+
+    .creator-impact-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-2);
+    }
+    .creator-impact-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      font-weight: 600;
+      width: 50px;
+      flex-shrink: 0;
+    }
+    .creator-impact-bar-track {
+      flex: 1;
+      height: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+    }
+    .creator-impact-bar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      border-radius: var(--radius-sm);
+    }
+    .creator-impact-bar-fill.high {
+      background: linear-gradient(90deg, var(--status-green), rgba(94,194,105,0.5));
+    }
+    .creator-impact-bar-fill.mid {
+      background: linear-gradient(90deg, var(--status-amber), rgba(232,168,50,0.5));
+    }
+    .creator-impact-bar-fill.low {
+      background: linear-gradient(90deg, var(--status-blue), rgba(107,157,219,0.5));
+    }
+    .creator-impact-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-sm);
+      font-weight: 600;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .creator-impact-value.high { color: var(--status-green); }
+    .creator-impact-value.mid { color: var(--status-amber); }
+    .creator-impact-value.low { color: var(--status-blue); }
+
+    .creator-date {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: var(--sp-2);
+    }
+
+    /* ============================================================
+       EVENTS
+       ============================================================ */
+    .events-group {
+      margin-bottom: var(--sp-5);
+    }
+    .events-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: var(--sp-2);
+    }
+    .events-group-header:hover { background: var(--surface-hover); }
+    .events-group-header:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+    .events-group-title {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: var(--ts-sm);
+      font-weight: 600;
+    }
+    .events-group-title .icon { font-size: var(--ts-base); }
+    .events-group-title.youtube .icon { color: var(--status-red); }
+    .events-group-title.reddit .icon  { color: var(--secondary); }
+    .events-group-title.steam .icon   { color: var(--status-blue); }
+    .events-group-count {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.03);
+      padding: 2px var(--sp-2);
+      border-radius: 100px;
+    }
+    .events-group-chevron {
+      color: var(--text-dim);
+      font-size: var(--ts-base);
+      transition: transform 0.2s;
+    }
+    .events-group.expanded .events-group-chevron { transform: rotate(90deg); }
+
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      padding-left: var(--sp-4);
+    }
+    .event-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--ts-sm);
+    }
+    .event-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .event-dot.youtube { background: var(--status-red); }
+    .event-dot.reddit  { background: var(--secondary); }
+    .event-dot.steam   { background: var(--status-blue); }
+    .event-content { flex: 1; min-width: 0; }
+    .event-title {
+      font-weight: 500;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+    .event-meta {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      display: flex;
+      gap: var(--sp-3);
+      flex-wrap: wrap;
+    }
+    .event-date {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       COMMUNITY SECTION
+       ============================================================ */
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--sp-4);
+    }
+    .community-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+    }
+    .community-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      margin-bottom: var(--sp-3);
+    }
+    .community-card-icon {
+      font-size: var(--ts-base);
+    }
+    .community-card-label {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .community-card-value {
+      font-family: var(--font-mono);
+      font-size: var(--ts-xl);
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: var(--sp-1);
+    }
+    .community-card-sub {
+      font-size: var(--ts-xs);
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-6);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: var(--ts-xs); color: var(--text-dim);
+      flex-wrap: wrap; gap: var(--sp-2);
+    }
+    .footer-left, .footer-right { display: flex; align-items: center; gap: var(--sp-4); }
+    .footer-status { display: flex; align-items: center; gap: var(--sp-2); }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--status-green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* ============================================================
+       MOCKUP NOTE
+       ============================================================ */
+    .mockup-meta {
+      background: rgba(187,113,37,0.08);
+      border: 1px dashed var(--secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-4) var(--sp-6);
+      margin: var(--sp-6);
+      font-size: var(--ts-xs); color: var(--secondary);
+    }
+    .mockup-meta h3 { font-size: var(--ts-sm); margin-bottom: var(--sp-2); }
+    .mockup-meta ul { padding-left: var(--sp-5); }
+    .mockup-meta li { margin-bottom: var(--sp-1); }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 768px) {
+      .site-nav { display: none; }
+      .site-header { padding: var(--sp-3) var(--sp-4); }
+      .breadcrumb { padding: var(--sp-2) var(--sp-4); }
+
+      .page-layout {
+        grid-template-columns: 1fr;
+      }
+      .section-nav { display: none; }
+      .section-nav-mobile { display: block; }
+
+      .page-content { padding: var(--sp-4); }
+
+      .game-header { flex-direction: column; align-items: center; text-align: center; }
+      .game-cover { width: 120px; height: 150px; }
+      .game-badges { justify-content: center; }
+      .game-header-title { font-size: var(--ts-xl); }
+
+      .overview-stats { grid-template-columns: 1fr 1fr; }
+      .creator-cards { grid-template-columns: 1fr; }
+      .phase-cards { grid-template-columns: 1fr 1fr; }
+      .community-grid { grid-template-columns: 1fr 1fr; }
+
+      .site-footer { padding: var(--sp-2) var(--sp-4); }
+    }
+
+    @media (max-width: 480px) {
+      .overview-stats { grid-template-columns: 1fr; }
+      .phase-cards { grid-template-columns: 1fr; }
+      .community-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (min-width: 1280px) {
+      .site-header { padding: var(--sp-4) var(--sp-10); }
+      .breadcrumb { padding: var(--sp-3) var(--sp-10); }
+      .page-layout { grid-template-columns: 220px 1fr; }
+      .page-content { padding: var(--sp-8); max-width: 960px; }
+      .site-footer { padding: var(--sp-3) var(--sp-10); }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- HEADER -->
+  <header class="site-header" role="banner">
+    <a href="#" class="site-logo" aria-label="Horror Radar home">
+      <div class="site-logo-icon" aria-hidden="true">&#x1F56E;</div>
+      <div class="site-logo-text">Horror<span>Radar</span></div>
+    </a>
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <a href="#" class="active">Database</a>
+      <a href="#">Radar Pick</a>
+      <a href="#">Trends</a>
+      <a href="#">Discover</a>
+    </nav>
+  </header>
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="#">Database</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current" aria-current="page">Hollowfield</span>
+  </nav>
+
+  <!-- Mobile section nav -->
+  <nav class="section-nav-mobile" aria-label="Page sections (mobile)">
+    <ul class="section-nav-mobile-list">
+      <li><a href="#overview" class="active">Overview</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#creators">Creators</a></li>
+      <li><a href="#events">Events</a></li>
+      <li><a href="#community">Community</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-layout">
+    <!-- SIDEBAR NAV (desktop) -->
+    <nav class="section-nav" aria-label="Page sections">
+      <div class="section-nav-title">Sections</div>
+      <ul class="section-nav-list">
+        <li>
+          <a href="#overview" class="active">
+            <span class="nav-icon" aria-hidden="true">&#x1F3AE;</span>
+            Overview
+          </a>
+        </li>
+        <li>
+          <a href="#timeline">
+            <span class="nav-icon" aria-hidden="true">&#x1F4C8;</span>
+            Timeline
+          </a>
+        </li>
+        <li>
+          <a href="#creators">
+            <span class="nav-icon" aria-hidden="true">&#x25B6;</span>
+            Creator Impact
+          </a>
+        </li>
+        <li>
+          <a href="#events">
+            <span class="nav-icon" aria-hidden="true">&#x1F4CB;</span>
+            Events
+          </a>
+        </li>
+        <li>
+          <a href="#community">
+            <span class="nav-icon" aria-hidden="true">&#x1F465;</span>
+            Community
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content" class="page-content">
+
+      <!-- ============================================================
+           OVERVIEW
+           ============================================================ -->
+      <section id="overview" class="content-section">
+        <div class="game-header">
+          <div class="game-cover" aria-hidden="true">HF</div>
+          <div class="game-header-info">
+            <h1 class="game-header-title">Hollowfield</h1>
+            <p class="game-header-dev">
+              by <a href="#">Dread Works Studio</a>
+            </p>
+            <div class="game-badges">
+              <span class="game-badge subgenre">
+                <span aria-hidden="true">&#x1F47B;</span> Psychological Horror
+              </span>
+              <span class="game-badge demo">
+                <span aria-hidden="true">&#x1F579;</span> Demo Available
+              </span>
+              <span class="game-badge dev-track">
+                <span aria-hidden="true">&#x2705;</span> Debut Title
+              </span>
+              <span class="game-badge price-tag">
+                <span aria-hidden="true">&#x1F4B0;</span> $14.99
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="overview-stats">
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x26A1;</span> OPS
+            </div>
+            <div class="overview-stat-value green">78</div>
+            <div class="overview-stat-sub">BREAKOUT tier &middot; HIGH confidence</div>
+          </article>
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x2B50;</span> Reviews
+            </div>
+            <div class="overview-stat-value">42</div>
+            <div class="overview-stat-sub">92% positive &middot; 3.5/day avg</div>
+          </article>
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x1F3AE;</span> Peak CCU
+            </div>
+            <div class="overview-stat-value">156</div>
+            <div class="overview-stat-sub">2.4x peer median</div>
+          </article>
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x1F4C5;</span> Age
+            </div>
+            <div class="overview-stat-value amber">12d</div>
+            <div class="overview-stat-sub">Released Mar 28, 2026</div>
+          </article>
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x25B6;</span> YouTube
+            </div>
+            <div class="overview-stat-value">3</div>
+            <div class="overview-stat-sub">Creators covering this game</div>
+          </article>
+          <article class="overview-stat">
+            <div class="overview-stat-label">
+              <span class="icon" aria-hidden="true">&#x1F6E0;</span> Patches
+            </div>
+            <div class="overview-stat-value">2</div>
+            <div class="overview-stat-sub">Updates in first 30 days</div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TIMELINE
+           ============================================================ -->
+      <section id="timeline" class="content-section">
+        <h2 class="content-section-title">
+          <span class="icon" aria-hidden="true">&#x1F4C8;</span>
+          Timeline
+        </h2>
+
+        <div class="timeline-chart" role="img" aria-label="Timeline chart showing OPS score across 4 phases over 45 days">
+          <div class="timeline-zoom-control" role="group" aria-label="Zoom controls">
+            <span class="timeline-zoom-label">
+              <span aria-hidden="true">&#x1F50D;</span> Zoom
+            </span>
+            <button class="timeline-zoom-btn" aria-label="Show 7 day view">7D</button>
+            <button class="timeline-zoom-btn active" aria-label="Show 30 day view">30D</button>
+            <button class="timeline-zoom-btn" aria-label="Show all time view">All</button>
+            <span class="timeline-drag-hint">
+              <span aria-hidden="true">&#x2194;</span> Drag to select range
+            </span>
+          </div>
+
+          <div class="timeline-area">
+            <!-- Phase bands -->
+            <div class="phase-band demo-phase">
+              <span class="phase-band-label">Demo</span>
+            </div>
+            <div class="phase-band launch">
+              <span class="phase-band-label">Launch</span>
+            </div>
+            <div class="phase-band discovery">
+              <span class="phase-band-label">Discovery</span>
+            </div>
+            <div class="phase-band settling">
+              <span class="phase-band-label">Settling</span>
+            </div>
+
+            <!-- Y axis -->
+            <div class="timeline-y">
+              <span>100</span>
+              <span>75</span>
+              <span>50</span>
+              <span>25</span>
+              <span>0</span>
+            </div>
+            <!-- SVG -->
+            <div class="timeline-svg">
+              <svg viewBox="0 0 600 140" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="tGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="rgba(94,194,105,0.2)"/>
+                    <stop offset="100%" stop-color="rgba(94,194,105,0)"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,130 L60,128 L90,126 L100,110 L130,90 L160,75 L200,60 L250,48 L300,40 L350,36 L400,34 L450,33 L500,32 L550,31 L600,31 L600,140 L0,140 Z" fill="url(#tGrad)"/>
+                <polyline points="0,130 60,128 90,126 100,110 130,90 160,75 200,60 250,48 300,40 350,36 400,34 450,33 500,32 550,31 600,31"
+                  fill="none" stroke="#5ec269" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Key event markers -->
+                <circle cx="100" cy="110" r="4" fill="#e25535" stroke="#111314" stroke-width="1.5"/>
+                <circle cx="160" cy="75" r="4" fill="#e25535" stroke="#111314" stroke-width="1.5"/>
+                <circle cx="300" cy="40" r="4" fill="#bb7125" stroke="#111314" stroke-width="1.5"/>
+                <circle cx="600" cy="31" r="5" fill="#5ec269" stroke="#111314" stroke-width="2"/>
+              </svg>
+            </div>
+            <!-- X axis -->
+            <div class="timeline-x">
+              <span>Day -14</span>
+              <span>Day 0</span>
+              <span>Day 7</span>
+              <span>Day 14</span>
+              <span>Day 21</span>
+              <span>Day 30</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="phase-cards">
+          <article class="phase-card">
+            <div class="phase-card-label demo">
+              <span aria-hidden="true">&#x1F579;</span> Demo Phase
+            </div>
+            <div class="phase-card-range">Days -14 to -1</div>
+            <div class="phase-card-stat">
+              <strong>28 demo reviews</strong> at 94% positive.
+              Built pre-launch awareness.
+            </div>
+            <div class="phase-card-signifier" aria-hidden="true">
+              &#x1F50D; Click to zoom to this period
+            </div>
+          </article>
+
+          <article class="phase-card">
+            <div class="phase-card-label launch">
+              <span aria-hidden="true">&#x1F680;</span> Launch Week
+            </div>
+            <div class="phase-card-range">Days 0 - 7</div>
+            <div class="phase-card-stat">
+              <strong>IGP video Day 3</strong>, driving 60% of launch-week reviews.
+              CCU peaked at 156.
+            </div>
+            <div class="phase-card-signifier" aria-hidden="true">
+              &#x1F50D; Click to zoom to this period
+            </div>
+          </article>
+
+          <article class="phase-card">
+            <div class="phase-card-label discovery">
+              <span aria-hidden="true">&#x1F50E;</span> Discovery
+            </div>
+            <div class="phase-card-range">Days 8 - 30</div>
+            <div class="phase-card-stat">
+              <strong>Insym + CJUGames</strong> coverage.
+              Velocity sustained at 2.8/day vs 0.14 median.
+            </div>
+            <div class="phase-card-signifier" aria-hidden="true">
+              &#x1F50D; Click to zoom to this period
+            </div>
+          </article>
+
+          <article class="phase-card">
+            <div class="phase-card-label settling">
+              <span aria-hidden="true">&#x23F3;</span> Settling
+            </div>
+            <div class="phase-card-range">Days 31+</div>
+            <div class="phase-card-stat">
+              Projected phase. Decay retention score of <strong>1.6</strong> suggests momentum will hold above median.
+            </div>
+            <div class="phase-card-signifier" aria-hidden="true">
+              &#x1F50D; Click to zoom to this period
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           CREATOR IMPACT
+           ============================================================ -->
+      <section id="creators" class="content-section">
+        <h2 class="content-section-title">
+          <span class="icon" aria-hidden="true">&#x25B6;</span>
+          Creator Impact
+        </h2>
+
+        <div class="creator-cards">
+          <article class="creator-card">
+            <div class="creator-card-header">
+              <div class="creator-avatar" aria-hidden="true">IG</div>
+              <div class="creator-info">
+                <div class="creator-name">IGP</div>
+                <div class="creator-subs">4.2M subscribers</div>
+              </div>
+            </div>
+            <p class="creator-video-title">
+              <strong>"This Indie Horror Game Destroyed Me"</strong> &mdash; 32 min full playthrough
+            </p>
+            <div class="creator-impact-row">
+              <span class="creator-impact-label">Impact</span>
+              <div class="creator-impact-bar-track" role="progressbar" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100" aria-label="Impact score: 85">
+                <div class="creator-impact-bar-fill high" style="width: 85%;"></div>
+              </div>
+              <span class="creator-impact-value high">85</span>
+            </div>
+            <div class="creator-date">Day 3 &middot; 180K views in 48h</div>
+          </article>
+
+          <article class="creator-card">
+            <div class="creator-card-header">
+              <div class="creator-avatar" aria-hidden="true">IN</div>
+              <div class="creator-info">
+                <div class="creator-name">Insym</div>
+                <div class="creator-subs">2.1M subscribers</div>
+              </div>
+            </div>
+            <p class="creator-video-title">
+              <strong>"Hollowfield Full Gameplay"</strong> &mdash; 45 min playthrough + reactions
+            </p>
+            <div class="creator-impact-row">
+              <span class="creator-impact-label">Impact</span>
+              <div class="creator-impact-bar-track" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100" aria-label="Impact score: 62">
+                <div class="creator-impact-bar-fill mid" style="width: 62%;"></div>
+              </div>
+              <span class="creator-impact-value mid">62</span>
+            </div>
+            <div class="creator-date">Day 5 &middot; 95K views in 72h</div>
+          </article>
+
+          <article class="creator-card">
+            <div class="creator-card-header">
+              <div class="creator-avatar" aria-hidden="true">CJ</div>
+              <div class="creator-info">
+                <div class="creator-name">CJUGames</div>
+                <div class="creator-subs">450K subscribers</div>
+              </div>
+            </div>
+            <p class="creator-video-title">
+              <strong>"The Best Indie Horror of 2026?"</strong> &mdash; 28 min review + analysis
+            </p>
+            <div class="creator-impact-row">
+              <span class="creator-impact-label">Impact</span>
+              <div class="creator-impact-bar-track" role="progressbar" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100" aria-label="Impact score: 34">
+                <div class="creator-impact-bar-fill low" style="width: 34%;"></div>
+              </div>
+              <span class="creator-impact-value low">34</span>
+            </div>
+            <div class="creator-date">Day 7 &middot; 42K views in 5 days</div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           EVENTS
+           ============================================================ -->
+      <section id="events" class="content-section">
+        <h2 class="content-section-title">
+          <span class="icon" aria-hidden="true">&#x1F4CB;</span>
+          Events Timeline
+        </h2>
+
+        <!-- YouTube events -->
+        <div class="events-group expanded">
+          <div class="events-group-header" tabindex="0" role="button" aria-expanded="true" aria-label="YouTube events, 3 items">
+            <div class="events-group-title youtube">
+              <span class="icon" aria-hidden="true">&#x25B6;</span>
+              YouTube
+            </div>
+            <span class="events-group-count">3 events</span>
+            <span class="events-group-chevron" aria-hidden="true">&#x203A;</span>
+          </div>
+          <div class="events-list" role="list">
+            <div class="event-item" role="listitem">
+              <span class="event-dot youtube" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">IGP published playthrough video</div>
+                <div class="event-meta">
+                  <span>4.2M subs</span>
+                  <span>180K views</span>
+                  <span>32 min</span>
+                </div>
+              </div>
+              <span class="event-date">Day 3</span>
+            </div>
+            <div class="event-item" role="listitem">
+              <span class="event-dot youtube" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">Insym full gameplay upload</div>
+                <div class="event-meta">
+                  <span>2.1M subs</span>
+                  <span>95K views</span>
+                  <span>45 min</span>
+                </div>
+              </div>
+              <span class="event-date">Day 5</span>
+            </div>
+            <div class="event-item" role="listitem">
+              <span class="event-dot youtube" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">CJUGames review &amp; analysis</div>
+                <div class="event-meta">
+                  <span>450K subs</span>
+                  <span>42K views</span>
+                  <span>28 min</span>
+                </div>
+              </div>
+              <span class="event-date">Day 7</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reddit events -->
+        <div class="events-group expanded">
+          <div class="events-group-header" tabindex="0" role="button" aria-expanded="true" aria-label="Reddit events, 1 item">
+            <div class="events-group-title reddit">
+              <span class="icon" aria-hidden="true">&#x1F4AC;</span>
+              Reddit
+            </div>
+            <span class="events-group-count">1 event</span>
+            <span class="events-group-chevron" aria-hidden="true">&#x203A;</span>
+          </div>
+          <div class="events-list" role="list">
+            <div class="event-item" role="listitem">
+              <span class="event-dot reddit" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">Discussion post in r/HorrorGaming</div>
+                <div class="event-meta">
+                  <span>234 upvotes</span>
+                  <span>45 comments</span>
+                  <span>Positive sentiment</span>
+                </div>
+              </div>
+              <span class="event-date">Day 6</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Steam events -->
+        <div class="events-group expanded">
+          <div class="events-group-header" tabindex="0" role="button" aria-expanded="true" aria-label="Steam updates, 2 items">
+            <div class="events-group-title steam">
+              <span class="icon" aria-hidden="true">&#x1F6E0;</span>
+              Steam Updates
+            </div>
+            <span class="events-group-count">2 events</span>
+            <span class="events-group-chevron" aria-hidden="true">&#x203A;</span>
+          </div>
+          <div class="events-list" role="list">
+            <div class="event-item" role="listitem">
+              <span class="event-dot steam" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">Patch 1.0.1 &mdash; Bug fixes &amp; optimization</div>
+                <div class="event-meta">
+                  <span>Performance improvements</span>
+                  <span>3 bug fixes</span>
+                </div>
+              </div>
+              <span class="event-date">Day 4</span>
+            </div>
+            <div class="event-item" role="listitem">
+              <span class="event-dot steam" aria-hidden="true"></span>
+              <div class="event-content">
+                <div class="event-title">Patch 1.0.2 &mdash; Accessibility + subtitles</div>
+                <div class="event-meta">
+                  <span>Subtitle options</span>
+                  <span>Brightness slider</span>
+                </div>
+              </div>
+              <span class="event-date">Day 10</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           COMMUNITY
+           ============================================================ -->
+      <section id="community" class="content-section">
+        <h2 class="content-section-title">
+          <span class="icon" aria-hidden="true">&#x1F465;</span>
+          Community Signals
+        </h2>
+
+        <div class="community-grid">
+          <article class="community-card">
+            <div class="community-card-header">
+              <span class="community-card-icon" aria-hidden="true">&#x1F4AC;</span>
+              <span class="community-card-label">Reddit Mentions</span>
+            </div>
+            <div class="community-card-value">3</div>
+            <div class="community-card-sub">
+              Posts across r/HorrorGaming, r/IndieGaming.
+              Highest: 234 upvotes.
+            </div>
+          </article>
+
+          <article class="community-card">
+            <div class="community-card-header">
+              <span class="community-card-icon" aria-hidden="true">&#x1F4E2;</span>
+              <span class="community-card-label">Steam Discussions</span>
+            </div>
+            <div class="community-card-value">8</div>
+            <div class="community-card-sub">
+              Active threads. Mix of gameplay tips
+              and positive first impressions.
+            </div>
+          </article>
+
+          <article class="community-card">
+            <div class="community-card-header">
+              <span class="community-card-icon" aria-hidden="true">&#x1F3A5;</span>
+              <span class="community-card-label">Twitch Streams</span>
+            </div>
+            <div class="community-card-value">12</div>
+            <div class="community-card-sub">
+              Unique streamers in the last 7 days.
+              Peak concurrent viewers: 89.
+            </div>
+          </article>
+
+          <article class="community-card">
+            <div class="community-card-header">
+              <span class="community-card-icon" aria-hidden="true">&#x1F3C6;</span>
+              <span class="community-card-label">Achievements</span>
+            </div>
+            <div class="community-card-value">62%</div>
+            <div class="community-card-sub">
+              Median completion on easiest achievement.
+              Suggests strong player retention.
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-left">
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Active Scrapers: <strong style="color:var(--text-main);">10/12</strong></span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Last Sync: <strong style="color:var(--text-main);">4 min ago</strong></span>
+      </div>
+      <span style="color:var(--text-dim);">v4.0 &middot; OPS v4</span>
+    </div>
+  </footer>
+
+  <!-- MOCKUP NOTE -->
+  <aside class="mockup-meta" aria-label="Design notes">
+    <h3>Design Mockup Notes &mdash; Game Detail (Autopsy Page)</h3>
+    <ul>
+      <li><strong>Section navigation:</strong> Sticky sidebar on desktop with jump links (Overview, Timeline, Creator Impact, Events, Community). Collapses to sticky horizontal pill bar on mobile.</li>
+      <li><strong>Overview:</strong> Game header with cover placeholder, key stats grid, badges for subgenre, demo availability, developer track record, and price tier.</li>
+      <li><strong>Timeline:</strong> CSS+SVG chart with labeled phase bands (Demo, Launch, Discovery, Settling). Zoom controls (7D/30D/All) and visible "Drag to select range" hint (D-11).</li>
+      <li><strong>Phase cards:</strong> Non-hovering cards with explicit "Click to zoom to this period" signifier, addressing the audit finding about hover-lift without click affordance.</li>
+      <li><strong>Creator Impact:</strong> Card layout instead of table. Each card shows avatar placeholder, name, subscriber count, video title, horizontal impact bar with score, and date. Much clearer hierarchy than a flat table.</li>
+      <li><strong>Events:</strong> Grouped by type (YouTube, Reddit, Steam Updates) with expandable sections. Each group shows event count. Event items use colored dots for type differentiation alongside text labels.</li>
+      <li><strong>Community:</strong> Summary cards for Reddit mentions, Steam discussions, Twitch streams, and achievement completion.</li>
+      <li><strong>Breadcrumb:</strong> "Database > Hollowfield" navigation (CM-04).</li>
+      <li><strong>Accessibility:</strong> Skip link, semantic HTML (section, article, nav), aria-labels, role attributes, focus-visible outlines, corrected color values.</li>
+      <li><strong>Responsive:</strong> Sidebar collapses to horizontal pill bar on mobile. Stats grid adapts from 3-col to 2-col to 1-col.</li>
+    </ul>
+  </aside>
+
+</body>
+</html>
