@@ -1,81 +1,39 @@
-/**
- * Concept B — "Signal Fire"
- *
- * Intelligence briefing: alert banner, metric tiles with editorial
- * subtexts, numbered evidence blocks, OPS anatomy with component cards.
- * Now wired to the real `/radar-pick` endpoint.
- */
-import { useState, useEffect, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip,
-} from "recharts";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchOne } from "../../api/client";
-import type { RadarPickResponse, RadarOpsComponent, RadarPickSummary } from "../../types";
-
-// ─── Palette ────────────────────────────────────────────────────
-const C = {
-  bg: "#111314",
-  surface: "#1a1a1c",
-  tile: "#1f1f22",
-  accent: "#802626",
-  accentDim: "rgba(128,38,38,0.25)",
-  text: "#e8e0d4",
-  textMid: "#a09080",
-  textDim: "#6b6058",
-  textFaint: "#3d3530",
-  border: "#2a2420",
-  green: "#22c55e",
-  amber: "#bb7125",
-  greenDim: "#1a5c3a",
-  amberDim: "#5c3a12",
-};
-
-const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
-const heading: React.CSSProperties = { fontFamily: "'Public Sans', sans-serif" };
+import { useWatchlist } from "../../hooks/useWatchlist";
+import type { RadarPickResponse } from "../../types";
 
 // ─── Helpers ───────────────────────────────────────────────────
 function fmt(n: number): string { return n.toLocaleString(); }
-function fmtK(n: number): string { return n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n); }
-/** Generate the italic verdict line from data signals. */
-function buildVerdict(d: RadarPickResponse): string {
-  const parts: string[] = [];
-
-  if (d.review_count != null) parts.push(`${fmt(d.review_count)} reviews`);
-  if (d.sentiment_pct != null) parts.push(`${d.sentiment_pct.toFixed(0)}% positive`);
-
-  // Creator coverage insight
-  if (d.youtube && d.youtube.video_count > 0) {
-    const biggest = d.youtube.largest_subscriber_count;
-    if (biggest != null && biggest >= 1_000_000) {
-      parts.push(`Major creator coverage (${fmtSubs(biggest)} subs)`);
-    } else if (biggest != null && biggest >= 500_000) {
-      parts.push("Mid-tier creator attention");
-    } else {
-      parts.push("Zero major creators");
-    }
-  } else {
-    parts.push("No YouTube coverage yet");
-  }
-
-  // Trajectory statement
-  const isAccelerating = d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_7d > d.velocity_prev_7d;
-  const isDecaying = d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_7d < d.velocity_prev_7d * 0.7;
-
-  if (isAccelerating) {
-    return `${parts.join(". ")}. ${d.title} found its audience on its own — and it's still accelerating.`;
-  } else if (isDecaying) {
-    return `${parts.join(". ")}. ${d.title} spiked hard at launch and the numbers are settling — but the floor is still high.`;
-  } else {
-    return `${parts.join(". ")}. ${d.title} is holding steady — sustained interest without a single breakout catalyst.`;
-  }
-}
-
 function fmtSubs(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
   return String(n);
+}
+
+function opsColor(score: number): string {
+  if (score >= 60) return "text-status-pos";
+  if (score >= 30) return "text-status-warn";
+  return "text-status-neg";
+}
+function opsGlyph(score: number): string {
+  if (score >= 60) return "▲";
+  if (score >= 30) return "◆";
+  return "▼";
+}
+function opsTier(score: number): string {
+  if (score >= 60) return "BREAKOUT";
+  if (score >= 30) return "WATCH";
+  return "COLD";
+}
+
+function sentimentLabel(pct: number): string {
+  if (pct >= 90) return "Exceptional";
+  if (pct >= 80) return "Very Positive";
+  if (pct >= 70) return "Positive";
+  if (pct >= 50) return "Mixed";
+  return "Negative";
 }
 
 function getISOWeek(d: Date): number {
@@ -88,224 +46,36 @@ function getISOWeek(d: Date): number {
 function getWeekRange(d: Date): { start: string; end: string } {
   const day = d.getDay();
   const mon = new Date(d);
-  mon.setDate(d.getDate() - ((day + 6) % 7)); // Monday
+  mon.setDate(d.getDate() - ((day + 6) % 7));
   const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6); // Sunday
-  const fmt = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return { start: fmt(mon), end: fmt(sun) };
+  sun.setDate(mon.getDate() + 6);
+  const fmtDate = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return { start: fmtDate(mon), end: fmtDate(sun) };
 }
 
-function sentimentLabel(pct: number): string {
-  if (pct >= 90) return "Exceptional";
-  if (pct >= 80) return "Very Positive";
-  if (pct >= 70) return "Positive";
-  if (pct >= 50) return "Mixed";
-  return "Negative";
-}
+function buildVerdict(d: RadarPickResponse): string {
+  const parts: string[] = [];
+  if (d.review_count != null) parts.push(`${fmt(d.review_count)} reviews`);
+  if (d.sentiment_pct != null) parts.push(`${d.sentiment_pct.toFixed(0)}% positive`);
 
-function priceLabel(price: number | null, reviewCount: number | null): string {
-  if (price == null || price === 0) return "Free to Play";
-  if (reviewCount != null && reviewCount > 500 && price < 10) return "Underpriced";
-  if (price < 5) return "Budget";
-  if (price < 15) return "Mid-range";
-  return "Premium";
-}
-
-// ─── Tiny inline sparkline ──────────────────────────────────────
-function MiniSpark({ data, color, width = 80, height = 28 }: { data: number[], color: string, width?: number, height?: number }) {
-  if (data.length < 2) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 4) - 2;
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <svg width={width} height={height} style={{ display: "block" }}>
-      <polyline points={points} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// ─── Evidence block type ───────────────────────────────────────
-interface EvidenceBlock {
-  signal: string;
-  label: string;
-  headline: string;
-  body: ReactNode;
-  artifact: ReactNode;
-  artifactLabel: string;
-}
-
-// ─── Build evidence blocks from data ───────────────────────────
-function buildEvidenceBlocks(d: RadarPickResponse): EvidenceBlock[] {
-  const blocks: EvidenceBlock[] = [];
-  let idx = 1;
-
-  // Signal: Review Velocity
-  if (d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_prev_7d > 0) {
-    const multiplier = (d.velocity_7d / d.velocity_prev_7d).toFixed(1);
-    const isAccelerating = d.velocity_7d > d.velocity_prev_7d;
-    const velocityWord = isAccelerating ? "accelerating" : "decelerating";
-    const rarity = parseFloat(multiplier) >= 2 ? "fewer than 5%" : parseFloat(multiplier) >= 1.5 ? "fewer than 15%" : "around 25%";
-
-    blocks.push({
-      signal: String(idx).padStart(2, "0"),
-      label: "REVIEW VELOCITY",
-      headline: isAccelerating ? "Acceleration, not just growth" : "Sustained momentum despite natural decay",
-      body: (
-        <>
-          <Hl>{fmt(d.velocity_7d)}</Hl> new reviews in the last 7 days — {isAccelerating ? "up" : "down"} from{" "}
-          <Hl>{fmt(d.velocity_prev_7d)}</Hl> the week before.
-          That's a <Hl>{multiplier}x {isAccelerating ? "acceleration" : "retention"}</Hl>.
-          Most horror releases lose 70-90% of their review velocity by week two. {d.title}'s
-          velocity is <em>{velocityWord}</em>. This pattern appears in {rarity} of horror releases.
-        </>
-      ),
-      artifact: d.velocity_spark.length >= 2
-        ? <MiniSpark data={d.velocity_spark.map(v => v.value)} color={C.accent} width={100} height={32} />
-        : null,
-      artifactLabel: "Weekly velocity",
-    });
-    idx++;
-  }
-
-  // Signal: Organic Discovery / YouTube
   if (d.youtube && d.youtube.video_count > 0) {
-    const yt = d.youtube;
-    const coverageLevel = yt.video_count <= 3 ? "minimal" : yt.video_count <= 8 ? "growing" : "significant";
-    const largestStr = yt.largest_subscriber_count ? fmtSubs(yt.largest_subscriber_count) : "unknown";
-    const bigCreator = yt.largest_subscriber_count != null && yt.largest_subscriber_count >= 500000;
-
-    blocks.push({
-      signal: String(idx).padStart(2, "0"),
-      label: "CREATOR COVERAGE",
-      headline: bigCreator
-        ? `Major creators are already watching`
-        : `${coverageLevel.charAt(0).toUpperCase() + coverageLevel.slice(1)} creator interest with room to grow`,
-      body: (
-        <>
-          <Hl>{yt.video_count} YouTube video{yt.video_count === 1 ? "" : "s"}</Hl> cover{" "}
-          {d.title}. The largest creator has{" "}
-          <Hl>{largestStr} subscribers</Hl>.
-          {!bigCreator && <> No one above 500K has touched it yet. </>}
-          {d.review_count != null && (
-            <>
-              {" "}<Hl>~{fmtK(d.review_count * 30)} copies</Hl> estimated
-              {!bigCreator && " largely through organic Steam discovery"}.
-            </>
-          )}
-          {bigCreator
-            ? " Major creator coverage is already driving visibility — momentum is building from the top down."
-            : " When the larger creators arrive, the second wave begins."}
-        </>
-      ),
-      artifact: (
-        <div style={{ ...mono, fontSize: 11, color: C.textDim, textAlign: "right" }}>
-          <div>YT: <span style={{ color: C.accent }}>{yt.video_count}</span> videos</div>
-          <div>Max: <span style={{ color: C.accent }}>{largestStr}</span> subs</div>
-          {yt.total_views > 0 && <div>Views: <span style={{ color: C.accent }}>{fmtK(yt.total_views)}</span></div>}
-        </div>
-      ),
-      artifactLabel: "Creator coverage",
-    });
-    idx++;
+    const biggest = d.youtube.largest_subscriber_count;
+    if (biggest != null && biggest >= 1_000_000) parts.push(`Major creator coverage (${fmtSubs(biggest)} subs)`);
+    else if (biggest != null && biggest >= 500_000) parts.push("Mid-tier creator attention");
+    else parts.push("No major creators yet");
+  } else {
+    parts.push("No YouTube coverage yet");
   }
 
-  // Signal: Demo Conversion
-  if (d.demo && d.sentiment_pct != null) {
-    const sentimentLift = d.sentiment_pct - d.demo.score_pct;
-    const hasLift = sentimentLift > 0;
+  const isAccelerating = d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_7d > d.velocity_prev_7d;
+  const isDecaying = d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_7d < d.velocity_prev_7d * 0.7;
 
-    blocks.push({
-      signal: String(idx).padStart(2, "0"),
-      label: "DEMO CONVERSION",
-      headline: hasLift
-        ? "The full game overdelivered on the promise"
-        : "Demo reception carried into launch",
-      body: (
-        <>
-          Demo: <Hl>{fmt(d.demo.review_count)} reviews at {d.demo.score_pct.toFixed(0)}%</Hl>.
-          Full game: <Hl>{d.sentiment_pct.toFixed(0)}%</Hl>.
-          {hasLift && (
-            <> A <Hl>{sentimentLift.toFixed(0)}-point sentiment lift</Hl> from demo to full release
-            means the developers listened and delivered. </>
-          )}
-          {d.peak_ccu != null && (
-            <>Peak CCU of <Hl>{fmt(d.peak_ccu)}</Hl></>
-          )}
-          {d.current_ccu != null && d.peak_ccu != null && (
-            <> has settled to <Hl>{fmt(d.current_ccu)}</Hl> concurrent — a healthy long tail. </>
-          )}
-          {d.price_usd != null && d.price_usd > 0 && (
-            <>At <Hl>${d.price_usd.toFixed(2)}</Hl>, {d.price_usd < 15 ? "this is competitively priced for its quality tier" : "priced at a confident premium"}.</>
-          )}
-        </>
-      ),
-      artifact: (
-        <div style={{ ...mono, fontSize: 11, textAlign: "right" }}>
-          <div style={{ color: C.textDim }}>Demo: <span style={{ color: C.amber }}>{d.demo.score_pct.toFixed(0)}%</span></div>
-          <div style={{ color: C.textDim }}>Full: <span style={{ color: C.green }}>{d.sentiment_pct.toFixed(0)}%</span></div>
-          {hasLift && <div style={{ fontSize: 9, color: C.textDim, marginTop: 2 }}>+{sentimentLift.toFixed(0)}pt lift</div>}
-        </div>
-      ),
-      artifactLabel: "Sentiment",
-    });
-    idx++;
+  if (isAccelerating) {
+    return `${parts.join(". ")}. ${d.title} found its audience on its own — and it's still accelerating.`;
+  } else if (isDecaying) {
+    return `${parts.join(". ")}. ${d.title} spiked hard at launch and numbers are settling — but the floor is still high.`;
   }
-
-  return blocks;
-}
-
-// ─── Inline highlight ──────────────────────────────────────────
-function Hl({ children }: { children: ReactNode }) {
-  return <span style={{ color: C.accent, fontWeight: 500 }}>{children}</span>;
-}
-
-// ─── OPS component calculation/example generator ───────────────
-function getComponentCalcText(comp: RadarOpsComponent, d: RadarPickResponse): { calculation: string; example: string } {
-  const v = comp.value;
-  switch (comp.key) {
-    case "velocity":
-      return {
-        calculation: "Rolling 3-day average of daily new reviews, divided by the expected median velocity for a horror game at this age. Week 1 baseline: 1.14 reviews/day. Week 2-4: 0.14/day. Month 2-3: 0.03/day.",
-        example: d.velocity_per_day != null
-          ? `${d.title} is averaging ${d.velocity_per_day.toFixed(1)} reviews/day at Day ${d.days_since_launch ?? "?"}. Normalized component value: ${v?.toFixed(2) ?? "N/A"}.`
-          : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
-      };
-    case "decay":
-      return {
-        calculation: "Compares review velocity in weeks 2-4 against week 1. A ratio of 1.0 means no decay. Below 0.3 is a flash-in-the-pan. Above 1.0 means the game is accelerating.",
-        example: v != null
-          ? `Decay ratio: ${v.toFixed(2)} — ${v >= 0.8 ? "very strong retention" : v >= 0.5 ? "moderate retention" : "significant decay, typical of flash-in-the-pan releases"}.`
-          : "Not enough data for decay calculation yet.",
-      };
-    case "reviews":
-      return {
-        calculation: "Total review count divided by the median for horror games in the same launch window. Multiplied by a price modifier (free: 0.6x, $5-10: 1.0x, $10-20: 1.15x, $20+: 1.3x).",
-        example: d.review_count != null
-          ? `${fmt(d.review_count)} reviews. Price modifier for $${d.price_usd?.toFixed(2) ?? "?"}: ${d.price_usd != null ? (d.price_usd < 5 ? "0.85x" : d.price_usd < 10 ? "1.0x" : d.price_usd < 20 ? "1.15x" : "1.3x") : "?"}. Component value: ${v?.toFixed(2) ?? "N/A"}.`
-          : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
-      };
-    case "youtube":
-      return {
-        calculation: "Best-performing video's views-to-subscriber ratio, normalized against the median ratio of 0.074x. Plus channel breadth: how many unique creators covered it, out of 10. 60/40 split between ratio quality and breadth.",
-        example: d.youtube
-          ? `${d.youtube.video_count} video${d.youtube.video_count === 1 ? "" : "s"} from ${d.youtube.channels.length} creator${d.youtube.channels.length === 1 ? "" : "s"}. ${d.youtube.total_views > 0 ? `Total views: ${fmtK(d.youtube.total_views)}.` : ""} Component value: ${v?.toFixed(2) ?? "N/A"}.`
-          : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
-      };
-    case "creator":
-      return {
-        calculation: "For each YouTube video, measures the 3-day average review velocity before and after the upload date. Returns the best (highest) response ratio. A value of 2.0 means reviews doubled after a creator covered it.",
-        example: v != null
-          ? `Best creator response ratio: ${v.toFixed(2)}x — ${v >= 2 ? "reviews more than doubled" : v >= 1.3 ? "significant velocity boost" : v >= 1.0 ? "modest positive impact" : "minimal measurable impact"} after creator coverage.`
-          : "Not enough data to measure creator response.",
-      };
-    default:
-      return { calculation: "", example: `Component value: ${v?.toFixed(2) ?? "N/A"}.` };
-  }
+  return `${parts.join(". ")}. ${d.title} is holding steady — sustained interest without a single breakout catalyst.`;
 }
 
 // ─── Component ──────────────────────────────────────────────────
@@ -314,6 +84,14 @@ export default function SignalFire() {
   const [data, setData] = useState<RadarPickResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastVisit, setLastVisit] = useState<Date | null>(null);
+  const { isWatched, toggle: toggleWatch } = useWatchlist();
+
+  useEffect(() => {
+    const stored = localStorage.getItem("horror-radar-last-visit");
+    if (stored) setLastVisit(new Date(stored));
+    localStorage.setItem("horror-radar-last-visit", new Date().toISOString());
+  }, []);
 
   useEffect(() => {
     fetchOne<RadarPickResponse>("/radar-pick")
@@ -324,18 +102,21 @@ export default function SignalFire() {
 
   if (loading) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.text, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ ...mono, fontSize: 12, color: C.textDim, letterSpacing: 2 }}>SCANNING SIGNALS...</div>
+      <div className="bg-background-dark min-h-screen text-text-main flex items-center justify-center">
+        <div className="font-mono text-xs text-text-dim tracking-[2px]">SCANNING SIGNALS...</div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.text, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ ...mono, fontSize: 12, color: C.textDim, letterSpacing: 2, marginBottom: 8 }}>NO SIGNAL</div>
-          <div style={{ ...sans, fontSize: 14, color: C.textMid }}>{error ?? "No radar pick available this week."}</div>
+      <div className="bg-background-dark min-h-screen text-text-main flex items-center justify-center">
+        <div className="text-center">
+          <div className="font-mono text-xs text-text-dim tracking-[2px] mb-2">NO SIGNAL</div>
+          <div className="font-display text-sm text-text-mid">{error ?? "No radar pick available this week."}</div>
+          <Link to="/browse" className="font-mono text-[11px] text-status-warn tracking-[1.5px] mt-4 inline-block hover:underline">
+            BROWSE ALL GAMES →
+          </Link>
         </div>
       </div>
     );
@@ -346,520 +127,284 @@ export default function SignalFire() {
   const weekNum = getISOWeek(now);
   const year = now.getFullYear();
   const weekRange = getWeekRange(now);
-  const evidenceBlocks = buildEvidenceBlocks(d);
-  const activeComponents = d.ops?.components.filter(c => c.value != null) ?? [];
 
-  // Metric tiles — only include those with data
-  const tiles: { label: string; value: string; sub: string; subColor: string }[] = [];
-  if (d.review_count != null) {
-    const velSub = d.velocity_7d != null ? `+${fmt(d.velocity_7d)} this week` : "";
-    tiles.push({ label: "REVIEWS", value: fmt(d.review_count), sub: velSub, subColor: C.green });
+  // Evidence strip: up to 4 inline metrics
+  const evidenceItems: { label: string; value: string; sub: string }[] = [];
+  if (d.velocity_per_day != null) {
+    const sub = d.velocity_7d != null && d.velocity_prev_7d != null && d.velocity_prev_7d > 0
+      ? `+${(d.velocity_7d / d.velocity_prev_7d).toFixed(1)}× prev week`
+      : d.velocity_7d != null ? `${fmt(d.velocity_7d)}/7d` : "";
+    evidenceItems.push({ label: "Velocity", value: `${d.velocity_per_day.toFixed(1)}/day`, sub });
   }
   if (d.sentiment_pct != null) {
-    tiles.push({ label: "SENTIMENT", value: `${d.sentiment_pct.toFixed(0)}%`, sub: sentimentLabel(d.sentiment_pct), subColor: d.sentiment_pct >= 80 ? C.green : d.sentiment_pct >= 60 ? C.amber : C.accent });
+    evidenceItems.push({ label: "Sentiment", value: `${d.sentiment_pct.toFixed(0)}%`, sub: sentimentLabel(d.sentiment_pct) });
   }
-  if (d.velocity_per_day != null) {
-    const medianSub = d.velocity_prev_7d != null && d.velocity_prev_7d > 0
-      ? `${(d.velocity_7d! / d.velocity_prev_7d).toFixed(1)}x prev week`
-      : "";
-    tiles.push({ label: "VELOCITY", value: `${d.velocity_per_day.toFixed(1)}/d`, sub: medianSub, subColor: C.accent });
+  if (d.youtube != null) {
+    const creatorSub = d.youtube.largest_subscriber_count
+      ? `Max ${fmtSubs(d.youtube.largest_subscriber_count)} subs`
+      : "No major creators";
+    evidenceItems.push({ label: "Creators", value: String(d.youtube.video_count), sub: creatorSub });
   }
-  if (d.review_count != null) {
-    const estOwners = d.review_count * 30;
-    tiles.push({ label: "EST. OWNERS", value: `~${fmtK(estOwners)}`, sub: "reviews × 30", subColor: C.textDim });
+  if (d.peak_ccu != null && d.peak_ccu > 0) {
+    const ccuSub = d.current_ccu != null ? `→ ${fmt(d.current_ccu)} now` : "";
+    evidenceItems.push({ label: "Peak CCU", value: fmt(d.peak_ccu), sub: ccuSub });
   }
-  if (d.peak_ccu != null) {
-    const ccuSub = d.current_ccu != null ? `${d.current_ccu} current` : "";
-    tiles.push({ label: "PEAK CCU", value: fmt(d.peak_ccu), sub: ccuSub, subColor: C.textDim });
-  }
-  if (d.price_usd != null) {
-    tiles.push({ label: "PRICE", value: d.price_usd > 0 ? `$${d.price_usd.toFixed(2)}` : "Free", sub: priceLabel(d.price_usd, d.review_count), subColor: C.accent });
-  }
+
+  const ops = d.ops;
+  const scoreColor = ops ? opsColor(ops.score) : "text-text-dim";
+  const runners = d.previous_picks.slice(0, 4);
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-
-      {/* ═══ SECTION 1: ALERT BANNER ═══ */}
-      <section style={{
-        position: "sticky", top: 56, zIndex: 40,
-        background: `${C.surface}ee`, backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${C.border}`,
-        padding: "12px 40px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        maxWidth: "100%",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ position: "relative", width: 8, height: 8 }}>
-            <div style={{
-              position: "absolute", inset: 0, borderRadius: "50%", background: C.accent,
-              animation: "signal-pulse 4s ease-in-out infinite",
-            }} />
-            <style>{`
-              @keyframes signal-pulse {
-                0%, 100% { opacity: 0.4; transform: scale(1); }
-                50% { opacity: 1; transform: scale(1.5); }
-              }
-            `}</style>
+    <>
+      {/* Since-last-visit band */}
+      {lastVisit && (
+        <div className="bg-primary/[0.08] border-b border-primary/20 px-10 py-2.5 flex justify-between items-center text-sm">
+          <div className="flex items-center gap-3.5">
+            <span className="font-mono text-[10px] tracking-[2px] text-primary px-2 py-0.5 bg-primary/15 border border-primary/30 rounded-[3px]">
+              SINCE YOUR LAST VISIT
+            </span>
+            <span className="text-text-mid">
+              Last visited{" "}
+              <strong className="text-text-main">
+                {lastVisit.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </strong>
+            </span>
           </div>
-          <span style={{ ...mono, fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: C.textDim }}>
-            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
-          </span>
+          <Link to="/browse" className="font-mono text-[11px] text-status-warn tracking-[1px] hover:underline">
+            BROWSE ALL →
+          </Link>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span style={{ ...heading, fontSize: 20, fontWeight: 700 }}>{d.title}</span>
-          {d.developer && <span style={{ ...sans, fontSize: 13, color: C.textDim }}>by {d.developer}</span>}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {d.ops && (
-            <>
-              <div style={{
-                width: 36, height: 36, borderRadius: "50%",
-                background: d.ops.score >= 60 ? C.greenDim : d.ops.score >= 30 ? C.amberDim : `${C.accent}44`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ ...mono, fontSize: 14, fontWeight: 700, color: "#fff" }}>{Math.round(d.ops.score)}</span>
+      )}
+
+      {/* Hero */}
+      <section className="relative py-14 px-10 border-b border-border-dark overflow-hidden" aria-labelledby="radar-title">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden="true"
+          style={{ background: "linear-gradient(180deg, #241010 0%, rgba(36,16,16,0.3) 60%, #111314 100%)", opacity: 0.6 }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden="true"
+          style={{ backgroundImage: "radial-gradient(circle at 75% 30%, rgba(128,38,38,0.25) 0%, transparent 60%)" }}
+        />
+
+        <div className="relative max-w-[1120px] mx-auto grid grid-cols-1 md:grid-cols-[1fr_300px] gap-8 md:gap-16 items-end">
+          {/* Left: text */}
+          <div>
+            <div className="font-mono text-[11px] tracking-[3px] text-primary mb-[18px] flex items-center gap-2.5">
+              <span
+                className="w-2 h-2 bg-primary rounded-full flex-shrink-0"
+                style={{ boxShadow: "0 0 0 4px rgba(128,38,38,0.25)" }}
+                aria-hidden="true"
+              />
+              Radar Pick · Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
+            </div>
+
+            <h1
+              id="radar-title"
+              className="font-serif text-[52px] md:text-[76px] font-bold leading-none tracking-[-2px] mb-3.5"
+            >
+              {d.title}
+            </h1>
+
+            <div className="font-mono text-[11px] text-text-dim tracking-[2px] uppercase mb-6">
+              {d.developer ?? "Unknown"} · {d.price_usd != null && d.price_usd > 0 ? `$${d.price_usd.toFixed(2)}` : "Free"} · Day {d.days_since_launch ?? "?"}
+            </div>
+
+            <p className="font-serif italic text-[18px] md:text-[20px] leading-[1.55] text-text-main/90 max-w-[620px] mb-8">
+              {buildVerdict(d)}
+            </p>
+
+            {/* Evidence strip */}
+            {evidenceItems.length > 0 && (
+              <div className="flex flex-wrap gap-7 py-4 border-y border-primary/20 max-w-[700px]">
+                {evidenceItems.map((item) => (
+                  <div key={item.label} className="flex flex-col gap-1">
+                    <span className="font-display text-[10px] tracking-[1.5px] uppercase text-text-mid font-semibold">
+                      {item.label}
+                    </span>
+                    <span className="font-mono text-[22px] font-bold text-text-main leading-tight">
+                      {item.value}
+                    </span>
+                    {item.sub && (
+                      <span className="font-mono text-[10px] text-status-pos">{item.sub}</span>
+                    )}
+                  </div>
+                ))}
               </div>
-              {d.ops.delta_14d != null && d.ops.delta_14d !== 0 && (
-                <span style={{ ...mono, fontSize: 11, color: d.ops.delta_14d > 0 ? C.green : C.accent }}>
-                  {d.ops.delta_14d > 0 ? "+" : ""}{d.ops.delta_14d.toFixed(0)}
+            )}
+
+            {/* CTA row */}
+            <div className="flex flex-wrap gap-[18px] mt-7 items-center">
+              <a
+                href={`https://store.steampowered.com/app/${d.appid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs tracking-[1.5px] uppercase py-3 px-5 rounded-md bg-primary text-white font-bold hover:bg-[#9a3333] transition-colors"
+              >
+                ▸ Open on Steam
+              </a>
+              <Link
+                to={`/game/${d.appid}`}
+                className="font-mono text-xs tracking-[1.5px] uppercase py-3 px-5 rounded-md border border-border-dark text-text-mid font-bold hover:text-text-main hover:border-text-dim transition-colors"
+              >
+                Full signal trace →
+              </Link>
+              <button
+                onClick={() => toggleWatch(d.appid)}
+                className="font-mono text-xs tracking-[1.5px] uppercase py-3 px-5 rounded-md border border-border-dark text-text-mid font-bold hover:text-text-main hover:border-text-dim transition-colors"
+              >
+                {isWatched(d.appid) ? "★ In watchlist" : "☆ Add to watchlist"}
+              </button>
+            </div>
+          </div>
+
+          {/* Right: OPS badge */}
+          {ops && (
+            <div
+              className="flex flex-col items-center gap-2 rounded-[10px] text-center border border-primary/40 backdrop-blur-md self-center md:self-end"
+              style={{ background: "rgba(30,20,20,0.75)", padding: "22px 28px" }}
+            >
+              <span className={`text-[20px] font-bold ${scoreColor}`} aria-label={opsTier(ops.score)}>
+                {opsGlyph(ops.score)} {opsTier(ops.score)}
+              </span>
+              <span className={`font-mono font-bold leading-[0.9] ${scoreColor}`} style={{ fontSize: 72 }}>
+                {Math.round(ops.score)}
+              </span>
+              <span className="font-mono text-[10px] tracking-[2.5px] text-text-dim uppercase">
+                OPS / 100
+              </span>
+              {ops.delta_14d != null && ops.delta_14d !== 0 && (
+                <span className={`font-mono text-xs ${ops.delta_14d > 0 ? "text-status-pos" : "text-status-neg"}`}>
+                  {ops.delta_14d > 0 ? "+" : ""}{ops.delta_14d.toFixed(0)} · 14 days
                 </span>
               )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* ═══ SECTION 1B: HERO ═══ */}
-      <section style={{ position: "relative", height: "70vh", minHeight: 420, overflow: "hidden" }}>
-        {/* Background image */}
-        {d.header_image_url && (
-          <div style={{
-            position: "absolute", inset: 0,
-            backgroundImage: `url(${d.header_image_url})`,
-            backgroundSize: "cover", backgroundPosition: "center",
-            filter: "saturate(0.6) brightness(0.5)",
-          }} />
-        )}
-        {/* Gradient overlay */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to bottom, transparent 10%, ${C.bg}ee 65%, ${C.bg} 100%)`,
-        }} />
-        {/* Grain texture */}
-        <div style={{
-          position: "absolute", inset: 0, opacity: 0.04, mixBlendMode: "overlay",
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-        }} />
-
-        {/* Hero content */}
-        <div style={{
-          position: "relative", height: "100%", maxWidth: 1100, margin: "0 auto",
-          padding: "0 40px", display: "flex", flexDirection: "column", justifyContent: "flex-end",
-          paddingBottom: 48,
-        }}>
-          <div style={{ ...mono, fontSize: 11, color: C.accent, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 16, opacity: 0.8 }}>
-            Radar Pick — Week {weekNum}, {year} · {weekRange.start} – {weekRange.end}
-          </div>
-          <h1 style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 64, fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: -1,
-          }}>
-            {d.title}
-          </h1>
-          <div style={{ ...mono, fontSize: 11, color: C.textDim, marginTop: 8, textTransform: "uppercase", letterSpacing: 2 }}>
-            {d.developer ?? "Unknown"} · {d.price_usd != null && d.price_usd > 0 ? `$${d.price_usd.toFixed(2)}` : "Free"} · Day {d.days_since_launch ?? "?"}
-          </div>
-          <p style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 20, fontStyle: "italic", lineHeight: 1.6, maxWidth: 640,
-            marginTop: 20, color: `${C.text}cc`,
-          }}>
-            {buildVerdict(d)}
-          </p>
-
-          {/* OPS Badge — bottom right */}
-          {d.ops && (
-            <div style={{
-              position: "absolute", bottom: 48, right: 40,
-              display: "flex", flexDirection: "column", alignItems: "center",
-              border: `1px solid ${C.accentDim}`, borderRadius: 10, padding: "16px 24px",
-              background: `${C.bg}cc`, backdropFilter: "blur(8px)",
-            }}>
-              <div style={{ ...mono, fontSize: 44, fontWeight: 700, color: C.accent, lineHeight: 1 }}>
-                {Math.round(d.ops.score)}
-              </div>
-              <div style={{ ...mono, fontSize: 9, color: C.textDim, letterSpacing: 2, marginTop: 4 }}>
-                OPS SCORE
-              </div>
-              {d.ops.delta_14d != null && d.ops.delta_14d !== 0 && (
-                <div style={{ ...mono, fontSize: 11, color: C.accent, marginTop: 6 }}>
-                  {d.ops.delta_14d > 0 ? "+" : ""}{d.ops.delta_14d.toFixed(0)} pts / 14d
+              {ops.percentile != null && (
+                <div className="font-display text-[11px] text-text-mid mt-2 pt-2 border-t border-border-dark w-full text-center">
+                  top {(100 - ops.percentile).toFixed(0)}% of horror this quarter
                 </div>
               )}
+              <Link
+                to={`/game/${d.appid}`}
+                className="font-mono text-[10px] text-status-warn underline tracking-[1px] mt-1"
+              >
+                ⓘ what this means
+              </Link>
             </div>
           )}
         </div>
-        {/* Bottom rule */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: `${C.accent}33` }} />
       </section>
 
-      {/* ═══ SECTION 2: METRIC TILES ═══ */}
-      {tiles.length > 0 && (
-        <section style={{
-          maxWidth: 1100, margin: "0 auto", padding: "28px 40px",
-          display: "grid", gridTemplateColumns: `repeat(${Math.min(tiles.length, 6)}, 1fr)`, gap: 20,
-          borderBottom: `1px solid ${C.border}`,
-        }}>
-          {tiles.map(m => (
-            <div key={m.label} style={{ borderLeft: `2px solid ${C.accent}33`, paddingLeft: 12 }}>
-              <div style={{ ...mono, fontSize: 9, letterSpacing: 2, color: C.textDim, marginBottom: 4 }}>{m.label}</div>
-              <div style={{ ...mono, fontSize: 18, fontWeight: 600, lineHeight: 1 }}>{m.value}</div>
-              {m.sub && <div style={{ ...mono, fontSize: 10, color: m.subColor, marginTop: 4 }}>{m.sub}</div>}
-            </div>
-          ))}
-        </section>
-      )}
-
-      {/* ═══ SECTION 3: EVIDENCE BLOCKS ═══ */}
-      {evidenceBlocks.length > 0 && (
-        <section style={{ maxWidth: 780, margin: "0 auto", padding: "64px 40px 0" }}>
-          {evidenceBlocks.map((ev, i) => (
-            <div key={i} style={{
-              paddingBottom: 40, marginBottom: 40,
-              borderBottom: i < evidenceBlocks.length - 1 ? `1px solid ${C.border}` : "none",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ ...mono, fontSize: 9, letterSpacing: 2.5, color: C.accent, marginBottom: 8, opacity: 0.8 }}>
-                    SIGNAL {ev.signal} — {ev.label}
-                  </div>
-                  <h3 style={{ ...heading, fontSize: 18, fontWeight: 600, margin: "0 0 12px", lineHeight: 1.3 }}>
-                    {ev.headline}
-                  </h3>
-                  <p style={{ ...sans, fontSize: 14, lineHeight: 1.75, color: `${C.text}aa`, margin: 0, maxWidth: 580 }}>
-                    {ev.body}
-                  </p>
-                </div>
-                <div style={{ marginLeft: 32, flexShrink: 0, textAlign: "right", minWidth: 100 }}>
-                  {ev.artifact}
-                  <div style={{ ...mono, fontSize: 8, color: C.textFaint, marginTop: 4, letterSpacing: 1 }}>
-                    {ev.artifactLabel}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {/* ═══ SECTION 4: OPS ANATOMY ═══ */}
-      {d.ops && activeComponents.length > 0 && (
-        <section style={{ maxWidth: 780, margin: "0 auto", padding: "64px 40px 0" }}>
-          {/* Section divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-            <div style={{ height: 1, flex: 1, background: `linear-gradient(to right, ${C.accent}66, ${C.accent}00)` }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 6, height: 6, background: C.accent, borderRadius: 1, transform: "rotate(45deg)" }} />
-              <span style={{ ...mono, fontSize: 10, letterSpacing: 3, textTransform: "uppercase", color: C.accent }}>
-                Score Breakdown
-              </span>
-              <div style={{ width: 6, height: 6, background: C.accent, borderRadius: 1, transform: "rotate(45deg)" }} />
-            </div>
-            <div style={{ height: 1, flex: 1, background: `linear-gradient(to left, ${C.accent}66, ${C.accent}00)` }} />
-          </div>
-
-          <h2 style={{
-            ...heading, fontSize: 28, fontWeight: 700, margin: "0 0 8px", color: C.text, letterSpacing: -0.5,
-          }}>
-            OPS Anatomy
+      {/* Runners-up */}
+      {runners.length > 0 && (
+        <section className="py-14 px-10 max-w-[1200px] mx-auto" aria-labelledby="runners-title">
+          <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">
+            Also on the radar
+          </p>
+          <h2 id="runners-title" className="font-serif text-[32px] font-bold mb-2.5 tracking-[-0.5px]">
+            More to watch this week
           </h2>
-          <p style={{ ...sans, fontSize: 14, lineHeight: 1.6, color: `${C.text}99`, margin: "0 0 28px", maxWidth: 620 }}>
-            The Overperformance Score is a weighted composite of five signals. Each measures a
-            different axis of breakout potential. Here's exactly how {d.title}'s{" "}
-            <span style={{ color: C.accent, fontWeight: 600 }}>{Math.round(d.ops.score)}</span> was calculated.
+          <p className="text-[15px] text-text-mid mb-9 max-w-[640px] leading-[1.55]">
+            Other games in the breakout window with distinct signal patterns. Click any card for a full signal trace.
           </p>
 
-          {/* Segmented bar overview */}
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", height: 10, marginBottom: 32 }}>
-            {activeComponents.map(comp => (
-              <div key={comp.key} style={{ width: `${comp.weight * 100}%`, background: comp.color, opacity: 0.55 }} />
-            ))}
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {runners.map((pick) => {
+              const pickOps = pick.ops_now ?? pick.ops_at_pick;
+              const pickColor = pickOps != null ? opsColor(pickOps) : "text-text-dim";
+              const pickGlyph = pickOps != null ? opsGlyph(pickOps) : "—";
 
-          {/* Detailed component cards */}
-          {activeComponents.map(comp => {
-            const pct = Math.min(100, (comp.value! / comp.max) * 100);
-            const { calculation, example } = getComponentCalcText(comp, d);
-            return (
-              <div key={comp.key} style={{
-                marginBottom: 28, padding: "20px 24px", background: C.tile,
-                borderRadius: 8, borderLeft: `3px solid ${comp.color}`,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ ...mono, fontSize: 11, color: comp.color, fontWeight: 600, letterSpacing: 1.5 }}>
-                      {comp.label}
-                    </span>
-                    <span style={{
-                      ...mono, fontSize: 9, color: C.bg, background: comp.color, opacity: 0.8,
-                      padding: "2px 7px", borderRadius: 3, fontWeight: 600,
-                    }}>
-                      {(comp.weight * 100).toFixed(0)}% weight
-                    </span>
-                  </div>
-                  <span style={{ ...mono, fontSize: 18, color: comp.color, fontWeight: 700 }}>
-                    {comp.value!.toFixed(2)}
-                  </span>
-                </div>
+              const badge =
+                pick.status === "climbing"
+                  ? { label: "CLIMBING", cls: "bg-status-pos/10 text-status-pos border border-status-pos/30" }
+                  : pick.status === "peaked"
+                  ? { label: "PEAKED", cls: "bg-status-warn/10 text-status-warn border border-status-warn/30" }
+                  : { label: "STEADY", cls: "bg-surface-dark text-text-dim border border-border-dark" };
 
-                <div style={{ height: 6, background: `${C.border}88`, borderRadius: 3, overflow: "hidden", marginBottom: 12 }}>
-                  <div style={{
-                    width: `${pct}%`, height: "100%",
-                    background: comp.color, opacity: 0.7, borderRadius: 3,
-                  }} />
-                </div>
+              const evidenceText =
+                pick.reviews_at_pick != null && pick.reviews_30d != null
+                  ? `${pick.reviews_at_pick.toLocaleString()} reviews at pick · ${pick.reviews_30d.toLocaleString()} at 30d`
+                  : pick.reviews_at_pick != null
+                  ? `${pick.reviews_at_pick.toLocaleString()} reviews at pick`
+                  : pick.ops_at_pick != null
+                  ? `OPS ${Math.round(pick.ops_at_pick)} at pick`
+                  : null;
 
-                <div style={{
-                  ...mono, fontSize: 11, color: `${C.text}cc`, marginBottom: 10,
-                  padding: "8px 12px", background: `${C.bg}aa`, borderRadius: 4,
-                  border: `1px solid ${C.border}`,
-                }}>
-                  <span style={{ color: C.textDim, fontSize: 9, letterSpacing: 1 }}>FORMULA </span>
-                  {comp.formula}
-                </div>
-
-                <p style={{ ...sans, fontSize: 13, lineHeight: 1.65, color: `${C.text}88`, margin: "0 0 8px" }}>
-                  {calculation}
-                </p>
-
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                  <span style={{ ...mono, fontSize: 9, color: comp.color, marginTop: 2, flexShrink: 0, letterSpacing: 1 }}>
-                    THIS GAME
-                  </span>
-                  <p style={{ ...sans, fontSize: 12, lineHeight: 1.6, color: C.textDim, margin: 0 }}>
-                    {example}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Final score summary */}
-          <div style={{
-            marginTop: 8, padding: "20px 24px", background: C.tile,
-            borderRadius: 8, border: `1px solid ${C.border}`,
-          }}>
-            <div style={{ ...mono, fontSize: 9, letterSpacing: 2, color: C.textDim, marginBottom: 10 }}>
-              FINAL CALCULATION
-            </div>
-            <div style={{
-              ...mono, fontSize: 11, color: `${C.text}cc`, padding: "10px 12px",
-              background: `${C.bg}aa`, borderRadius: 4, border: `1px solid ${C.border}`,
-              marginBottom: 12, lineHeight: 1.8,
-            }}>
-              raw_ops = weighted_sum(active_components) — NULL components redistribute weight<br />
-              score = min(100, raw_ops × 40)
-            </div>
-            <div style={{ ...mono, fontSize: 13, color: C.text }}>
-              Score: <span style={{ color: C.accent, fontWeight: 700, fontSize: 16 }}>{Math.round(d.ops.score)}</span> / 100
-              {d.ops.percentile != null && (
-                <> — <span style={{ color: C.textMid }}>
-                  top {(100 - d.ops.percentile).toFixed(0)}% of horror releases this quarter
-                </span></>
-              )}
-            </div>
-            <div style={{ ...mono, fontSize: 10, color: C.textDim, marginTop: 4 }}>
-              Formula v3 · Peer window: 30-150 days · Minimum 20 baseline games
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ SECTION 5: TRAJECTORY CHART ═══ */}
-      {d.ops_history.length >= 2 && (
-        <section style={{ maxWidth: 780, margin: "0 auto", padding: "48px 40px 0" }}>
-          <div style={{ ...mono, fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: C.textDim, marginBottom: 16 }}>
-            Trajectory
-          </div>
-          <div style={{ height: 160, width: "100%" }}>
-            <ResponsiveContainer>
-              <AreaChart data={d.ops_history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="opsGradB" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={C.accent} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={C.accent} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 9, fill: C.textDim } as any}
-                  axisLine={false} tickLine={false}
-                  tickFormatter={(v: number) => v === 0 ? "Launch" : `D${v}`}
-                />
-                <YAxis hide domain={[0, 100]} />
-                <ReferenceLine y={60} stroke={C.border} strokeDasharray="4 4" />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.[0]) return null;
-                    const pt = payload[0].payload as { day: number; score: number };
-                    return (
-                      <div style={{
-                        ...mono, background: C.tile, border: `1px solid ${C.border}`,
-                        borderRadius: 6, padding: "8px 12px", fontSize: 11,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-                      }}>
-                        <div style={{ color: C.textDim, fontSize: 9, letterSpacing: 1, marginBottom: 4 }}>
-                          {pt.day === 0 ? "LAUNCH" : `DAY ${pt.day}`}
-                        </div>
-                        <div style={{ color: C.accent, fontWeight: 700, fontSize: 16 }}>
-                          {Math.round(pt.score)}
-                          <span style={{ color: C.textDim, fontWeight: 400, fontSize: 10, marginLeft: 4 }}>OPS</span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                  cursor={{ stroke: `${C.accent}44`, strokeWidth: 1 }}
-                />
-                <Area
-                  type="monotone" dataKey="score" stroke={C.accent}
-                  strokeWidth={2} fill="url(#opsGradB)" dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ ...mono, fontSize: 10, color: C.textDim, marginTop: 6 }}>
-            OPS trajectory since launch
-            {d.ops?.delta_14d != null && d.ops.delta_14d !== 0 && (
-              <> — {d.ops.delta_14d > 0 ? "+" : ""}{d.ops.delta_14d.toFixed(0)}-point change over 14 days</>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ═══ SECTION 6: PREVIOUS INTERCEPTS ═══ */}
-      {d.previous_picks.length > 0 && (
-        <section style={{ maxWidth: 780, margin: "0 auto", padding: "64px 40px 0" }}>
-          <div style={{ ...mono, fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: C.textDim, marginBottom: 16 }}>
-            Other High Performers
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {d.previous_picks.map((pick, i) => {
-              const statusColor = pick.status === "climbing" ? C.green : pick.status === "peaked" ? C.amber : C.textFaint;
-              const statusLabel = pick.status === "climbing" ? "Still climbing" : pick.status === "peaked" ? "Peaked" : "Steady";
               return (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 12,
-                    padding: "10px 0",
-                    borderBottom: `1px solid ${C.border}`,
-                    cursor: "pointer", transition: "background 0.15s",
-                  }}
+                <article
+                  key={pick.appid}
+                  className="bg-surface-dark border border-border-dark rounded-[10px] overflow-hidden grid grid-cols-[120px_1fr_80px] md:grid-cols-[180px_1fr_100px] cursor-pointer hover:border-primary/40 transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-status-warn"
                   onClick={() => navigate(`/game/${pick.appid}`)}
-                  onMouseEnter={e => (e.currentTarget.style.background = C.tile)}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && navigate(`/game/${pick.appid}`)}
                 >
-                  <span style={{ ...sans, fontSize: 14, fontWeight: 600, flex: 1, textDecoration: "underline", textDecorationColor: C.border, textUnderlineOffset: 2 }}>{pick.title}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, width: 110 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
-                    <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{statusLabel}</span>
+                  {/* Thumbnail */}
+                  <div
+                    className="relative min-h-[140px]"
+                    style={{ background: "linear-gradient(135deg, #201010, #301818)" }}
+                    aria-hidden="true"
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: "radial-gradient(circle at 30% 40%, rgba(226,85,53,0.25) 0%, transparent 70%)" }}
+                    />
                   </div>
-                  <span style={{ ...mono, fontSize: 11, color: C.accent, width: 50, textAlign: "right" }}>
-                    OPS {pick.ops_now != null ? Math.round(pick.ops_now) : Math.round(pick.ops_at_pick)}
-                  </span>
-                </div>
+
+                  {/* Body */}
+                  <div className="p-[18px_20px]">
+                    <div className="flex gap-2 mb-2.5">
+                      <span className={`font-mono text-[9px] tracking-[1.5px] px-2 py-0.5 rounded-[3px] font-bold ${badge.cls}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="font-display text-lg font-bold mb-1 text-text-main">{pick.title}</div>
+                    {evidenceText && (
+                      <div className="text-[13px] leading-[1.55] text-text-mid italic mt-2">
+                        {evidenceText}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* OPS col */}
+                  <div className="bg-[#1f1f22] flex flex-col items-center justify-center py-4 px-2 border-l border-border-dark">
+                    <span className={`text-xs font-bold ${pickColor}`}>{pickGlyph}</span>
+                    <span className={`font-mono text-[34px] font-bold leading-none my-1 ${pickColor}`}>
+                      {pickOps != null ? Math.round(pickOps) : "—"}
+                    </span>
+                    <span className="font-mono text-[9px] tracking-[2px] text-text-dim">OPS</span>
+                    <span className="font-mono text-[10px] text-text-dim mt-1.5 capitalize">{pick.status}</span>
+                  </div>
+                </article>
               );
             })}
           </div>
         </section>
       )}
 
-      {/* ═══ SECTION 6B: RUNNER-UP CARDS ═══ */}
-      {d.runners_up && d.runners_up.length > 0 && (
-        <section style={{ maxWidth: 780, margin: "0 auto", padding: "48px 20px 0" }}>
-          <div style={{ ...mono, fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: C.textDim, marginBottom: 16 }}>
-            Others Watching
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-            {d.runners_up.map((pick: RadarPickSummary) => (
-              <div
-                key={pick.appid}
-                style={{ background: C.tile, borderRadius: 8, overflow: "hidden", cursor: "pointer", border: `1px solid ${C.border}` }}
-                onClick={() => navigate(`/game/${pick.appid}`)}
-              >
-                {pick.header_image_url && (
-                  <div style={{ height: 72, overflow: "hidden", position: "relative" }}>
-                    <img
-                      src={pick.header_image_url}
-                      alt={pick.title}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.7) brightness(0.55)" }}
-                    />
-                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent, ${C.bg}99)` }} />
-                  </div>
-                )}
-                <div style={{ padding: "12px 16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...heading, fontWeight: 600, fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {pick.title}
-                      </div>
-                      {pick.developer && (
-                        <div style={{ ...mono, fontSize: 10, color: C.textDim, marginTop: 2 }}>{pick.developer}</div>
-                      )}
-                    </div>
-                    {pick.ops_score != null && (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, marginLeft: 10 }}>
-                        <span style={{ ...mono, fontSize: 16, fontWeight: 700, color: C.accent }}>{Math.round(pick.ops_score)}</span>
-                        {pick.ops_delta_14d != null && pick.ops_delta_14d !== 0 && (
-                          <span style={{ ...mono, fontSize: 10, color: pick.ops_delta_14d > 0 ? C.green : C.amber }}>
-                            {pick.ops_delta_14d > 0 ? "+" : ""}{pick.ops_delta_14d.toFixed(0)} / 14d
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", ...mono, fontSize: 10, color: C.textDim }}>
-                    {pick.days_since_launch != null && <span>Day {pick.days_since_launch}</span>}
-                    {pick.review_count != null && (
-                      <span>
-                        <span style={{ color: C.text }}>{pick.review_count.toLocaleString()}</span> rev
-                        {pick.velocity_7d != null && pick.velocity_7d > 0 && (
-                          <span style={{ color: C.green }}> +{pick.velocity_7d}/7d</span>
-                        )}
-                      </span>
-                    )}
-                    {pick.sentiment_pct != null && (
-                      <span style={{ color: pick.sentiment_pct >= 80 ? C.green : pick.sentiment_pct >= 60 ? C.amber : C.accent }}>
-                        {pick.sentiment_pct.toFixed(0)}%
-                      </span>
-                    )}
-                    {pick.price_usd != null && (
-                      <span>{pick.price_usd > 0 ? `$${pick.price_usd.toFixed(2)}` : "Free"}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ═══ SECTION 7: ACTION ═══ */}
-      <section style={{ maxWidth: 780, margin: "0 auto", padding: "56px 40px 80px" }}>
-        <a
-          href={`https://store.steampowered.com/app/${d.appid}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            ...mono, fontSize: 13, color: C.accent,
-            textDecoration: "none", transition: "opacity 0.2s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
-          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-        >
-          ▸ {d.title} on Steam — {d.price_usd != null && d.price_usd > 0 ? `$${d.price_usd.toFixed(2)}` : "Free"}
-        </a>
-      </section>
-    </div>
+      {/* Below strip */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-12 px-10 max-w-[1200px] mx-auto border-t border-border-dark">
+        <div className="bg-surface-dark border border-border-dark rounded-lg p-7">
+          <h3 className="font-serif text-[22px] font-bold mb-2.5">Browse all games</h3>
+          <p className="text-sm text-text-mid mb-4 leading-[1.55]">
+            The full tracker — dense table view with filters on release date, price, subgenre,
+            and YouTube coverage. For when you already know what you're looking for.
+          </p>
+          <Link to="/browse" className="font-mono text-xs text-status-warn tracking-[1.5px] hover:underline">
+            OPEN BROWSE →
+          </Link>
+        </div>
+        <div className="bg-surface-dark border border-border-dark rounded-lg p-7">
+          <h3 className="font-serif text-[22px] font-bold mb-2.5">Market intelligence</h3>
+          <p className="text-sm text-text-mid mb-4 leading-[1.55]">
+            Subgenre momentum, price-tier performance, demo cohort analysis. For weekly strategic
+            reads, not per-game scouting.
+          </p>
+          <Link to="/trends" className="font-mono text-xs text-status-warn tracking-[1.5px] hover:underline">
+            OPEN MARKET →
+          </Link>
+        </div>
+      </div>
+    </>
   );
 }

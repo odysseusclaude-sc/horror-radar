@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 interface FilterBarProps {
   days: number;
   maxPrice: number;
@@ -8,6 +6,7 @@ interface FilterBarProps {
   gameMode: string;
   showWatchlistOnly: boolean;
   watchlistCount: number;
+  total: number;
   onDaysChange: (v: number) => void;
   onMaxPriceChange: (v: number) => void;
   onSortChange: (v: string) => void;
@@ -16,28 +15,53 @@ interface FilterBarProps {
   onToggleWatchlistOnly: () => void;
 }
 
+const PRESETS = [
+  { label: "STREAMER", sortBy: "ops", days: 30, maxPrice: 60 },
+  { label: "JOURNALIST", sortBy: "reviews", days: 90, maxPrice: 60 },
+  { label: "SCOUT", sortBy: "ops", days: 90, maxPrice: 60 },
+] as const;
+
+function priceLabel(maxPrice: number): string {
+  if (maxPrice >= 60) return "Any price";
+  if (maxPrice === 0) return "Free only";
+  return `Under $${maxPrice}`;
+}
+
+function sortLabel(sortBy: string): string {
+  const map: Record<string, string> = { newest: "Newest", velocity: "Velocity", ops: "OPS", reviews: "Reviews", ccu: "CCU" };
+  return map[sortBy] ?? sortBy;
+}
+
 export default function FilterBar({
   days,
   maxPrice,
   sortBy,
   search,
-  gameMode,
   showWatchlistOnly,
   watchlistCount,
+  total,
   onDaysChange,
   onMaxPriceChange,
   onSortChange,
   onSearchChange,
-  onGameModeChange,
   onToggleWatchlistOnly,
 }: FilterBarProps) {
-  const [expanded, setExpanded] = useState(false);
+  const activePreset = PRESETS.find(
+    (p) => p.sortBy === sortBy && p.days === days && p.maxPrice === maxPrice
+  );
+
+  function applyPreset(preset: (typeof PRESETS)[number]) {
+    onSortChange(preset.sortBy);
+    onDaysChange(preset.days);
+    onMaxPriceChange(preset.maxPrice);
+  }
 
   return (
-    <section className="bg-surface-dark border-b border-border-dark px-4 md:px-6 py-3">
-      {/* Mobile: compact bar with search + sort + expand toggle */}
-      <div className="flex md:hidden items-center gap-2">
-        <div className="relative flex-1">
+    <section className="bg-surface-dark border-b border-border-dark">
+      {/* Main filter row */}
+      <div className="px-4 md:px-6 py-3 flex flex-wrap items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-shrink-0">
           <span
             className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-text-dim"
             style={{ fontSize: 14 }}
@@ -45,240 +69,111 @@ export default function FilterBar({
             search
           </span>
           <input
-            className="bg-background-dark border border-border-dark text-xs text-text-main rounded pl-7 pr-2 py-2 w-full focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none placeholder:text-text-dim/50 font-mono"
+            className="bg-background-dark border border-border-dark text-xs text-text-main rounded pl-7 pr-2 py-1.5 w-40 focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none placeholder:text-text-dim/50 font-mono"
             type="text"
-            placeholder="Search games..."
+            placeholder="Game or developer..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
+
+        <div className="h-6 w-px bg-border-dark hidden md:block" />
+
+        {/* Launch window select */}
         <select
-          className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-2 focus:ring-primary outline-none text-text-main"
+          className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-1.5 focus:border-primary outline-none text-text-main cursor-pointer"
+          value={days}
+          onChange={(e) => onDaysChange(Number(e.target.value))}
+        >
+          <option value={14}>Last 14 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={90}>Last 90 days</option>
+        </select>
+
+        {/* Price select */}
+        <select
+          className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-1.5 focus:border-primary outline-none text-text-main cursor-pointer"
+          value={maxPrice}
+          onChange={(e) => onMaxPriceChange(Number(e.target.value))}
+        >
+          <option value={60}>Any price</option>
+          <option value={0}>Free only</option>
+          <option value={10}>Under $10</option>
+          <option value={20}>Under $20</option>
+        </select>
+
+        {/* Sort select */}
+        <select
+          className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-1.5 focus:border-primary outline-none text-text-main cursor-pointer"
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value)}
         >
-          <option value="newest">Newest</option>
+          <option value="newest">Newest first</option>
           <option value="velocity">Velocity</option>
-          <option value="ops">OPS</option>
-          <option value="reviews">Reviews</option>
-          <option value="ccu">CCU</option>
+          <option value="ops">OPS score</option>
+          <option value="reviews">Most reviews</option>
+          <option value="ccu">Peak CCU</option>
         </select>
-        <button
-          onClick={onToggleWatchlistOnly}
-          title={showWatchlistOnly ? "Show all games" : "Show watchlist only"}
-          className={`p-2 rounded border flex-shrink-0 transition-colors ${
-            showWatchlistOnly
-              ? "bg-status-warn/10 border-status-warn/30 text-status-warn"
-              : "border-border-dark text-text-dim hover:bg-background-dark"
-          }`}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, fontVariationSettings: showWatchlistOnly ? "'FILL' 1" : "'FILL' 0" }}
+
+        <div className="h-6 w-px bg-border-dark hidden md:block" />
+
+        {/* Preset chips */}
+        <div className="flex items-center gap-1.5">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => applyPreset(p)}
+              className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest border transition-colors ${
+                activePreset?.label === p.label
+                  ? "bg-primary/20 border-primary/40 text-primary"
+                  : "bg-background-dark border-border-dark text-text-dim hover:border-text-dim hover:text-text-main"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Watchlist toggle — pushed to right */}
+        <div className="ml-auto">
+          <button
+            onClick={onToggleWatchlistOnly}
+            title={showWatchlistOnly ? "Show all games" : "Show watchlist only"}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-bold transition-colors ${
+              showWatchlistOnly
+                ? "bg-status-warn/10 border-status-warn/30 text-status-warn"
+                : "border-border-dark text-text-dim hover:border-text-dim hover:text-text-main"
+            }`}
           >
-            bookmark
-          </span>
-        </button>
-        <button
-          className="p-2 rounded border border-border-dark hover:bg-background-dark transition-colors"
-          onClick={() => setExpanded(!expanded)}
-          aria-label="Toggle filters"
-        >
-          <span className="material-symbols-outlined text-text-dim" style={{ fontSize: 18 }}>
-            {expanded ? "expand_less" : "tune"}
-          </span>
-        </button>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 14, fontVariationSettings: showWatchlistOnly ? "'FILL' 1" : "'FILL' 0" }}
+            >
+              bookmark
+            </span>
+            <span className="hidden md:inline">Watchlist</span>
+            {watchlistCount > 0 && <span>({watchlistCount})</span>}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile: expanded filters */}
-      {expanded && (
-        <div className="md:hidden grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border-dark">
-          {/* Game Mode */}
-          <div className="col-span-2 flex flex-col gap-1">
-            <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">Mode</span>
-            <div className="flex rounded overflow-hidden border border-border-dark">
-              {[
-                { value: "all", label: "All" },
-                { value: "narrative", label: "Narrative" },
-                { value: "multiplayer", label: "Co-op" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  className={`flex-1 px-3 py-1.5 text-xs font-bold transition-colors ${
-                    gameMode === opt.value
-                      ? "bg-primary text-white"
-                      : "bg-background-dark text-text-dim hover:bg-border-dark"
-                  }`}
-                  onClick={() => onGameModeChange(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Days Since Launch */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">Days</span>
-            <div className="flex items-center gap-2">
-              <input
-                className="accent-primary h-1.5 flex-1 rounded-full bg-border-dark appearance-none cursor-pointer"
-                max={90}
-                min={1}
-                type="range"
-                value={days}
-                onChange={(e) => onDaysChange(Number(e.target.value))}
-              />
-              <span className="text-xs font-mono text-primary font-bold w-10 text-right">{days}d</span>
-            </div>
-          </div>
-
-          {/* Max Price */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">Price</span>
-            <div className="flex items-center gap-2">
-              <input
-                className="accent-primary h-1.5 flex-1 rounded-full bg-border-dark appearance-none cursor-pointer"
-                max={60}
-                min={0}
-                type="range"
-                value={maxPrice}
-                onChange={(e) => onMaxPriceChange(Number(e.target.value))}
-              />
-              <span className="text-xs font-mono text-primary font-bold w-10 text-right">
-                {maxPrice === 60 ? "Any" : `<$${maxPrice}`}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop: horizontal layout */}
-      <div className="hidden md:flex flex-wrap items-center gap-5">
-        {/* Search */}
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
-            Search
+      {/* Filter feedback band */}
+      <div className="px-4 md:px-6 py-1.5 bg-background-dark/50 border-t border-border-dark/50 flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-mono text-text-dim/70">
+          {total > 0
+            ? `${total.toLocaleString()} games · Last ${days} days · ${priceLabel(maxPrice)} · ${sortLabel(sortBy)}`
+            : "No matches"}
+        </span>
+        {showWatchlistOnly && (
+          <span className="px-1.5 py-0 rounded text-[9px] font-bold bg-status-warn/10 text-status-warn border border-status-warn/20">
+            Watchlist filter active
           </span>
-          <div className="relative">
-            <span
-              className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-text-dim"
-              style={{ fontSize: 14 }}
-            >
-              search
-            </span>
-            <input
-              className="bg-background-dark border border-border-dark text-xs text-text-main rounded pl-7 pr-2 py-1.5 w-44 focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none placeholder:text-text-dim/50 font-mono"
-              type="text"
-              placeholder="Game or developer..."
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="h-8 w-[1px] bg-border-dark" />
-
-        {/* Game Mode */}
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
-            Mode
+        )}
+        {search && (
+          <span className="px-1.5 py-0 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20">
+            &ldquo;{search}&rdquo;
           </span>
-          <div className="flex rounded overflow-hidden border border-border-dark">
-            {[
-              { value: "all", label: "All" },
-              { value: "narrative", label: "Narrative" },
-              { value: "multiplayer", label: "Co-op" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                className={`px-3 py-1 text-xs font-bold transition-colors ${
-                  gameMode === opt.value
-                    ? "bg-primary text-white"
-                    : "bg-background-dark text-text-dim hover:bg-border-dark"
-                }`}
-                onClick={() => onGameModeChange(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="h-8 w-[1px] bg-border-dark" />
-
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
-            Days Since Launch
-          </span>
-          <div className="flex items-center gap-3">
-            <input
-              className="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer"
-              max={90}
-              min={1}
-              type="range"
-              value={days}
-              onChange={(e) => onDaysChange(Number(e.target.value))}
-            />
-            <span className="text-xs font-mono text-primary font-bold">0-{days}d</span>
-          </div>
-        </div>
-
-        <div className="h-8 w-[1px] bg-border-dark" />
-
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-text-dim tracking-widest">
-            Max Price
-          </span>
-          <div className="flex items-center gap-3">
-            <input
-              className="accent-primary h-1.5 w-32 rounded-full bg-border-dark appearance-none cursor-pointer"
-              max={60}
-              min={0}
-              type="range"
-              value={maxPrice}
-              onChange={(e) => onMaxPriceChange(Number(e.target.value))}
-            />
-            <span className="text-xs font-mono text-primary font-bold">
-              {maxPrice === 60 ? "Any" : `<$${maxPrice}`}
-            </span>
-          </div>
-        </div>
-
-        <div className="h-8 w-[1px] bg-border-dark" />
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-text-dim">Sort by:</span>
-          <select
-            className="bg-background-dark border border-border-dark text-xs font-semibold rounded px-2 py-1 focus:ring-primary outline-none text-text-main"
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value)}
-          >
-            <option value="newest">Newest First</option>
-            <option value="velocity">Velocity (7d)</option>
-            <option value="ops">OPS Score</option>
-            <option value="reviews">Most Reviews</option>
-            <option value="ccu">Peak CCU</option>
-          </select>
-        </div>
-
-        <div className="h-8 w-[1px] bg-border-dark" />
-
-        {/* Watchlist toggle */}
-        <button
-          onClick={onToggleWatchlistOnly}
-          title={showWatchlistOnly ? "Show all games" : "Show watchlist only"}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-bold transition-colors ${
-            showWatchlistOnly
-              ? "bg-status-warn/10 border-status-warn/30 text-status-warn"
-              : "border-border-dark text-text-dim hover:border-text-dim hover:text-text-main"
-          }`}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: showWatchlistOnly ? "'FILL' 1" : "'FILL' 0" }}>
-            bookmark
-          </span>
-          Watchlist{watchlistCount > 0 && <span className="ml-0.5">({watchlistCount})</span>}
-        </button>
+        )}
       </div>
     </section>
   );
