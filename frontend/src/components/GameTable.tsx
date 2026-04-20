@@ -6,50 +6,134 @@ import EmptyState from "./EmptyState";
 interface GameTableProps {
   games: GameListItem[];
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  sortBy?: string;
+  onSortChange?: (sort: string) => void;
   watchlist?: number[];
   onToggleWatch?: (appid: number) => void;
   compareList?: number[];
   onToggleCompare?: (appid: number) => void;
   canAddToCompare?: boolean;
-  /** Pass "watchlist-empty" when showing watchlist filter with no bookmarks. */
   emptyVariant?: "no-results" | "watchlist-empty";
 }
 
-export default function GameTable({ games, loading, watchlist = [], onToggleWatch, compareList = [], onToggleCompare, canAddToCompare = true, emptyVariant = "no-results" }: GameTableProps) {
+type SortKey = "newest" | "velocity" | "ops" | "reviews" | "ccu";
+
+const COLUMNS: { label: string; sortKey?: SortKey; help?: boolean }[] = [
+  { label: "Game & Developer" },
+  { label: "Days", sortKey: "newest" },
+  { label: "Price" },
+  { label: "Reviews", sortKey: "reviews" },
+  { label: "Score %" },
+  { label: "Δ Rev 7D", sortKey: "velocity" },
+  { label: "Peak CCU", sortKey: "ccu" },
+  { label: "YouTube" },
+  { label: "OPS", sortKey: "ops", help: true },
+];
+
+export default function GameTable({
+  games,
+  loading,
+  error,
+  onRetry,
+  sortBy,
+  onSortChange,
+  watchlist = [],
+  onToggleWatch,
+  compareList = [],
+  onToggleCompare,
+  canAddToCompare = true,
+  emptyVariant = "no-results",
+}: GameTableProps) {
+  if (error) {
+    return (
+      <div className="flex-1 bg-background-dark">
+        <div className="flex flex-col items-center justify-center text-center gap-4 py-20 px-6">
+          <div className="w-16 h-16 rounded-full bg-status-neg/10 flex items-center justify-center text-2xl text-status-neg">
+            ⚠
+          </div>
+          <h2 className="text-lg font-bold text-text-main">Unable to load game data</h2>
+          <p className="text-sm text-text-mid max-w-[400px]">
+            The backend server did not respond. This may be a temporary outage or network issue.
+          </p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="bg-primary-light text-background-dark rounded-md px-5 py-2 text-sm font-semibold hover:bg-primary transition-colors"
+            >
+              ↻ Retry Connection
+            </button>
+          )}
+          <p className="font-mono text-xs text-text-dim">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 overflow-auto custom-scrollbar bg-background-dark">
-      {/* Desktop: table view */}
-      <table className="hidden md:table w-full text-left border-collapse min-w-[900px]">
-        <thead className="sticky top-0 bg-background-dark/95 backdrop-blur-sm border-b-2 border-border-dark z-10">
-          <tr className="text-[11px] uppercase tracking-wider text-text-dim font-black">
-            <th className="px-6 py-4 w-[340px]">Game</th>
-            <th className="px-4 py-4">Price</th>
-            <th className="px-4 py-4">Reviews / 7d</th>
-            <th className="px-4 py-4">Peak CCU</th>
-            <th className="px-4 py-4">Creators</th>
-            <th className="px-6 py-4 text-right group/ops relative cursor-help">
-              <div className="flex flex-col items-end">
-                <span className="border-b border-dashed border-text-dim/40">OPS</span>
-                <span className="text-[8px] normal-case tracking-wide font-semibold text-text-dim/60 mt-0.5">Breakout Strength</span>
-              </div>
-              <div className="absolute right-0 top-full mt-1 w-72 p-3 bg-surface-dark border border-border-dark rounded-lg shadow-xl text-left normal-case tracking-normal font-normal text-xs text-text-mid opacity-0 pointer-events-none group-hover/ops:opacity-100 group-hover/ops:pointer-events-auto transition-opacity z-20">
-                <p className="font-bold text-text-main mb-1">Overperformance Score v5 (0–100)</p>
-                <p className="leading-relaxed mb-2">Composite of 7 signals weighted by how much each outperforms the peer median: velocity (30%), decay retention (20%), review volume (13%), YouTube (13%), CCU (10%), sentiment (8%), Twitch (6%).</p>
-                <p className="leading-relaxed text-[10px]">Score = raw_ops × 24 × coverage_penalty. Coverage penalty scales 0.40–1.00 based on how many of the 7 signals have data.</p>
-                <div className="mt-2 pt-2 border-t border-border-dark flex items-center gap-4 text-[10px]">
-                  <span className="flex items-center gap-1 text-status-pos font-bold"><span>▲</span> Breakout ≥60</span>
-                  <span className="flex items-center gap-1 text-status-warn font-bold"><span>◆</span> Watch 30–59</span>
-                  <span className="flex items-center gap-1 text-text-dim font-bold"><span>▼</span> Cold &lt;30</span>
-                </div>
-              </div>
-            </th>
+    <div className="flex-1 overflow-x-auto bg-background-dark px-4 md:px-6 xl:px-10 pb-6">
+      {/* Desktop table */}
+      <table className="hidden md:table w-full border-collapse text-sm" role="grid" aria-label="Horror indie game database">
+        <thead>
+          <tr>
+            {COLUMNS.map((col) => {
+              const isActive = col.sortKey && sortBy === col.sortKey;
+              const clickable = !!col.sortKey && !!onSortChange;
+              return (
+                <th
+                  key={col.label}
+                  scope="col"
+                  tabIndex={clickable ? 0 : -1}
+                  onClick={clickable ? () => onSortChange!(col.sortKey!) : undefined}
+                  onKeyDown={clickable ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSortChange!(col.sortKey!);
+                    }
+                  } : undefined}
+                  className={`px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider border-b border-border-dark bg-surface-dark whitespace-nowrap select-none transition-colors ${
+                    clickable ? "cursor-pointer" : "cursor-default"
+                  } ${isActive ? "text-secondary" : "text-text-dim hover:text-text-main"}`}
+                  aria-sort={isActive ? "descending" : undefined}
+                >
+                  <div className="flex items-center gap-1">
+                    {col.label}
+                    {col.sortKey && (
+                      <span aria-hidden="true" className="flex flex-col text-[8px] leading-none">
+                        <span className={isActive ? "opacity-30" : "text-border-dark"}>▲</span>
+                        <span className={isActive ? "text-secondary" : "text-border-dark"}>▼</span>
+                      </span>
+                    )}
+                    {col.help && (
+                      <span
+                        tabIndex={0}
+                        aria-label="What is OPS?"
+                        className="relative inline-flex items-center justify-center w-4 h-4 rounded-full border border-text-dim text-[10px] text-text-dim hover:border-text-main hover:text-text-main cursor-help ml-1 group/help"
+                      >
+                        ?
+                        <span
+                          role="tooltip"
+                          className="hidden group-hover/help:block group-focus/help:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-60 p-3 bg-surface-dark border border-border-dark rounded-lg shadow-xl text-left normal-case tracking-normal font-normal z-50"
+                        >
+                          <span className="block text-xs font-semibold text-text-main mb-1">Overperformance Score</span>
+                          <span className="block text-[11px] text-text-mid leading-snug">
+                            Measures how much a game outperforms peers across 7 signals: velocity, decay, reviews, YouTube, CCU, sentiment, Twitch. 60+ = Breakout.
+                          </span>
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border-dark/50">
+        <tbody>
           {loading ? (
             <tr>
-              <td colSpan={6} className="px-6 py-4">
-                <div className="flex flex-col items-center gap-2 py-16 text-text-dim">
+              <td colSpan={COLUMNS.length} className="px-4 py-16">
+                <div className="flex flex-col items-center gap-2 text-text-dim">
                   <span className="material-symbols-outlined text-4xl animate-spin text-primary">progress_activity</span>
                   <span className="text-sm">Loading games…</span>
                 </div>
@@ -57,16 +141,15 @@ export default function GameTable({ games, loading, watchlist = [], onToggleWatc
             </tr>
           ) : games.length === 0 ? (
             <tr>
-              <td colSpan={6}>
+              <td colSpan={COLUMNS.length}>
                 <EmptyState variant={emptyVariant} />
               </td>
             </tr>
           ) : (
-            games.map((game, i) => (
+            games.map((game) => (
               <GameRow
                 key={game.appid}
                 game={game}
-                even={i % 2 === 1}
                 isWatched={watchlist.includes(game.appid)}
                 onToggleWatch={onToggleWatch}
                 isInCompare={compareList.includes(game.appid)}
@@ -78,7 +161,7 @@ export default function GameTable({ games, loading, watchlist = [], onToggleWatc
         </tbody>
       </table>
 
-      {/* Mobile: card view */}
+      {/* Mobile cards */}
       <div className="md:hidden">
         {loading ? (
           <div className="flex flex-col items-center gap-2 py-16 text-text-dim">
