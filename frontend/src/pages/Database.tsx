@@ -4,6 +4,9 @@ import { fetchPaginated, fetchStatus } from "../api/client";
 import FilterBar from "../components/FilterBar";
 import GameTable from "../components/GameTable";
 import Pagination from "../components/Pagination";
+import { useWatchlist } from "../hooks/useWatchlist";
+import { useCompare } from "../hooks/useCompare";
+import CompareBar from "../components/CompareBar";
 import type { GameListItem } from "../types";
 
 function opsGlyph(score: number) {
@@ -82,6 +85,12 @@ export default function Database() {
     if (stored) setLastVisit(new Date(stored));
     localStorage.setItem("horror-radar-last-visit", new Date().toISOString());
   }, []);
+
+  // Watchlist
+  const { watchlist, toggle: toggleWatch } = useWatchlist();
+  // Compare
+  const { compareList, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, canAdd: canAddToCompare } = useCompare();
+  const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
 
   // Filter state — changes apply instantly (search is debounced)
   const [days, setDays] = useState(90);
@@ -193,15 +202,15 @@ export default function Database() {
         sortBy={sortBy}
         search={search}
         gameMode={gameMode}
+        showWatchlistOnly={showWatchlistOnly}
+        watchlistCount={watchlist.length}
         onDaysChange={setDays}
         onMaxPriceChange={setMaxPrice}
         onSortChange={setSortBy}
         onSearchChange={setSearch}
         onGameModeChange={setGameMode}
+        onToggleWatchlistOnly={() => setShowWatchlistOnly((v) => !v)}
       />
-      {sortBy === "ops" && page === 1 && !loading && (
-        <Top3Strip games={games} />
-      )}
       {lastVisit && page === 1 && !loading && (() => {
         const newCount = games.filter(
           (g) => g.release_date && new Date(g.release_date) > lastVisit
@@ -216,7 +225,19 @@ export default function Database() {
           </div>
         ) : null;
       })()}
-      <GameTable games={games} loading={loading} />
+      {sortBy === "ops" && page === 1 && !loading && (
+        <Top3Strip games={games} />
+      )}
+      <GameTable
+        games={showWatchlistOnly ? games.filter((g) => watchlist.includes(g.appid)) : games}
+        loading={loading}
+        watchlist={watchlist}
+        onToggleWatch={toggleWatch}
+        compareList={compareList}
+        onToggleCompare={toggleCompare}
+        canAddToCompare={canAddToCompare}
+        emptyVariant={showWatchlistOnly ? "watchlist-empty" : "no-results"}
+      />
       <Pagination
         page={page}
         pageSize={pageSize}
@@ -225,6 +246,12 @@ export default function Database() {
         activeScrapers={activeScrapers}
         totalScrapers={totalScrapers}
         lastSync={lastSync}
+      />
+      <CompareBar
+        compareList={compareList}
+        games={games}
+        onRemove={removeCompare}
+        onClear={clearCompare}
       />
     </>
   );

@@ -1,13 +1,21 @@
 import type { GameListItem } from "../types";
 import GameRow from "./GameRow";
 import GameCard from "./GameCard";
+import EmptyState from "./EmptyState";
 
 interface GameTableProps {
   games: GameListItem[];
   loading: boolean;
+  watchlist?: number[];
+  onToggleWatch?: (appid: number) => void;
+  compareList?: number[];
+  onToggleCompare?: (appid: number) => void;
+  canAddToCompare?: boolean;
+  /** Pass "watchlist-empty" when showing watchlist filter with no bookmarks. */
+  emptyVariant?: "no-results" | "watchlist-empty";
 }
 
-export default function GameTable({ games, loading }: GameTableProps) {
+export default function GameTable({ games, loading, watchlist = [], onToggleWatch, compareList = [], onToggleCompare, canAddToCompare = true, emptyVariant = "no-results" }: GameTableProps) {
   return (
     <div className="flex-1 overflow-auto custom-scrollbar bg-background-dark">
       {/* Desktop: table view */}
@@ -40,30 +48,31 @@ export default function GameTable({ games, loading }: GameTableProps) {
         <tbody className="divide-y divide-border-dark/50">
           {loading ? (
             <tr>
-              <td colSpan={6} className="px-6 py-16 text-center text-text-dim">
-                <div className="flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined text-4xl animate-spin text-primary">
-                    progress_activity
-                  </span>
-                  <span className="text-sm">Loading games...</span>
+              <td colSpan={6} className="px-6 py-4">
+                <div className="flex flex-col items-center gap-2 py-16 text-text-dim">
+                  <span className="material-symbols-outlined text-4xl animate-spin text-primary">progress_activity</span>
+                  <span className="text-sm">Loading games…</span>
                 </div>
               </td>
             </tr>
           ) : games.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-6 py-16 text-center text-text-dim">
-                <div className="flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined text-4xl text-border-dark">
-                    skull
-                  </span>
-                  <span className="text-sm">No games found</span>
-                  <span className="text-xs">Try adjusting your filters</span>
-                </div>
+              <td colSpan={6}>
+                <EmptyState variant={emptyVariant} />
               </td>
             </tr>
           ) : (
             games.map((game, i) => (
-              <GameRow key={game.appid} game={game} even={i % 2 === 1} />
+              <GameRow
+                key={game.appid}
+                game={game}
+                even={i % 2 === 1}
+                isWatched={watchlist.includes(game.appid)}
+                onToggleWatch={onToggleWatch}
+                isInCompare={compareList.includes(game.appid)}
+                onToggleCompare={onToggleCompare}
+                canAddToCompare={canAddToCompare || compareList.includes(game.appid)}
+              />
             ))
           )}
         </tbody>
@@ -73,21 +82,23 @@ export default function GameTable({ games, loading }: GameTableProps) {
       <div className="md:hidden">
         {loading ? (
           <div className="flex flex-col items-center gap-2 py-16 text-text-dim">
-            <span className="material-symbols-outlined text-4xl animate-spin text-primary">
-              progress_activity
-            </span>
-            <span className="text-sm">Loading games...</span>
+            <span className="material-symbols-outlined text-4xl animate-spin text-primary">progress_activity</span>
+            <span className="text-sm">Loading games…</span>
           </div>
         ) : games.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-text-dim">
-            <span className="material-symbols-outlined text-4xl text-border-dark">skull</span>
-            <span className="text-sm">No games found</span>
-            <span className="text-xs">Try adjusting your filters</span>
-          </div>
+          <EmptyState variant={emptyVariant} />
         ) : (
           <div className="divide-y divide-border-dark/50">
             {games.map((game) => (
-              <GameCard key={game.appid} game={game} />
+              <GameCard
+                key={game.appid}
+                game={game}
+                isWatched={watchlist.includes(game.appid)}
+                onToggleWatch={onToggleWatch}
+                isInCompare={compareList.includes(game.appid)}
+                onToggleCompare={onToggleCompare}
+                canAddToCompare={canAddToCompare || compareList.includes(game.appid)}
+              />
             ))}
           </div>
         )}

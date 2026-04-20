@@ -333,6 +333,60 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What went wrong**: Slow and error-prone. Could have missed occurrences.
 - **Do instead**: `grep -r "Space Mono\|IBM Plex\|Instrument Serif\|Outfit\|Space Grotesk\|Inter" frontend/src/` to get all occurrences, then batch replace with `Edit replace_all`.
 
+### 2026-04-05 — Changed vercel.json to unregistered domain
+
+- **What happened**: Changed API proxy destination from `http://187.127.103.42/api/:path*` to `https://api.horror-radar.com/api/:path*`. Site immediately showed no data.
+- **What went wrong**: The domain `api.horror-radar.com` was in the upgrade plan but DNS was never configured. Changing the proxy before the domain exists breaks the frontend instantly.
+- **Do instead**: Always verify a prerequisite exists before depending on it in code. For domain changes: confirm DNS resolves (`ping api.horror-radar.com`) before updating vercel.json.
+
+### 2026-04-05 — Hostinger has two independent firewall layers
+
+- **What happened**: SSH and port 80 were both timing out even though the VPS was running and iptables was fully open (ACCEPT policy).
+- **What went wrong**: Hostinger operates a cloud-level firewall in the VPS panel that is completely separate from iptables inside the VPS. A rule must exist in BOTH places for traffic to get through.
+- **Do instead**: When diagnosing external connectivity on Hostinger VPS, check the Hostinger panel → Firewall rules FIRST before investigating iptables inside the server.
+
+### 2026-04-05 — nginx config overwritten during editing
+
+- **What happened**: Attempted to add a `/ready` location block to nginx config. The instruction to open nano and add a block resulted in the entire file being replaced with just the new block, wiping the original server{} wrapper.
+- **What went wrong**: Nano editing from AI instructions is fragile — easy to accidentally overwrite instead of append.
+- **Do instead**: Always use `sudo tee` to write nginx config files atomically. Show the full intended file content, not just the block to add. Run `sudo nginx -t` before `sudo systemctl reload nginx`.
+
+### 2026-04-05 — User-level systemd services invisible to systemctl
+
+- **What happened**: `systemctl list-units | grep horror` returned nothing even though the horror-radar service was running.
+- **What went wrong**: The service is registered as a user-level unit (`systemctl --user`), not a system unit. System-level `systemctl` never sees user services.
+- **Do instead**: When a process is running but `systemctl` can't find it, try `systemctl --user status SERVICE` with `XDG_RUNTIME_DIR=/run/user/$(id -u)` set. Also check `horror-connect.sh` or equivalent deploy scripts first — they document the restart command.
+
+### 2026-04-05 — GitHub token exposed in terminal paste
+
+- **What happened**: Running `git remote -v` on the VPS printed the full remote URL including the embedded PAT (`ghp_...`). The output was pasted into the chat.
+- **What went wrong**: Embedding credentials in git remote URLs causes them to appear in plain text in any output that shows the remote. Token was immediately invalidated and rotated.
+- **Do instead**: Use SSH keys for VPS git authentication, or a credential helper that stores the token outside the URL. Never embed tokens in remote URLs on shared/logged systems.
+
+### 2026-04-05 — Compare page used wrong API response shape
+
+- **What happened**: Built `Compare.tsx` assuming `/games/{appid}` returns flat fields (`latest_snapshot`, `latest_ops`, `review_delta_7d`, `ops_delta_7d`) — the shape used by `GameListOut` on the paginated `/games` list endpoint. The actual `GameDetailOut` returns `snapshots[]` and `ops_history[]` arrays. Every field was `undefined`, so the Compare page showed no data.
+- **What went wrong**: Built the UI consumer without checking the actual backend schema. `GameListOut` and `GameDetailOut` have fundamentally different shapes for the same entity — one precomputes for list views, the other provides raw history for detail views.
+- **Do instead**: Before building any frontend page that calls an API endpoint, read the backend `schemas.py` response model (or hit the endpoint with curl) to confirm the exact response shape. When two endpoints serve the same entity, never assume they return the same fields.
+
+### 2026-04-05 — Cherry-pick is the only safe cross-remote sync strategy
+
+- **What happened**: After pushing Phase 3 to `horror-radar/main`, the local branch `add-gstack-docs` (tracking `origin/main`) diverged. Direct `git push horror-radar HEAD:main` was rejected (non-fast-forward). Rebase would replay already-merged commits from the squash-merge history.
+- **What went wrong**: The two remotes (`horror-radar` and `origin`) have different commit histories due to earlier squash merges. Any rebase or merge between them creates conflicts from already-applied content.
+- **Do instead**: Always use `git checkout -B <temp> <remote>/main && git cherry-pick <hash>` to sync individual commits across diverged remotes. Never attempt rebase when remotes share content but not history.
+
+### 2026-04-05 — Google Drive + git worktrees cause spurious index.lock
+
+- **What happened**: `git commit` repeatedly failed with `fatal: Unable to create '.../index.lock': File exists`, but `ls` on the lock file showed "No such file or directory".
+- **What went wrong**: The repo lives on Google Drive, which syncs files in the background. Google Drive's sync process likely creates transient lock contention that appears and disappears between commands.
+- **Do instead**: Always `rm -f <index.lock>` before git operations in Google Drive worktrees. Accept that this is a recurring issue in this environment. Consider moving the working repo to local disk and only syncing via git push.
+
+### 2026-04-05 — Context window exhaustion on multi-phase implementations
+
+- **What happened**: Implementing Phase 3 (6 new components, ConceptA redesign, watchlist hook, compare hook, CompareBar, Compare page, FilterBar/GameTable/GameRow/GameCard wiring, EmptyState, App.tsx routing) consumed the entire context window. The session had to be resumed from a compressed summary, losing fine-grained state.
+- **What went wrong**: Attempted to implement all of Phase 3 in a single session. Each component touched multiple files, and the accumulation of reads + writes + builds + git operations filled the context.
+- **Do instead**: Break multi-file implementation phases into sub-sessions of 3-4 files max. Commit and push at each natural boundary (e.g., "shared components done", "hooks done", "wiring done"). Starting a fresh session from a clean commit is cheaper than resuming from a compressed summary.
+
 ## gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.

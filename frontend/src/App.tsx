@@ -5,6 +5,7 @@ import RadarPick from "./pages/radar/SignalFire";
 import Autopsy from "./pages/game/ConceptA";
 import Trends from "./pages/Trends";
 import Developer from "./pages/Developer";
+import Compare from "./pages/Compare";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/radar-pick" element={<Navigate to="/" replace />} />
             <Route path="/trends" element={<Trends />} />
             <Route path="/game/:appid" element={<Autopsy />} />
+            <Route path="/compare" element={<Compare />} />
             <Route path="/developers/:name" element={<Developer />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

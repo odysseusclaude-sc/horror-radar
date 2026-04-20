@@ -6,6 +6,11 @@ import ChannelBadges from "./ChannelBadges";
 
 interface GameCardProps {
   game: GameListItem;
+  isWatched?: boolean;
+  onToggleWatch?: (appid: number) => void;
+  isInCompare?: boolean;
+  onToggleCompare?: (appid: number) => void;
+  canAddToCompare?: boolean;
 }
 
 function daysSince(dateStr: string | null): number | null {
@@ -21,7 +26,7 @@ function scorePctColor(pct: number): string {
   return "text-status-neg";
 }
 
-export default function GameCard({ game }: GameCardProps) {
+export default function GameCard({ game, isWatched = false, onToggleWatch, isInCompare = false, onToggleCompare, canAddToCompare = true }: GameCardProps) {
   const days = daysSince(game.release_date);
   const snap = game.latest_snapshot;
   const reviewCount = snap?.review_count ?? null;
@@ -68,14 +73,37 @@ export default function GameCard({ game }: GameCardProps) {
             {game.developer || "Unknown"}
           </span>
         </div>
-        {/* OPS badge */}
-        {ops?.score != null && ops.score > 0 ? (
-          <div className="flex-shrink-0">
+        {/* OPS badge + bookmark */}
+        <div className="flex-shrink-0 flex flex-col items-end gap-1">
+          {ops?.score != null && ops.score > 0 ? (
             <OpsBadge ops={ops} delta={game.ops_delta_7d} dotSize="w-[5px] h-[5px]" />
-          </div>
-        ) : (
-          <div className="flex-shrink-0 text-text-dim italic text-xs">--</div>
-        )}
+          ) : (
+            <span className="text-text-dim italic text-xs">--</span>
+          )}
+          {onToggleWatch && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWatch(game.appid); }}
+              title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+              className={`transition-colors ${isWatched ? "text-status-warn" : "text-border-dark hover:text-text-dim"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: isWatched ? "'FILL' 1" : "'FILL' 0" }}>
+                bookmark
+              </span>
+            </button>
+          )}
+          {onToggleCompare && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleCompare(game.appid); }}
+              title={isInCompare ? "Remove from compare" : canAddToCompare ? "Add to compare" : "Compare full"}
+              disabled={!isInCompare && !canAddToCompare}
+              className={`transition-colors ${isInCompare ? "text-status-pos" : canAddToCompare ? "text-border-dark hover:text-text-dim" : "text-border-dark opacity-40"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                {isInCompare ? "check_box" : "check_box_outline_blank"}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats row */}

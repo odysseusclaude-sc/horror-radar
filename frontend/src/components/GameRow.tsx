@@ -1,10 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import type { GameListItem, YoutubeChannelBrief } from "../types";
-import { useWatchlist } from "../hooks/useWatchlist";
 
 interface GameRowProps {
   game: GameListItem;
   even: boolean;
+  isWatched?: boolean;
+  onToggleWatch?: (appid: number) => void;
+  isInCompare?: boolean;
+  onToggleCompare?: (appid: number) => void;
+  canAddToCompare?: boolean;
 }
 
 function daysSince(dateStr: string | null): number | null {
@@ -64,9 +68,16 @@ function buildEvidenceSnippet(game: GameListItem): string {
   return parts.slice(0, 3).join(" · ");
 }
 
-export default function GameRow({ game, even }: GameRowProps) {
+export default function GameRow({
+  game,
+  even,
+  isWatched = false,
+  onToggleWatch,
+  isInCompare = false,
+  onToggleCompare,
+  canAddToCompare = true,
+}: GameRowProps) {
   const navigate = useNavigate();
-  const { watchlist, toggle } = useWatchlist();
   const days = daysSince(game.release_date);
   const snap = game.latest_snapshot;
   const reviewCount = snap?.review_count ?? null;
@@ -75,7 +86,6 @@ export default function GameRow({ game, even }: GameRowProps) {
   const channels = game.youtube_channels ?? [];
   const demoReviews = snap?.demo_review_count ?? null;
   const evidence = buildEvidenceSnippet(game);
-  const isWatched = watchlist.has(game.appid);
 
   return (
     <tr
@@ -88,6 +98,29 @@ export default function GameRow({ game, even }: GameRowProps) {
       {/* Game & Developer + evidence sentence */}
       <td className="px-6 py-2">
         <div className="flex items-center gap-3">
+          {onToggleWatch && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleWatch(game.appid); }}
+              title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+              className={`flex-shrink-0 transition-colors ${isWatched ? "text-status-warn" : "text-border-dark hover:text-text-dim"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: isWatched ? "'FILL' 1" : "'FILL' 0" }}>
+                bookmark
+              </span>
+            </button>
+          )}
+          {onToggleCompare && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleCompare(game.appid); }}
+              title={isInCompare ? "Remove from compare" : canAddToCompare ? "Add to compare" : "Compare is full (max 3)"}
+              disabled={!isInCompare && !canAddToCompare}
+              className={`flex-shrink-0 transition-colors ${isInCompare ? "text-status-pos" : canAddToCompare ? "text-border-dark hover:text-text-dim" : "text-border-dark opacity-40 cursor-not-allowed"}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                {isInCompare ? "check_box" : "check_box_outline_blank"}
+              </span>
+            </button>
+          )}
           <a
             href={`https://store.steampowered.com/app/${game.appid}`}
             target="_blank"
@@ -108,7 +141,7 @@ export default function GameRow({ game, even }: GameRowProps) {
             </div>
           </a>
           <div className="flex flex-col min-w-0 flex-1">
-            {/* Title + DEMO badge + watchlist star */}
+            {/* Title + DEMO badge */}
             <div className="flex items-center gap-1.5">
               <Link
                 to={`/game/${game.appid}`}
@@ -121,16 +154,6 @@ export default function GameRow({ game, even }: GameRowProps) {
                   &#x2713; DEMO
                 </span>
               )}
-              <button
-                className={`flex-shrink-0 text-[11px] leading-none transition-colors ml-auto ${
-                  isWatched ? "text-status-warn" : "text-text-dim/30 hover:text-text-dim"
-                }`}
-                onClick={(e) => { e.stopPropagation(); toggle(game.appid); }}
-                aria-label={isWatched ? "Remove from watchlist" : "Add to watchlist"}
-                title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
-              >
-                {isWatched ? "★" : "☆"}
-              </button>
             </div>
             {/* Developer link + days badge */}
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -241,7 +264,7 @@ export default function GameRow({ game, even }: GameRowProps) {
         )}
       </td>
 
-      {/* OPS — glyph + score + trend + confidence dots */}
+      {/* OPS — glyph + score + delta + confidence dots */}
       <td className="px-6 py-2 text-right">
         {game.latest_ops?.score != null && game.latest_ops.score > 0 ? (
           <div className="flex flex-col items-end gap-0.5">
@@ -253,25 +276,14 @@ export default function GameRow({ game, even }: GameRowProps) {
                 {Math.round(game.latest_ops.score)}
               </span>
               {game.ops_delta_7d != null && Math.abs(game.ops_delta_7d) >= 2 && (
-                <span
-                  className={`text-[10px] font-bold tabular-nums ${
-                    game.ops_delta_7d > 0 ? "text-status-pos" : "text-status-neg"
-                  }`}
-                >
-                  {game.ops_delta_7d > 0 ? "↑" : "↓"}
-                  {Math.abs(Math.round(game.ops_delta_7d))}
+                <span className={`text-[10px] font-bold tabular-nums ${game.ops_delta_7d > 0 ? "text-status-pos" : "text-status-neg"}`}>
+                  {game.ops_delta_7d > 0 ? "↑" : "↓"}{Math.abs(Math.round(game.ops_delta_7d))}
                 </span>
               )}
             </div>
             <div
               className="flex items-center gap-1"
-              title={
-                game.latest_ops.confidence === "high"
-                  ? "High data coverage"
-                  : game.latest_ops.confidence === "medium"
-                  ? "Moderate data coverage"
-                  : "Limited data coverage"
-              }
+              title={game.latest_ops.confidence === "high" ? "High data coverage" : game.latest_ops.confidence === "medium" ? "Moderate data coverage" : "Limited data coverage"}
               aria-label={`Confidence: ${game.latest_ops.confidence ?? "low"}`}
             >
               {[0, 1, 2].map((i) => (

@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { computeOps, DEFAULT_WEIGHTS } from "../../lib/opsCalculator";
+import type { OpsWeights } from "../../lib/opsCalculator";
 import { useParams } from "react-router-dom";
 import {
   ResponsiveContainer,
@@ -12,6 +14,11 @@ import {
   ReferenceLine,
   ReferenceArea,
   Brush,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from "recharts";
 
 /* ── API Response Types ──────────────────────────────────────────── */
@@ -748,6 +755,8 @@ export default function TheAutopsy() {
   });
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [showGhost, setShowGhost] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(false);
+  const [sandboxWeights, setSandboxWeights] = useState<OpsWeights>(DEFAULT_WEIGHTS);
 
   const toggleSeries = useCallback((key: string) => {
     setVisibleSeries((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1071,90 +1080,385 @@ export default function TheAutopsy() {
   /* ================================================================
      RENDER
      ================================================================ */
+  /* ── OPS Radar data ── */
+  const radarData = useMemo(() => {
+    if (!latestWithOps) return null;
+    const comps = [
+      { label: "Velocity", value: latestWithOps.velocity_component, max: 5.0 },
+      { label: "Decay", value: latestWithOps.decay_component, max: 2.0 },
+      { label: "Reviews", value: latestWithOps.review_component, max: 5.0 },
+      { label: "YouTube", value: latestWithOps.youtube_component, max: 1.8 },
+      { label: "CCU", value: latestWithOps.ccu_component, max: 5.0 },
+    ];
+    const hasAny = comps.some((c) => c.value != null && c.value > 0);
+    if (!hasAny) return null;
+    return comps.map((c) => ({
+      axis: c.label,
+      score: c.value != null && c.max > 0 ? Math.min(100, Math.round((c.value / c.max) * 100)) : 0,
+      peer: 50,
+    }));
+  }, [latestWithOps]);
+
+  /* ── YT video count ── */
+  const ytVideoCount = data?.videos?.length ?? 0;
+
+  /* ── Sandbox OPS score ── */
+  const sandboxScore = useMemo(() => {
+    if (!latestWithOps) return null;
+    return computeOps(
+      {
+        velocity: latestWithOps.velocity_component ?? null,
+        decay: latestWithOps.decay_component ?? null,
+        reviews: latestWithOps.review_component ?? null,
+        youtube: latestWithOps.youtube_component ?? null,
+        ccu: latestWithOps.ccu_component ?? null,
+      },
+      sandboxWeights,
+    );
+  }, [latestWithOps, sandboxWeights]);
+
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.white, padding: "32px 40px 60px" }}>
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.white }}>
       <style>{styleTag}</style>
 
-      {/* --- ELEMENT 1: Game Identity Header --- */}
-      <header className="autopsy-stagger-1" style={{ marginBottom: 36 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ ...mono, color: C.ops, fontSize: 10, textTransform: "uppercase", letterSpacing: 2 }}>
-            The Autopsy
-          </span>
-          <span style={{ color: C.border }}>|</span>
-          <span style={{ ...mono, color: C.dim, fontSize: 10 }}>
-            Forensic Timeline Analysis
-          </span>
+      {/* ══════════════════════════════════════════════════
+          HERO IDENTITY CARD — full-width header image
+      ════════════════════════════════════════════════════ */}
+      {game.header_image_url && (
+        <div className="autopsy-stagger-1" style={{ position: "relative", width: "100%", height: 260, overflow: "hidden" }}>
+          <img
+            src={game.header_image_url}
+            alt={game.title}
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }}
+          />
+          {/* gradient overlay — bottom to top */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: `linear-gradient(to top, ${C.bg} 0%, rgba(17,19,20,0.65) 45%, transparent 100%)`,
+          }} />
+          {/* floating title on image */}
+          <div style={{ position: "absolute", bottom: 20, left: 32, right: 32 }}>
+            <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: C.ops, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
+              The Autopsy · Forensic Timeline Analysis
+            </div>
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 700, margin: 0, color: C.white, lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>
+              {game.title}
+            </h1>
+          </div>
         </div>
-        <h1 style={{ ...heading, fontSize: 36, fontWeight: 800, margin: "0 0 4px", color: C.white }}>
-          <a
-            href={`https://store.steampowered.com/app/${game.appid}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit", textDecoration: "none", transition: "color 0.2s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = C.ops)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = C.white)}
-          >
-            {game.title}
-          </a>
-        </h1>
-        <div style={{ ...mono, fontSize: 12, color: C.dim, marginBottom: 12 }}>
-          {game.developer || "Unknown developer"} &middot; {genres.join(", ") || "Horror"}
-          {tags.length > 0 && (
-            <span style={{ marginLeft: 12 }}>
-              {tags.slice(0, 8).map((t) => (
-                <span
-                  key={t}
-                  style={{
-                    display: "inline-block",
-                    padding: "2px 8px",
-                    marginRight: 6,
-                    borderRadius: 3,
-                    background: "rgba(255,255,255,0.05)",
-                    border: `1px solid ${C.border}`,
-                    fontSize: 10,
-                    color: C.dim,
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
-            </span>
-          )}
-        </div>
+      )}
 
-        {/* Hero stats strip */}
-        <div
+      <div style={{ padding: "24px 40px 60px" }}>
+
+      {/* Fallback title when no header image */}
+      {!game.header_image_url && (
+        <div className="autopsy-stagger-1" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: C.ops, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
+            The Autopsy · Forensic Timeline Analysis
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, margin: 0, color: C.white, lineHeight: 1.1 }}>
+            {game.title}
+          </h1>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════
+          META ROW — developer · price · release · tags
+      ════════════════════════════════════════════════════ */}
+      <div className="autopsy-stagger-1" style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.dim, marginBottom: 4 }}>
+            {game.developer || "Unknown developer"}
+            {game.price_usd != null && (
+              <span style={{ marginLeft: 10, color: C.white }}>
+                {game.price_usd === 0 ? "Free" : `$${game.price_usd.toFixed(2)}`}
+              </span>
+            )}
+            {releaseDate && (
+              <span style={{ marginLeft: 10, color: C.dim }}>
+                · {new Date(releaseDate + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+              </span>
+            )}
+          </div>
+          {/* Tags */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+            {tags.slice(0, 8).map((t) => (
+              <span key={t} style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9,
+                padding: "2px 7px",
+                borderRadius: 3,
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${C.border}`,
+                color: C.dim,
+              }}>{t}</span>
+            ))}
+          </div>
+        </div>
+        <a
+          href={`https://store.steampowered.com/app/${game.appid}`}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            padding: "6px 14px",
+            borderRadius: 4,
+            border: `1px solid ${C.border}`,
+            color: C.dim,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.ops; e.currentTarget.style.color = C.white; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.dim; }}
+        >
+          View on Steam ↗
+        </a>
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          VITAL SIGNS ROW — 5 metric tiles
+      ════════════════════════════════════════════════════ */}
+      <div
+        className="autopsy-stagger-2"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 10,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          {
+            label: "OPS Score",
+            value: latestWithOps?.ops_score != null ? String(Math.round(latestWithOps.ops_score)) : "--",
+            note: latestWithOps?.ops_confidence ? `${latestWithOps.ops_confidence} confidence` : null,
+            color: latestWithOps?.ops_score != null
+              ? (latestWithOps.ops_score >= 60 ? "#5ec269" : latestWithOps.ops_score >= 30 ? "#e8a832" : "#e25535")
+              : C.dim,
+          },
+          {
+            label: "Reviews",
+            value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "--",
+            note: null,
+            color: C.white,
+          },
+          {
+            label: "Score %",
+            value: latestSnapshot?.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--",
+            note: latestSnapshot?.review_score_pct != null ? getSteamRating(latestSnapshot.review_score_pct).label : null,
+            color: latestSnapshot?.review_score_pct != null
+              ? (latestSnapshot.review_score_pct >= 80 ? "#5ec269" : latestSnapshot.review_score_pct >= 60 ? "#e8a832" : "#e25535")
+              : C.dim,
+          },
+          {
+            label: "Peak CCU",
+            value: (() => { const mx = snapshots.reduce((m, s) => Math.max(m, s.peak_ccu ?? 0), 0); return mx > 0 ? fmtNum(mx) : "--"; })(),
+            note: null,
+            color: "#802626",
+          },
+          {
+            label: "YT Videos",
+            value: ytVideoCount > 0 ? String(ytVideoCount) : "--",
+            note: ytVideoCount > 0 ? "tracked videos" : null,
+            color: "#38bdf8",
+          },
+        ].map((tile) => (
+          <div
+            key={tile.label}
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 6,
+              padding: "14px 16px",
+            }}
+          >
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 6 }}>
+              {tile.label}
+            </div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 26, fontWeight: 700, color: tile.color, lineHeight: 1 }}>
+              {tile.value}
+            </div>
+            {tile.note && (
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.dim, marginTop: 4 }}>
+                {tile.note}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          OPS COMPONENT RADAR
+      ════════════════════════════════════════════════════ */}
+      {radarData && (
+        <div
+          className="autopsy-stagger-3"
+          style={{
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            borderRadius: 6,
+            padding: "16px 20px",
+            marginBottom: 28,
             display: "flex",
-            gap: 28,
-            flexWrap: "wrap",
-            marginBottom: 14,
-            paddingBottom: 14,
-            borderBottom: `1px solid ${C.border}`,
+            alignItems: "center",
+            gap: 24,
           }}
         >
-          {heroStats.map((stat: any) => (
-            <div key={stat.label} style={{ minWidth: 80 }}>
-              <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 2 }}>
-                {stat.label}
-              </div>
-              <div style={{ ...mono, fontSize: 20, fontWeight: 700, color: stat.color }}>
-                {stat.value}
-              </div>
-              {stat.note && (
-                <div style={{ ...mono, fontSize: 8, color: C.dim, marginTop: 2, opacity: 0.7 }}>
-                  {stat.note}
-                </div>
-              )}
+          <div style={{ flex: "0 0 220px" }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 4 }}>
+              OPS Component Radar
             </div>
-          ))}
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.dim, lineHeight: 1.5 }}>
+              Each axis = component score normalised to 0–100.{" "}
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>White ring = peer median (50).</span>
+            </div>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+              {radarData.map((d) => (
+                <div key={d.axis} style={{ display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                  <span style={{ color: C.dim }}>{d.axis}</span>
+                  <span style={{ color: d.score >= 60 ? "#5ec269" : d.score >= 30 ? "#e8a832" : "#e25535" }}>{d.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                <PolarGrid stroke={C.border} />
+                <PolarAngleAxis
+                  dataKey="axis"
+                  tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                {/* Peer median ring */}
+                <Radar
+                  name="Peer Median"
+                  dataKey="peer"
+                  stroke="rgba(255,255,255,0.2)"
+                  fill="rgba(255,255,255,0.04)"
+                  strokeDasharray="4 3"
+                  strokeWidth={1}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                {/* Game score */}
+                <Radar
+                  name="This Game"
+                  dataKey="score"
+                  stroke={C.ops}
+                  fill={`${C.ops}25`}
+                  strokeWidth={2}
+                  dot={{ fill: C.ops, r: 3 }}
+                  isAnimationActive={false}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
+      )}
 
-        <p style={{ ...heading, fontSize: 14, color: C.dim, margin: 0, lineHeight: 1.6, maxWidth: 700 }}>
-          {storySentence}
-        </p>
-      </header>
+      {/* --- Story sentence (autopsy narrative) --- */}
+      <p className="autopsy-stagger-1" style={{ ...heading, fontSize: 14, color: C.dim, margin: "0 0 24px", lineHeight: 1.6, maxWidth: 700 }}>
+        {storySentence}
+      </p>
+
+      {/* ══════════════════════════════════════════════════
+          OPS WEIGHT SANDBOX
+      ════════════════════════════════════════════════════ */}
+      {latestWithOps && (
+        <div className="autopsy-stagger-3" style={{ marginBottom: 20 }}>
+          <button
+            onClick={() => setShowSandbox((v) => !v)}
+            style={{
+              ...mono,
+              fontSize: 10,
+              padding: "4px 12px",
+              borderRadius: 4,
+              cursor: "pointer",
+              border: `1px solid ${showSandbox ? C.ops : C.border}`,
+              background: showSandbox ? `${C.ops}15` : "transparent",
+              color: showSandbox ? C.ops : C.dim,
+              transition: "all 0.2s",
+              marginBottom: showSandbox ? 12 : 0,
+            }}
+          >
+            {showSandbox ? "▲" : "▼"} Weight Sandbox
+          </button>
+
+          {showSandbox && (
+            <div style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 6,
+              padding: "16px 20px",
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: 16,
+              alignItems: "start",
+            }}>
+              <div>
+                <div style={{ ...mono, fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: C.dim, marginBottom: 12 }}>
+                  Adjust component weights — see how OPS changes in real-time
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {(Object.entries(sandboxWeights) as [keyof OpsWeights, number][]).map(([key, val]) => (
+                    <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ ...mono, fontSize: 10, color: C.dim, width: 70, textTransform: "capitalize" }}>
+                        {key}
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={0.6}
+                        step={0.01}
+                        value={val}
+                        onChange={(e) => setSandboxWeights((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                        style={{ flex: 1, accentColor: C.ops }}
+                      />
+                      <div style={{ ...mono, fontSize: 10, color: C.white, width: 36, textAlign: "right" }}>
+                        {(val * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setSandboxWeights(DEFAULT_WEIGHTS)}
+                  style={{
+                    ...mono, fontSize: 9, marginTop: 10, padding: "3px 10px",
+                    borderRadius: 3, cursor: "pointer",
+                    border: `1px solid ${C.border}`, background: "transparent", color: C.dim,
+                  }}
+                >
+                  Reset to defaults
+                </button>
+              </div>
+
+              {/* Live score */}
+              <div style={{ textAlign: "center", minWidth: 90 }}>
+                <div style={{ ...mono, fontSize: 9, color: C.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>
+                  Sandbox OPS
+                </div>
+                <div style={{
+                  ...mono, fontSize: 40, fontWeight: 700,
+                  color: sandboxScore != null
+                    ? (sandboxScore >= 60 ? "#5ec269" : sandboxScore >= 30 ? "#e8a832" : "#e25535")
+                    : C.dim,
+                  lineHeight: 1,
+                }}>
+                  {sandboxScore ?? "--"}
+                </div>
+                <div style={{ ...mono, fontSize: 9, color: C.dim, marginTop: 4 }}>
+                  vs actual <span style={{ color: C.ops }}>
+                    {latestWithOps?.ops_score != null ? Math.round(latestWithOps.ops_score) : "--"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* --- Series Toggle Pills --- */}
       <div className="autopsy-stagger-2" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
@@ -1785,6 +2089,7 @@ export default function TheAutopsy() {
       {selectedEvent && (
         <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} />
       )}
+      </div>{/* end padding wrapper */}
     </div>
   );
 }
