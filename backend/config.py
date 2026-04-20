@@ -168,7 +168,7 @@ class Settings(BaseSettings):
     # Sentry — leave empty to disable error tracking
     sentry_dsn: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()
