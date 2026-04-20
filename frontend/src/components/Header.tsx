@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { label: "Database", path: "/", disabled: false },
-  { label: "Radar Pick", path: "/radar-pick", disabled: false },
+  { label: "Radar Pick", path: "/", disabled: false },
+  { label: "Browse", path: "/browse", disabled: false },
   { label: "Trends", path: "/trends", disabled: false },
 ];
 

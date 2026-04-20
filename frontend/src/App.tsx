@@ -4,21 +4,27 @@ import Database from "./pages/Database";
 import RadarPick from "./pages/radar/SignalFire";
 import Autopsy from "./pages/game/ConceptA";
 import Trends from "./pages/Trends";
+import Developer from "./pages/Developer";
 import Compare from "./pages/Compare";
 
 export default function App() {
   return (
     <BrowserRouter>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="flex flex-col min-h-screen overflow-x-hidden">
         <Header />
-        <Routes>
-          <Route path="/" element={<Database />} />
-          <Route path="/radar-pick" element={<RadarPick />} />
-          <Route path="/trends" element={<Trends />} />
-          <Route path="/game/:appid" element={<Autopsy />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <main id="main-content">
+          <Routes>
+            <Route path="/" element={<RadarPick />} />
+            <Route path="/browse" element={<Database />} />
+            <Route path="/radar-pick" element={<Navigate to="/" replace />} />
+            <Route path="/trends" element={<Trends />} />
+            <Route path="/game/:appid" element={<Autopsy />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/developers/:name" element={<Developer />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
       </div>
     </BrowserRouter>
   );

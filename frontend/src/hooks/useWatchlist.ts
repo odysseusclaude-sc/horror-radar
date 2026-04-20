@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const STORAGE_KEY = "horror-radar-watchlist";
 
@@ -24,11 +24,19 @@ function writeStorage(ids: number[]): void {
 export function useWatchlist() {
   const [watchlist, setWatchlist] = useState<number[]>(() => readStorage());
 
+  // Sync across tabs and other hook instances in the same tab
+  useEffect(() => {
+    const handler = () => setWatchlist(readStorage());
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+
   const add = useCallback((appid: number) => {
     setWatchlist((prev) => {
       if (prev.includes(appid)) return prev;
       const next = [...prev, appid];
       writeStorage(next);
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
       return next;
     });
   }, []);
@@ -37,6 +45,7 @@ export function useWatchlist() {
     setWatchlist((prev) => {
       const next = prev.filter((id) => id !== appid);
       writeStorage(next);
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
       return next;
     });
   }, []);
@@ -46,6 +55,7 @@ export function useWatchlist() {
       const has = prev.includes(appid);
       const next = has ? prev.filter((id) => id !== appid) : [...prev, appid];
       writeStorage(next);
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
       return next;
     });
   }, []);
@@ -55,6 +65,7 @@ export function useWatchlist() {
   const clear = useCallback(() => {
     setWatchlist([]);
     writeStorage([]);
+    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
   }, []);
 
   return { watchlist, add, remove, toggle, isWatched, clear };

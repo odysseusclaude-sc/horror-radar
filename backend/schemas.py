@@ -75,11 +75,15 @@ class OpsScoreOut(BaseModel):
     decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
-    creator_response_component: float | None = None
+    sentiment_component: float | None = None  # v5
+    twitch_component: float | None = None  # v5
+    creator_response_component: float | None = None  # deprecated, always NULL in v5
     youtube_breadth: float | None = None
     wishlist_bonus: float | None = None
     raw_ops: float | None = None
     price_modifier: float | None = None
+    forecast_7d: float | None = None  # v5
+    forecast_confidence: str | None = None  # v5
     formula_version: int | None = None
 
     model_config = {"from_attributes": True}
@@ -276,7 +280,9 @@ class TimelineSnapshotOut(BaseModel):
     decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
-    creator_response_component: float | None = None
+    sentiment_component: float | None = None  # v5
+    twitch_component: float | None = None  # v5
+    creator_response_component: float | None = None  # deprecated, always NULL in v5
     raw_ops: float | None = None
     twitch_viewers: int | None = None
     twitch_streams: int | None = None
@@ -344,6 +350,10 @@ class RadarPreviousPick(BaseModel):
     ops_at_pick: float
     ops_now: float | None = None
     status: str  # "climbing" | "steady" | "peaked"
+    reviews_at_pick: int | None = None
+    reviews_30d: int | None = None
+    reviews_60d: int | None = None
+    reviews_90d: int | None = None
 
 class RadarVelocitySpark(BaseModel):
     label: str
@@ -374,6 +384,27 @@ class RadarPickResponse(BaseModel):
     ops_history: list[RadarOpsHistoryPoint] = []
     velocity_spark: list[RadarVelocitySpark] = []
     previous_picks: list[RadarPreviousPick] = []
+
+
+# --- Developer schemas ---
+
+class DeveloperGameItem(BaseModel):
+    appid: int
+    title: str
+    release_date: str | None = None
+    price_usd: float | None = None
+    header_image_url: str | None = None
+    ops_score: float | None = None
+    ops_confidence: str | None = None
+
+class DeveloperDetailOut(BaseModel):
+    developer_name: str
+    total_games: int = 0
+    total_reviews: int = 0
+    avg_review_score: float | None = None
+    best_game_appid: int | None = None
+    computed_at: str | None = None
+    games: list[DeveloperGameItem] = []
 
 
 # --- Health check ---

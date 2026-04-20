@@ -15,8 +15,7 @@ function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  const diff = Date.now() - d.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function daysBadgeColor(d: number): string {
@@ -25,41 +24,78 @@ function daysBadgeColor(d: number): string {
   return "bg-status-neg/10 text-status-neg border-status-neg/20";
 }
 
-function scorePctColor(pct: number): string {
-  if (pct >= 80) return "text-status-pos";
-  if (pct >= 60) return "text-status-warn";
-  return "text-status-neg";
-}
-
 function channelBadgeTag(ch: YoutubeChannelBrief): string | null {
   if (ch.subscriber_count && ch.subscriber_count >= 5_000_000) return "HIGH REACH";
   if (ch.top_video_views && ch.top_video_views >= 500_000) return "VIRAL";
   return null;
 }
 
-export default function GameRow({ game, even, isWatched = false, onToggleWatch, isInCompare = false, onToggleCompare, canAddToCompare = true }: GameRowProps) {
+function opsGlyph(score: number): string {
+  if (score >= 60) return "▲";
+  if (score >= 30) return "◆";
+  return "▼";
+}
+
+function opsColor(score: number): string {
+  if (score >= 60) return "text-status-pos";
+  if (score >= 30) return "text-status-warn";
+  return "text-status-neg";
+}
+
+function buildEvidenceSnippet(game: GameListItem): string {
+  const parts: string[] = [];
+  const ops = game.latest_ops;
+  const snap = game.latest_snapshot;
+
+  if (ops?.velocity_component != null && ops.velocity_component >= 1.5) {
+    parts.push(`${ops.velocity_component.toFixed(1)}× velocity`);
+  } else if ((game.review_delta_7d ?? 0) >= 10) {
+    parts.push(`+${game.review_delta_7d} reviews/7d`);
+  }
+
+  const channelCount = (game.youtube_channels ?? []).length;
+  if (channelCount === 1) parts.push("1 creator");
+  else if (channelCount >= 2) parts.push(`${channelCount} creators`);
+
+  const scorePct = snap?.review_score_pct;
+  const reviewCount = snap?.review_count ?? 0;
+  if (scorePct != null && scorePct >= 90 && reviewCount >= 10) {
+    parts.push("overwhelmingly positive");
+  } else if (ops?.decay_component != null && ops.decay_component >= 1.2) {
+    parts.push("retention strong");
+  }
+
+  return parts.slice(0, 3).join(" · ");
+}
+
+export default function GameRow({
+  game,
+  even,
+  isWatched = false,
+  onToggleWatch,
+  isInCompare = false,
+  onToggleCompare,
+  canAddToCompare = true,
+}: GameRowProps) {
   const navigate = useNavigate();
   const days = daysSince(game.release_date);
   const snap = game.latest_snapshot;
   const reviewCount = snap?.review_count ?? null;
-  const scorePct = snap?.review_score_pct ?? null;
   const peakCcu = snap?.peak_ccu ?? null;
   const reviewDelta = game.review_delta_7d ?? null;
   const channels = game.youtube_channels ?? [];
   const demoReviews = snap?.demo_review_count ?? null;
+  const evidence = buildEvidenceSnippet(game);
 
   return (
     <tr
-      className={`h-14 hover:bg-primary/5 transition-colors group cursor-pointer ${
-        even ? "bg-surface-dark/40" : ""
-      }`}
+      className={`hover:bg-primary/5 transition-colors group cursor-pointer ${even ? "bg-surface-dark/40" : ""}`}
       onClick={(e) => {
-        // Don't navigate if clicking a link or button
         if ((e.target as HTMLElement).closest("a, button")) return;
         navigate(`/game/${game.appid}`);
       }}
     >
-      {/* Game & Developer + YouTube badges */}
+      {/* Game & Developer + evidence sentence */}
       <td className="px-6 py-2">
         <div className="flex items-center gap-3">
           {onToggleWatch && (
@@ -104,7 +140,8 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
               )}
             </div>
           </a>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
+            {/* Title + DEMO badge */}
             <div className="flex items-center gap-1.5">
               <Link
                 to={`/game/${game.appid}`}
@@ -118,29 +155,38 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-text-dim uppercase tracking-tight truncate">
-              {game.developer || "Unknown"}
-              {demoReviews != null && demoReviews > 0 && (
-                <span className="text-status-info ml-1">
-                  ({demoReviews.toLocaleString()} demo reviews)
+            {/* Developer link + days badge */}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {game.developer ? (
+                <Link
+                  to={`/developers/${encodeURIComponent(game.developer)}`}
+                  className="text-[10px] text-text-dim uppercase tracking-tight truncate hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {game.developer}
+                  {demoReviews != null && demoReviews > 0 && (
+                    <span className="text-status-info ml-1">
+                      ({demoReviews.toLocaleString()} demo reviews)
+                    </span>
+                  )}
+                </Link>
+              ) : (
+                <span className="text-[10px] text-text-dim uppercase tracking-tight truncate">Unknown</span>
+              )}
+              {days !== null && (
+                <span className={`px-1 py-0 rounded text-[9px] font-bold border flex-shrink-0 ${daysBadgeColor(days)}`}>
+                  {days}d
                 </span>
               )}
-            </span>
+            </div>
+            {/* Evidence sentence */}
+            {evidence && (
+              <span className="text-[10px] text-text-dim/60 truncate leading-tight mt-0.5 font-mono">
+                {evidence}
+              </span>
+            )}
           </div>
         </div>
-      </td>
-
-      {/* Days */}
-      <td className="px-4 py-2 text-center">
-        {days !== null ? (
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-bold border ${daysBadgeColor(days)}`}
-          >
-            {days}d
-          </span>
-        ) : (
-          <span className="text-text-dim text-xs">—</span>
-        )}
       </td>
 
       {/* Price */}
@@ -154,7 +200,7 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
         )}
       </td>
 
-      {/* Reviews (7D) — count + trend arrow */}
+      {/* Reviews — count + trend arrow */}
       <td className="px-4 py-2">
         <div className="flex items-center gap-1 font-bold text-sm">
           {reviewCount !== null && reviewCount > 0 ? (
@@ -168,39 +214,12 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
                 <span className="material-symbols-outlined text-status-neg" style={{ fontSize: 16 }}>
                   trending_down
                 </span>
-              ) : (
-                <span className="text-text-dim text-xs font-normal">—</span>
-              )}
+              ) : null}
             </>
           ) : (
             <span className="text-text-dim">—</span>
           )}
         </div>
-      </td>
-
-      {/* Score % */}
-      <td className="px-4 py-2">
-        {scorePct !== null ? (
-          <div className={`flex items-center gap-1 text-sm font-bold ${scorePctColor(scorePct)}`}>
-            <span className="material-symbols-outlined text-primary" style={{ fontSize: 15 }}>
-              skull
-            </span>
-            {Math.round(scorePct)}%
-          </div>
-        ) : (
-          <span className="text-text-dim text-sm">—</span>
-        )}
-      </td>
-
-      {/* Δ Rev 7D — rolling 7-day review delta */}
-      <td className="px-4 py-2 font-mono text-sm">
-        {reviewDelta !== null ? (
-          <span className={reviewDelta > 0 ? "text-status-pos font-bold" : reviewDelta < 0 ? "text-status-neg font-bold" : "text-text-dim"}>
-            {reviewDelta > 0 ? "+" : ""}{reviewDelta.toLocaleString()}
-          </span>
-        ) : (
-          <span className="text-text-dim">—</span>
-        )}
       </td>
 
       {/* Peak CCU */}
@@ -245,43 +264,28 @@ export default function GameRow({ game, even, isWatched = false, onToggleWatch, 
         )}
       </td>
 
-      {/* OPS Score — 3-layer display */}
+      {/* OPS — glyph + score + delta + confidence dots */}
       <td className="px-6 py-2 text-right">
         {game.latest_ops?.score != null && game.latest_ops.score > 0 ? (
           <div className="flex flex-col items-end gap-0.5">
-            {/* Layer 1: Score */}
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className={`text-lg font-black tabular-nums ${
-                  game.latest_ops.score >= 60
-                    ? "text-status-pos"
-                    : game.latest_ops.score >= 30
-                    ? "text-status-warn"
-                    : "text-status-neg"
-                }`}
-              >
+            <div className="flex items-baseline gap-1">
+              <span className={`text-[10px] font-bold opacity-60 ${opsColor(game.latest_ops.score)}`}>
+                {opsGlyph(game.latest_ops.score)}
+              </span>
+              <span className={`text-lg font-black tabular-nums ${opsColor(game.latest_ops.score)}`}>
                 {Math.round(game.latest_ops.score)}
               </span>
-              {/* Layer 3: 7-day trend delta (only show if |delta| >= 2 to filter noise) */}
               {game.ops_delta_7d != null && Math.abs(game.ops_delta_7d) >= 2 && (
-                <span
-                  className={`text-[10px] font-bold tabular-nums ${
-                    game.ops_delta_7d > 0 ? "text-status-pos" : "text-status-neg"
-                  }`}
-                >
-                  {game.ops_delta_7d > 0 ? "↑" : "↓"}
-                  {Math.abs(Math.round(game.ops_delta_7d))}
+                <span className={`text-[10px] font-bold tabular-nums ${game.ops_delta_7d > 0 ? "text-status-pos" : "text-status-neg"}`}>
+                  {game.ops_delta_7d > 0 ? "↑" : "↓"}{Math.abs(Math.round(game.ops_delta_7d))}
                 </span>
               )}
             </div>
-            {/* Layer 2: Visual confidence dots */}
-            <div className="flex items-center gap-1" title={
-              game.latest_ops.confidence === "high"
-                ? "High data coverage"
-                : game.latest_ops.confidence === "medium"
-                ? "Moderate data coverage"
-                : "Limited data coverage"
-            }>
+            <div
+              className="flex items-center gap-1"
+              title={game.latest_ops.confidence === "high" ? "High data coverage" : game.latest_ops.confidence === "medium" ? "Moderate data coverage" : "Limited data coverage"}
+              aria-label={`Confidence: ${game.latest_ops.confidence ?? "low"}`}
+            >
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}

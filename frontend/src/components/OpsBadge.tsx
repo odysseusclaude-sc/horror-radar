@@ -15,6 +15,12 @@ export function opsScoreColor(score: number): string {
   return "text-status-neg";
 }
 
+export function opsGlyph(score: number): string {
+  if (score >= 60) return "▲";
+  if (score >= 30) return "◆";
+  return "▼";
+}
+
 function confidenceTitle(confidence: OpsConfidence | null): string {
   if (confidence === "high") return "High data coverage";
   if (confidence === "medium") return "Moderate data coverage";
@@ -34,7 +40,10 @@ export default function OpsBadge({ ops, delta, dotSize = "w-[5px] h-[5px]", larg
   return (
     <div className="flex flex-col items-end gap-0.5">
       {/* Score + delta */}
-      <div className="flex items-baseline gap-1.5 justify-end">
+      <div className="flex items-baseline gap-1 justify-end">
+        <span className={`text-[9px] opacity-60 ${opsScoreColor(ops.score)}`}>
+          {opsGlyph(ops.score)}
+        </span>
         <span className={`${large ? "text-lg" : "text-base"} font-black tabular-nums ${opsScoreColor(ops.score)}`}>
           {Math.round(ops.score)}
         </span>

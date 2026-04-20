@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horror Radar — Weekly Digest</title>
+  <!--
+    Static preview only. Replace {{...}} placeholders with real data
+    before sending (e.g. via Python's str.format or Jinja2).
+  -->
+  <style>
+    /* Reset */
+    body, table, td, p, a, li, blockquote { margin: 0; padding: 0; }
+    img { border: 0; display: block; }
+
+    /* Base */
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #0d0f10;
+      color: #c8bfb0;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* Wrapper */
+    .wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #111314;
+    }
+
+    /* Header */
+    .header {
+      background-color: #111314;
+      border-bottom: 1px solid #2a2420;
+      padding: 24px 32px 20px;
+    }
+    .header-eyebrow {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #5a5248;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e8e2d9;
+      margin-top: 6px;
+      line-height: 1.2;
+    }
+    .header-date {
+      font-size: 11px;
+      color: #5a5248;
+      font-family: 'Courier New', Courier, monospace;
+      margin-top: 4px;
+    }
+
+    /* Section */
+    .section {
+      padding: 24px 32px;
+      border-bottom: 1px solid #1e1c1a;
+    }
+    .section-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #5a5248;
+      font-family: 'Courier New', Courier, monospace;
+      margin-bottom: 14px;
+    }
+
+    /* Headline stats row */
+    .stats-row {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .stat-cell {
+      width: 25%;
+      padding: 0 8px 0 0;
+      vertical-align: top;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #e8e2d9;
+      font-family: 'Courier New', Courier, monospace;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #5a5248;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* Radar Pick hero */
+    .pick-hero {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 14px;
+    }
+    .pick-meta {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5a5248;
+      font-family: 'Courier New', Courier, monospace;
+      margin-bottom: 6px;
+    }
+    .pick-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e8e2d9;
+      margin-bottom: 8px;
+    }
+    .pick-verdict {
+      font-size: 13px;
+      color: #c8bfb0;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .ops-badge {
+      display: inline-block;
+      background-color: #1e1c1a;
+      border: 1px solid #2a2420;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .ops-high { color: #5ec269; }
+    .ops-mid  { color: #e8a832; }
+    .ops-low  { color: #e25535; }
+
+    /* Game table */
+    .game-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .game-table th {
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #5a5248;
+      font-family: 'Courier New', Courier, monospace;
+      text-align: left;
+      padding: 0 8px 8px 0;
+      border-bottom: 1px solid #2a2420;
+    }
+    .game-table td {
+      padding: 10px 8px 10px 0;
+      border-bottom: 1px solid #1e1c1a;
+      vertical-align: middle;
+    }
+    .game-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8e2d9;
+    }
+    .game-dev {
+      font-size: 10px;
+      color: #5a5248;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'Courier New', Courier, monospace;
+      margin-top: 2px;
+    }
+    .mono-sm {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: #c8bfb0;
+    }
+    .mono-dim {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      color: #5a5248;
+    }
+
+    /* Signal evidence */
+    .evidence {
+      background-color: #0d0f10;
+      border-left: 2px solid #802626;
+      padding: 10px 14px;
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+      color: #c8bfb0;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 20px 32px;
+      text-align: center;
+    }
+    .footer p {
+      font-size: 10px;
+      color: #3a3633;
+      font-family: 'Courier New', Courier, monospace;
+      line-height: 1.8;
+    }
+    .footer a {
+      color: #5a5248;
+      text-decoration: none;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #802626;
+      color: #e8e2d9 !important;
+      text-decoration: none;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 10px 20px;
+      border-radius: 3px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#0d0f10">
+<tr><td align="center" style="padding: 24px 16px;">
+
+<table class="wrapper" width="600" cellpadding="0" cellspacing="0">
+
+  <!-- HEADER -->
+  <tr>
+    <td class="header">
+      <p class="header-eyebrow">Horror Radar · Weekly Digest</p>
+      <p class="header-title">The week in indie horror</p>
+      <p class="header-date">Week of {{week_label}} &nbsp;·&nbsp; {{date_range}}</p>
+    </td>
+  </tr>
+
+  <!-- HEADLINE STATS -->
+  <tr>
+    <td class="section">
+      <p class="section-label">Market pulse</p>
+      <table class="stats-row" cellpadding="0" cellspacing="0">
+        <tr>
+          <td class="stat-cell">
+            <p class="stat-value">{{tracked_games}}</p>
+            <p class="stat-label">Games tracked</p>
+          </td>
+          <td class="stat-cell">
+            <p class="stat-value">{{new_reviews}}</p>
+            <p class="stat-label">New reviews</p>
+          </td>
+          <td class="stat-cell">
+            <p class="stat-value">{{avg_ops}}</p>
+            <p class="stat-label">Avg OPS</p>
+          </td>
+          <td class="stat-cell">
+            <p class="stat-value">{{breakouts}}</p>
+            <p class="stat-label">Breakouts (≥60)</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- RADAR PICK -->
+  <tr>
+    <td class="section">
+      <p class="section-label">This week's radar pick</p>
+      <img src="{{pick_header_image}}" alt="{{pick_title}}" class="pick-hero" width="536" />
+      <p class="pick-meta">{{pick_developer}} &nbsp;·&nbsp; {{pick_days_out}} days since launch &nbsp;·&nbsp; {{pick_price}}</p>
+      <p class="pick-title">{{pick_title}}</p>
+      <p class="pick-verdict">{{pick_verdict}}</p>
+      <p>
+        <span class="ops-badge ops-high">▲ OPS {{pick_ops}}</span>
+        &nbsp;
+        <span class="mono-dim">{{pick_confidence}} confidence &nbsp;·&nbsp; {{pick_percentile}}th percentile</span>
+      </p>
+      <div class="evidence">{{pick_evidence}}</div>
+      <br />
+      <a href="{{radar_url}}" class="cta-button">View full analysis →</a>
+    </td>
+  </tr>
+
+  <!-- TOP MOVERS TABLE -->
+  <tr>
+    <td class="section">
+      <p class="section-label">Top 5 movers this week</p>
+      <table class="game-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <th>Game</th>
+          <th>OPS</th>
+          <th>Reviews</th>
+          <th>Δ 7D</th>
+        </tr>
+        <!-- Row 1 -->
+        <tr>
+          <td>
+            <p class="game-title">{{g1_title}}</p>
+            <p class="game-dev">{{g1_developer}}</p>
+          </td>
+          <td><span class="mono-sm ops-high">▲ {{g1_ops}}</span></td>
+          <td><span class="mono-sm">{{g1_reviews}}</span></td>
+          <td><span class="mono-sm ops-high">+{{g1_delta}}</span></td>
+        </tr>
+        <!-- Row 2 -->
+        <tr>
+          <td>
+            <p class="game-title">{{g2_title}}</p>
+            <p class="game-dev">{{g2_developer}}</p>
+          </td>
+          <td><span class="mono-sm ops-high">▲ {{g2_ops}}</span></td>
+          <td><span class="mono-sm">{{g2_reviews}}</span></td>
+          <td><span class="mono-sm ops-high">+{{g2_delta}}</span></td>
+        </tr>
+        <!-- Row 3 -->
+        <tr>
+          <td>
+            <p class="game-title">{{g3_title}}</p>
+            <p class="game-dev">{{g3_developer}}</p>
+          </td>
+          <td><span class="mono-sm ops-mid">◆ {{g3_ops}}</span></td>
+          <td><span class="mono-sm">{{g3_reviews}}</span></td>
+          <td><span class="mono-sm ops-mid">+{{g3_delta}}</span></td>
+        </tr>
+        <!-- Row 4 -->
+        <tr>
+          <td>
+            <p class="game-title">{{g4_title}}</p>
+            <p class="game-dev">{{g4_developer}}</p>
+          </td>
+          <td><span class="mono-sm ops-mid">◆ {{g4_ops}}</span></td>
+          <td><span class="mono-sm">{{g4_reviews}}</span></td>
+          <td><span class="mono-sm ops-mid">+{{g4_delta}}</span></td>
+        </tr>
+        <!-- Row 5 -->
+        <tr>
+          <td>
+            <p class="game-title">{{g5_title}}</p>
+            <p class="game-dev">{{g5_developer}}</p>
+          </td>
+          <td><span class="mono-sm ops-low">▼ {{g5_ops}}</span></td>
+          <td><span class="mono-sm">{{g5_reviews}}</span></td>
+          <td><span class="mono-sm ops-low">{{g5_delta}}</span></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- NARRATIVE -->
+  <tr>
+    <td class="section">
+      <p class="section-label">Editor's note</p>
+      <p style="font-size:13px; color:#c8bfb0; line-height:1.65;">{{market_narrative}}</p>
+    </td>
+  </tr>
+
+  <!-- CTA -->
+  <tr>
+    <td class="section" style="text-align:center; border-bottom:none;">
+      <a href="{{radar_url}}" class="cta-button">Open Horror Radar →</a>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td class="footer">
+      <p>
+        Horror Radar · Indie breakout intelligence<br />
+        <a href="{{unsubscribe_url}}">Unsubscribe</a>
+        &nbsp;·&nbsp;
+        <a href="{{radar_url}}">View in browser</a>
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

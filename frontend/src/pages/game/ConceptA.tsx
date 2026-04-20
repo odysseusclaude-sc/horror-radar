@@ -905,7 +905,7 @@ export default function TheAutopsy() {
       { label: "Peak CCU", value: maxCcu > 0 ? fmtNum(maxCcu) : "--", color: C.ccu, note: ccuNote },
       { label: "Reviews", value: latestSnapshot.review_count != null ? fmtNum(latestSnapshot.review_count) : "--", color: C.reviews },
       { label: "Score", value: latestSnapshot.review_score_pct != null ? Math.round(latestSnapshot.review_score_pct) + "%" : "--", color: C.score, note: scoreNote },
-      { label: "OPS", value: latestRawOps != null ? String(Math.min(100, Math.round(latestRawOps * 40))) : "--", color: C.ops, note: latestRawOps != null ? `Raw: ${latestRawOps.toFixed(1)}` : null },
+      { label: "OPS", value: latestRawOps != null ? String(Math.min(100, Math.round(latestRawOps * 24))) : "--", color: C.ops, note: latestRawOps != null ? `Raw: ${latestRawOps.toFixed(1)}` : null },
       { label: "Price", value: game.price_usd != null ? "$" + game.price_usd.toFixed(2) : "Free", color: C.dim },
     ];
   }, [game, latestSnapshot, latestWithOps, snapshots]);
@@ -1033,10 +1033,10 @@ export default function TheAutopsy() {
           <div style={{ ...heading, fontSize: 24, color: C.ops, marginBottom: 8 }}>Game Not Found</div>
           <div style={{ ...mono, fontSize: 12, color: C.dim }}>{error || "No data available for this game."}</div>
           <a
-            href="/"
+            href="/browse"
             style={{ ...mono, display: "inline-block", marginTop: 20, fontSize: 12, color: C.ops, textDecoration: "underline" }}
           >
-            Back to Database
+            Back to Browse
           </a>
         </div>
       </div>
