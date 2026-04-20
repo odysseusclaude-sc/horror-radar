@@ -374,6 +374,7 @@ class RadarPickResponse(BaseModel):
     ops_history: list[RadarOpsHistoryPoint] = []
     velocity_spark: list[RadarVelocitySpark] = []
     previous_picks: list[RadarPreviousPick] = []
+    verdict: str | None = None
 
 
 # --- Health check ---

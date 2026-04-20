@@ -101,6 +101,7 @@ HORROR_DESCRIPTION_KEYWORDS = [
 class Settings(BaseSettings):
     youtube_api_key: str = ""
     database_url: str = "sqlite:///./horrorindie.db"
+    anthropic_api_key: str = ""
 
     steam_discovery_interval_hours: int = 6
     steam_reviews_interval_hours: int = 24

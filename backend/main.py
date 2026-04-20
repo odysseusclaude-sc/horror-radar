@@ -22,7 +22,6 @@ from collectors.discovery import run_discovery
 from collectors.metadata import run_metadata_fetch
 from collectors.reviews import run_review_snapshots
 from collectors.ccu import run_ccu_snapshots
-from collectors.owners import run_owner_estimates
 from collectors.youtube_scanner import run_youtube_scan
 from collectors.youtube_stats import run_youtube_stats_refresh
 from collectors.ops import run_ops_calculation
@@ -34,6 +33,10 @@ from collectors.ops_autotune import run_ops_diagnostics
 from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
 from routers import games, channels, videos, runs, insights, radar, trends, health
+from agents.semantic_matcher import run_semantic_matcher
+from agents.ops_weight_advisor import run_ops_weight_advisor
+from agents.pipeline_diagnostician import diagnose_pipeline_failure
+from agents.editorial_writer import run_editorial_writer
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -60,22 +63,44 @@ async def stale_run_watchdog():
     """Mark collection_runs stuck in 'running' for >2h as 'stale'.
 
     Runs hourly. Catches jobs that hang without crashing (e.g., stuck
-    on a rate-limited API call that never returns).
+    on a rate-limited API call that never returns). For each stale job,
+    calls Agent 3 (pipeline_diagnostician) to diagnose root cause.
     """
     max_age_hours = 2
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
     with engine.connect() as conn:
+        # Query stale jobs BEFORE updating so we have their details for diagnosis
+        stale_rows = conn.execute(text(
+            "SELECT id, job_name, error_message, started_at FROM collection_runs "
+            "WHERE status = 'running' AND started_at < :cutoff"
+        ), {"cutoff": cutoff}).fetchall()
+
+        if not stale_rows:
+            return
+
         result = conn.execute(text(
             "UPDATE collection_runs SET status = 'stale', "
             "error_message = :msg, finished_at = CURRENT_TIMESTAMP "
             "WHERE status = 'running' AND started_at < :cutoff"
         ), {"msg": f"Watchdog: running for >{max_age_hours}h", "cutoff": cutoff})
         conn.commit()
+
         if result.rowcount > 0:
             msg = f"Watchdog marked {result.rowcount} stale jobs"
             logger.warning(msg)
             if _SENTRY_AVAILABLE and settings.sentry_dsn:
                 sentry_sdk.capture_message(msg, level="warning")
+
+            # Agent 3: diagnose each stale job
+            for row in stale_rows:
+                try:
+                    diagnose_pipeline_failure(
+                        job_name=row.job_name,
+                        error_message=row.error_message,
+                        started_at=row.started_at,
+                    )
+                except Exception as e:
+                    logger.warning(f"Pipeline diagnostician failed for {row.job_name} (non-fatal): {e}")
 
 
 def _get_latest_run_status(job_name: str) -> str | None:
@@ -177,17 +202,40 @@ async def daily_snapshots_job():
         if _SENTRY_AVAILABLE and settings.sentry_dsn:
             sentry_sdk.capture_exception(e)
 
+    # Agent 4: generate editorial verdict for current radar pick (before cache flush)
+    try:
+        result = run_editorial_writer()
+        logger.info(f"Editorial writer: {result}")
+    except Exception as e:
+        logger.warning(f"Editorial writer failed (non-fatal): {e}")
+
     # Invalidate API cache after OPS scores are updated
     from cache import cache as _cache
     evicted = _cache.invalidate_all()
     logger.info(f"Cache invalidated after daily snapshots ({evicted} entries cleared)")
 
 
+async def ops_weight_agent_job():
+    """Run Agent 2: OPS Weight Advisor — read diagnostics, propose weight changes."""
+    logger.info("Starting OPS weight advisor agent")
+    try:
+        result = run_ops_weight_advisor()
+        logger.info(f"OPS weight advisor: {result}")
+    except Exception as e:
+        logger.warning(f"OPS weight advisor failed (non-fatal): {e}")
+
+
 async def youtube_pipeline_job():
-    """Run YouTube scan + stats refresh."""
+    """Run YouTube scan + stats refresh, then semantic matching for unmatched videos."""
     logger.info("Starting YouTube pipeline")
     await run_youtube_scan()
     await run_youtube_stats_refresh()
+    # Agent 1: semantic matching for videos fuzzy matching couldn't handle
+    try:
+        result = run_semantic_matcher()
+        logger.info(f"Semantic matcher: {result}")
+    except Exception as e:
+        logger.warning(f"Semantic matcher failed (non-fatal): {e}")
 
 
 @asynccontextmanager
@@ -306,6 +354,18 @@ async def lifespan(app: FastAPI):
         hour=6,
         minute=0,
         id="ops_diagnostics_job",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    # OPS weight advisor (Agent 2): Monday at 06:30 UTC, after diagnostics
+    scheduler.add_job(
+        ops_weight_agent_job,
+        "cron",
+        day_of_week="mon",
+        hour=6,
+        minute=30,
+        id="ops_weight_agent_job",
         replace_existing=True,
         max_instances=1,
     )

@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from sqlalchemy import text as sql_text
+
 from database import get_db
 from models import Game, GameSnapshot, OpsScore, YoutubeChannel, YoutubeVideo
 from schemas import (
@@ -368,6 +370,13 @@ def get_radar_pick(db: Session = Depends(get_db)):
             )
         )
 
+    # --- 10. Latest editorial verdict (Agent 4 output, falls back to None) ---
+    verdict_row = db.execute(sql_text(
+        "SELECT verdict_text FROM radar_verdicts WHERE appid = :appid "
+        "ORDER BY generated_at DESC LIMIT 1"
+    ), {"appid": game.appid}).fetchone()
+    verdict = verdict_row.verdict_text if verdict_row else None
+
     # --- Build response ---
     return RadarPickResponse(
         appid=game.appid,
@@ -391,4 +400,5 @@ def get_radar_pick(db: Session = Depends(get_db)):
         ops_history=ops_history,
         velocity_spark=velocity_spark,
         previous_picks=previous_picks,
+        verdict=verdict,
     )

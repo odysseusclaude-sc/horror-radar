@@ -152,11 +152,13 @@ def run_ops_diagnostics(target_date: date | None = None) -> dict:
             "review": settings.ops_review_weight,
             "youtube": settings.ops_youtube_weight,
             "ccu": settings.ops_ccu_weight,
+            "sentiment": settings.ops_sentiment_weight,
+            "twitch": settings.ops_twitch_weight,
         }
 
         suggested = {}
         for name in names:
-            w = current_weights[name]
+            w = current_weights.get(name, 0.0)
             # Zero out if below coverage threshold
             if coverage[name] < MIN_COVERAGE_PCT:
                 suggested[name] = 0.0

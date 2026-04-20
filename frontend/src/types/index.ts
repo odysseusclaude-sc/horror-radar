@@ -233,6 +233,7 @@ export interface RadarPickResponse {
   ops_history: RadarOpsHistoryPoint[];
   velocity_spark: RadarVelocitySpark[];
   previous_picks: RadarPreviousPick[];
+  verdict: string | null;
 }
 
 export interface InsightsResponse {

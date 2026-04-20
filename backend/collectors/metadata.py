@@ -501,6 +501,18 @@ async def run_metadata_fetch(appids: list[int], trust_horror: bool = False):
                                 setattr(existing, key, value)
                         else:
                             db.add(Game(**game_data))
+                            # For games discovered >7 days after release, backfill
+                            # historical review snapshots from Steam's review API so
+                            # OPS has a full velocity curve from day 1.
+                            release_date = game_data.get("release_date")
+                            if release_date and (date.today() - release_date).days > 7:
+                                db.commit()  # persist game before backfill reads it
+                                try:
+                                    from collectors.review_backfill import backfill_review_history
+                                    backfill_review_history(appid)
+                                    logger.info(f"AppID {appid}: triggered review backfill (discovered {(date.today() - release_date).days}d late)")
+                                except Exception as bf_err:
+                                    logger.warning(f"AppID {appid}: review backfill failed (non-fatal): {bf_err}")
                         processed += 1
                     elif discard_reason:
                         existing = db.query(DiscardedGame).filter_by(appid=appid).first()

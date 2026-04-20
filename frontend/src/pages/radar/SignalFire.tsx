@@ -474,7 +474,7 @@ export default function SignalFire() {
             fontSize: 20, fontStyle: "italic", lineHeight: 1.6, maxWidth: 640,
             marginTop: 20, color: `${C.text}cc`,
           }}>
-            {buildVerdict(d)}
+            {d.verdict ?? buildVerdict(d)}
           </p>
 
           {/* OPS Badge — bottom right */}

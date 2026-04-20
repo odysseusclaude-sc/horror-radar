@@ -95,7 +95,48 @@ def _run_migrations():
         "ALTER TABLE ops_scores ADD COLUMN twitch_component REAL",
         "ALTER TABLE ops_scores ADD COLUMN forecast_7d REAL",
         "ALTER TABLE ops_scores ADD COLUMN forecast_confidence TEXT",
+        # Agentic layer — Agent 1: Semantic YouTube Matcher
+        "ALTER TABLE youtube_videos ADD COLUMN match_reason TEXT",
+        "ALTER TABLE youtube_videos ADD COLUMN match_needs_review INTEGER DEFAULT 0",
     ]
+    with engine.connect() as conn:
+        for stmt in [
+            # Agent 2: OPS Weight Advisor audit trail
+            """CREATE TABLE IF NOT EXISTS ops_weight_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                generated_at DATETIME,
+                diagnostic_date DATE,
+                current_weights TEXT,
+                suggested_weights TEXT,
+                applied_weights TEXT,
+                reasoning TEXT,
+                status TEXT DEFAULT 'pending'
+            )""",
+            # Agent 3: Pipeline Failure Diagnostician
+            """CREATE TABLE IF NOT EXISTS pipeline_incidents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_name TEXT,
+                detected_at DATETIME,
+                root_cause_category TEXT,
+                diagnosis_text TEXT,
+                recommended_action TEXT,
+                auto_recoverable INTEGER DEFAULT 0,
+                resolved_at DATETIME
+            )""",
+            # Agent 4: Editorial Writer verdicts
+            """CREATE TABLE IF NOT EXISTS radar_verdicts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                appid INTEGER,
+                score_date DATE,
+                verdict_text TEXT,
+                generated_at DATETIME
+            )""",
+        ]:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     with engine.connect() as conn:
         for stmt in alter_statements:
             try:
