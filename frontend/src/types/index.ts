@@ -64,6 +64,9 @@ export interface OpsScore {
   decay_component: number | null;
   ccu_component: number | null;
   youtube_component: number | null;
+  sentiment_component: number | null;
+  twitch_component: number | null;
+  creator_response_component: number | null;
   youtube_breadth: number | null;
   raw_ops: number | null;
   price_modifier: number | null;
@@ -205,6 +208,32 @@ export interface RadarPreviousPick {
   ops_at_pick: number;
   ops_now: number | null;
   status: "climbing" | "steady" | "peaked";
+  reviews_at_pick: number | null;
+  reviews_30d: number | null;
+  reviews_60d: number | null;
+  reviews_90d: number | null;
+}
+
+// ── Developer types ──
+
+export interface DeveloperGameItem {
+  appid: number;
+  title: string;
+  release_date: string | null;
+  price_usd: number | null;
+  header_image_url: string | null;
+  ops_score: number | null;
+  ops_confidence: string | null;
+}
+
+export interface DeveloperDetailOut {
+  developer_name: string;
+  total_games: number;
+  total_reviews: number;
+  avg_review_score: number | null;
+  best_game_appid: number | null;
+  computed_at: string | null;
+  games: DeveloperGameItem[];
 }
 
 export interface RadarVelocitySpark {

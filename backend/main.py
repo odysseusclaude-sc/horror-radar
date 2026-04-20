@@ -33,7 +33,7 @@ from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
 from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
-from routers import games, channels, videos, runs, insights, radar, trends, health
+from routers import games, channels, videos, runs, insights, radar, trends, health, developers
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -344,6 +344,7 @@ app = FastAPI(
 _cors_origins = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5178",
     "http://localhost:3000",
     "https://indie-horror-radar.vercel.app",
     "https://horror-radar.vercel.app",
@@ -367,4 +368,5 @@ app.include_router(runs.router)
 app.include_router(insights.router)
 app.include_router(radar.router)
 app.include_router(trends.router)
+app.include_router(developers.router)
 

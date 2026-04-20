@@ -94,40 +94,52 @@ frontend/          — React SPA
 | `developer_profiles` | Aggregated dev stats (total games, avg score, best game) |
 | `collection_runs` | Job execution log (status, items processed/failed, timing) |
 
-## OPS Formula (v4)
+## OPS Formula (v5)
 
 ```
-score = min(100, raw_ops * 24)
+score = min(100, raw_ops * 24 * next_fest_multiplier)
 ```
 
-Five components with NULL-weight redistribution and graduated coverage penalty:
+`next_fest_multiplier` is `1.10` for Next Fest games in their first 30 days, else `1.00`.
+`raw_ops` is the weighted sum of active components (with NULL redistribution) times a
+7-component coverage penalty. The multiplier constant (`24`) is `settings.ops_score_multiplier`.
+
+Seven components with NULL-weight redistribution and graduated coverage penalty:
 
 | Component | Weight | Cap | Calculation |
 |---|---|---|---|
-| Velocity | 0.35 | 5.0 | current_velocity / expected_velocity_at_age |
+| Velocity | 0.30 | 5.0 | current_velocity / expected_velocity_at_age |
 | Decay Retention | 0.20 | 2.0 | week2_4_velocity / week1_velocity |
-| Review Volume | 0.15 | 5.0 | (review_count / median_reviews) * price_modifier |
-| YouTube | 0.15 | ~1.8 | 0.6 * (views_subs_ratio / 0.074) + 0.4 * (channels / 10) |
-| CCU | 0.15 | 5.0 | (peak_ccu / median_ccu) * age_decay (decays to 0 after 14 days) |
+| Review Volume | 0.13 | 5.0 | (review_count / median_reviews) * price_modifier |
+| YouTube | 0.13 | 2.0 | 0.6 * (best_views_subs_ratio / 0.074) + 0.4 * (unique_channels / 10) |
+| CCU | 0.10 | 5.0 | (peak_ccu / median_ccu) * age_decay (decays to 0 after 14 days) |
+| Sentiment (v5) | 0.08 | 2.0 | (review_score_pct / 100) * trend_multiplier |
+| Twitch (v5) | 0.06 | 3.0 | 0.7 * (peak_viewers_7d / median_twitch_peers) + 0.3 * min(1, streamers_7d/5) * 2 |
 
 **Coverage penalty** (prevents inflated scores from sparse data):
-- 1 component active: raw × 0.50
-- 2 components: raw × 0.70
-- 3 components: raw × 0.85
-- 4 components: raw × 0.95
-- 5 components: raw × 1.00
+- 1 component active: raw × 0.40
+- 2 components: raw × 0.55
+- 3 components: raw × 0.70
+- 4 components: raw × 0.82
+- 5 components: raw × 0.91
+- 6 components: raw × 0.97
+- 7 components: raw × 1.00
 
 NULL components redistribute their weight to active components. Cold start guard: won't score if < 20 baseline games.
 
 **Price modifiers** (review component only): Free=0.6, <$5=0.85, $5-10=1.0, $10-20=1.15, $20+=1.3
 
-**Baselines** use true median from games in a 120-day peer window. Age-adjusted velocity uses empirical medians: week 1 = 1.14 reviews/day, week 2-4 = 0.14, month 2-3 = 0.03.
+**Sentiment trend multiplier** (applied to review_score_pct/100): delta ≥ +5 → 1.30, delta ≥ −5 → 1.00, delta ≥ −15 → 0.85, else → 0.65. Requires ≥ 10 reviews. Delta is current score% minus score% at day 7.
+
+**Baselines** use true median from games in a 120-day peer window (review count, peak CCU, Twitch peak viewers). Age-adjusted velocity uses empirical medians: week 1 = 1.14 reviews/day, week 2-4 = 0.14, month 2-3 = 0.03.
+
+**7-day OPS forecast (v5)**: Exponentially Weighted Linear Regression (λ = 0.15) projects the next 7 days of OPS. Requires ≥ 4 historical scores. Confidence tiers: ≥ 7 points → `high`/`medium` (by residual variance); 4-6 points → `low`.
 
 **OPS Auto-Tune** (`ops_autotune.py`): Weekly diagnostics that check component coverage (>10% required), discrimination (coefficient of variation), pairwise correlation (>0.85 = redundant), and recommends weight adjustments. Logs report every Monday — does NOT auto-change weights.
 
 ### Deprecated/Removed
 - **Owners collector**: Disabled — SteamSpy data too coarse (5% coverage), too late (30-90 day lag). Use `reviews × 30` heuristic instead.
-- **Creator response component**: Removed in v4 — only 3% coverage, requires specific YouTube + snapshot alignment that rarely occurs.
+- **Creator response component**: Removed in v4, still not computed in v5 — only 3% coverage, requires specific YouTube + snapshot alignment that rarely occurs. The `creator_response_component` column is still present in `ops_scores` / API schemas for backward compatibility but is always written as `NULL`.
 
 ## Discovery Pipeline
 

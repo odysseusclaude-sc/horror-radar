@@ -22,13 +22,17 @@ from schemas import (
 
 router = APIRouter(tags=["radar"])
 
+# OPS v5 component metadata — mirrors backend/collectors/ops.py.
+# Weights here MUST match the component keys produced by
+# `_calculate_ops_for_game()`. See backend/tests/test_ops_formula.py for
+# the regression guard that enforces this.
 OPS_COMPONENT_META = [
     {
         "key": "velocity",
         "db_field": "velocity_component",
         "label": "VELOCITY",
         "max": 5.0,
-        "weight": 0.35,
+        "weight": 0.30,
         "color": "#e8e2d9",
         "desc": "Age-adjusted review velocity vs expected median",
         "formula": "current_velocity / expected_velocity_at_age",
@@ -48,7 +52,7 @@ OPS_COMPONENT_META = [
         "db_field": "review_component",
         "label": "REVIEW VOLUME",
         "max": 5.0,
-        "weight": 0.15,
+        "weight": 0.13,
         "color": "#c0392b",
         "desc": "Review count vs peer median x price modifier",
         "formula": "(review_count / peer_median) x price_modifier",
@@ -58,7 +62,7 @@ OPS_COMPONENT_META = [
         "db_field": "youtube_component",
         "label": "YOUTUBE ENGAGEMENT",
         "max": 2.0,
-        "weight": 0.15,
+        "weight": 0.13,
         "color": "#38bdf8",
         "desc": "Views/subscriber ratio + channel breadth",
         "formula": "0.6 x (best_views_subs_ratio / 0.074) + 0.4 x (channels / 10)",
@@ -68,10 +72,30 @@ OPS_COMPONENT_META = [
         "db_field": "ccu_component",
         "label": "CONCURRENT PLAYERS",
         "max": 5.0,
-        "weight": 0.15,
+        "weight": 0.10,
         "color": "#a78bfa",
         "desc": "Peak CCU vs peer median with launch decay",
         "formula": "(peak_ccu / peer_median_ccu) x age_decay",
+    },
+    {
+        "key": "sentiment",
+        "db_field": "sentiment_component",
+        "label": "SENTIMENT",
+        "max": 2.0,
+        "weight": 0.08,
+        "color": "#5ec269",
+        "desc": "Review score% with post-launch trend multiplier",
+        "formula": "(review_score_pct / 100) x trend_multiplier",
+    },
+    {
+        "key": "twitch",
+        "db_field": "twitch_component",
+        "label": "TWITCH",
+        "max": 3.0,
+        "weight": 0.06,
+        "color": "#b07db2",
+        "desc": "Peak Twitch viewers + streamer breadth (7d window)",
+        "formula": "0.7 x (peak_viewers_7d / peer_median) + 0.3 x min(1, streamers_7d/5) x 2",
     },
 ]
 
@@ -357,6 +381,12 @@ def get_radar_pick(db: Session = Depends(get_db)):
         else:
             status = "steady"
 
+        pick_date = other_ops.score_date
+        snap_at_pick = _nearest_snapshot(db, other_game.appid, pick_date)
+        snap_30d = _nearest_snapshot(db, other_game.appid, pick_date + timedelta(days=30))
+        snap_60d = _nearest_snapshot(db, other_game.appid, pick_date + timedelta(days=60))
+        snap_90d = _nearest_snapshot(db, other_game.appid, pick_date + timedelta(days=90))
+
         previous_picks.append(
             RadarPreviousPick(
                 appid=other_game.appid,
@@ -365,6 +395,10 @@ def get_radar_pick(db: Session = Depends(get_db)):
                 ops_at_pick=current_score,
                 ops_now=current_score,
                 status=status,
+                reviews_at_pick=snap_at_pick.review_count if snap_at_pick else None,
+                reviews_30d=snap_30d.review_count if snap_30d else None,
+                reviews_60d=snap_60d.review_count if snap_60d else None,
+                reviews_90d=snap_90d.review_count if snap_90d else None,
             )
         )
 

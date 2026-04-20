@@ -296,12 +296,26 @@ function getComponentCalcText(comp: RadarOpsComponent, d: RadarPickResponse): { 
           ? `${d.youtube.video_count} video${d.youtube.video_count === 1 ? "" : "s"} from ${d.youtube.channels.length} creator${d.youtube.channels.length === 1 ? "" : "s"}. ${d.youtube.total_views > 0 ? `Total views: ${fmtK(d.youtube.total_views)}.` : ""} Component value: ${v?.toFixed(2) ?? "N/A"}.`
           : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
       };
-    case "creator":
+    case "ccu":
       return {
-        calculation: "For each YouTube video, measures the 3-day average review velocity before and after the upload date. Returns the best (highest) response ratio. A value of 2.0 means reviews doubled after a creator covered it.",
+        calculation: "Peak concurrent players divided by the peer median CCU, multiplied by an age-decay factor that falls linearly to 0 by day 14. After launch fortnight this component drops out entirely.",
+        example: d.peak_ccu != null
+          ? `Peak CCU ${fmt(d.peak_ccu)}${d.current_ccu != null ? `, currently ${fmt(d.current_ccu)}` : ""}. Component value: ${v?.toFixed(2) ?? "N/A"}.`
+          : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
+      };
+    case "sentiment":
+      return {
+        calculation: "Current review score percentage scaled by a post-launch trend multiplier. Delta vs day 7: ≥+5pt → 1.30x, flat → 1.00x, mild drop → 0.85x, steep drop → 0.65x. Requires at least 10 reviews.",
+        example: d.sentiment_pct != null
+          ? `Current sentiment: ${d.sentiment_pct.toFixed(0)}%. Component value: ${v?.toFixed(2) ?? "N/A"}.`
+          : `Component value: ${v?.toFixed(2) ?? "N/A"}.`,
+      };
+    case "twitch":
+      return {
+        calculation: "Peak Twitch viewers over the past 7 days divided by the peer median (capped at 5x), plus a streamer breadth bonus: min(1, unique_streamers/5) x 2. Weighted 70/30 between viewer ratio and breadth.",
         example: v != null
-          ? `Best creator response ratio: ${v.toFixed(2)}x — ${v >= 2 ? "reviews more than doubled" : v >= 1.3 ? "significant velocity boost" : v >= 1.0 ? "modest positive impact" : "minimal measurable impact"} after creator coverage.`
-          : "Not enough data to measure creator response.",
+          ? `Twitch component: ${v.toFixed(2)} — ${v >= 2 ? "strong broadcast attention" : v >= 1 ? "meaningful streamer interest" : "minimal Twitch footprint"}.`
+          : "No Twitch activity recorded in the past 7 days.",
       };
     default:
       return { calculation: "", example: `Component value: ${v?.toFixed(2) ?? "N/A"}.` };
@@ -574,7 +588,7 @@ export default function SignalFire() {
             OPS Anatomy
           </h2>
           <p style={{ ...sans, fontSize: 14, lineHeight: 1.6, color: `${C.text}99`, margin: "0 0 28px", maxWidth: 620 }}>
-            The Overperformance Score is a weighted composite of five signals. Each measures a
+            The Overperformance Score is a weighted composite of seven signals. Each measures a
             different axis of breakout potential. Here's exactly how {d.title}'s{" "}
             <span style={{ color: C.accent, fontWeight: 600 }}>{Math.round(d.ops.score)}</span> was calculated.
           </p>
@@ -657,8 +671,8 @@ export default function SignalFire() {
               background: `${C.bg}aa`, borderRadius: 4, border: `1px solid ${C.border}`,
               marginBottom: 12, lineHeight: 1.8,
             }}>
-              raw_ops = weighted_sum(active_components) — NULL components redistribute weight<br />
-              score = min(100, raw_ops × 40)
+              raw_ops = weighted_sum(active_components) × coverage_penalty — NULL components redistribute weight<br />
+              score = min(100, raw_ops × 24 × next_fest_multiplier)
             </div>
             <div style={{ ...mono, fontSize: 13, color: C.text }}>
               Score: <span style={{ color: C.accent, fontWeight: 700, fontSize: 16 }}>{Math.round(d.ops.score)}</span> / 100
@@ -669,7 +683,7 @@ export default function SignalFire() {
               )}
             </div>
             <div style={{ ...mono, fontSize: 10, color: C.textDim, marginTop: 4 }}>
-              Formula v3 · Peer window: 30-150 days · Minimum 20 baseline games
+              Formula v5 · Peer window: 30-150 days · Minimum 20 baseline games · Next Fest bonus 1.10× (first 30d)
             </div>
           </div>
         </section>
@@ -746,11 +760,12 @@ export default function SignalFire() {
             {d.previous_picks.map((pick, i) => {
               const statusColor = pick.status === "climbing" ? C.green : pick.status === "peaked" ? C.amber : C.textFaint;
               const statusLabel = pick.status === "climbing" ? "Still climbing" : pick.status === "peaked" ? "Peaked" : "Steady";
+              const hasFollowthrough = pick.reviews_30d != null || pick.reviews_60d != null || pick.reviews_90d != null;
               return (
                 <div
                   key={i}
                   style={{
-                    display: "flex", alignItems: "center", gap: 12,
+                    display: "flex", flexDirection: "column", gap: 4,
                     padding: "10px 0",
                     borderBottom: `1px solid ${C.border}`,
                     cursor: "pointer", transition: "background 0.15s",
@@ -759,14 +774,37 @@ export default function SignalFire() {
                   onMouseEnter={e => (e.currentTarget.style.background = C.tile)}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span style={{ ...sans, fontSize: 14, fontWeight: 600, flex: 1, textDecoration: "underline", textDecorationColor: C.border, textUnderlineOffset: 2 }}>{pick.title}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, width: 110 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
-                    <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{statusLabel}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ ...sans, fontSize: 14, fontWeight: 600, flex: 1, textDecoration: "underline", textDecorationColor: C.border, textUnderlineOffset: 2 }}>{pick.title}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, width: 110 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
+                      <span style={{ ...mono, fontSize: 10, color: C.textDim }}>{statusLabel}</span>
+                    </div>
+                    <span style={{ ...mono, fontSize: 11, color: C.accent, width: 50, textAlign: "right" }}>
+                      OPS {pick.ops_now != null ? Math.round(pick.ops_now) : Math.round(pick.ops_at_pick)}
+                    </span>
                   </div>
-                  <span style={{ ...mono, fontSize: 11, color: C.accent, width: 50, textAlign: "right" }}>
-                    OPS {pick.ops_now != null ? Math.round(pick.ops_now) : Math.round(pick.ops_at_pick)}
-                  </span>
+                  {hasFollowthrough && (
+                    <div style={{ display: "flex", gap: 20, paddingLeft: 0 }}>
+                      {[
+                        { label: "At pick", val: pick.reviews_at_pick },
+                        { label: "+30d", val: pick.reviews_30d },
+                        { label: "+60d", val: pick.reviews_60d },
+                        { label: "+90d", val: pick.reviews_90d },
+                      ].map(({ label, val }) => (
+                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                          <span style={{ ...mono, fontSize: 8, color: C.textFaint, letterSpacing: 1 }}>{label.toUpperCase()}</span>
+                          <span style={{ ...mono, fontSize: 10, color: val != null ? C.textDim : C.textFaint }}>
+                            {val != null ? val.toLocaleString() : "—"}
+                          </span>
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginLeft: "auto" }}>
+                        <span style={{ ...mono, fontSize: 8, color: C.textFaint, letterSpacing: 1 }}>REVIEWS</span>
+                        <span style={{ ...mono, fontSize: 8, color: C.textFaint }}>followthrough</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

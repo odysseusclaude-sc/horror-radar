@@ -40,6 +40,42 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 0 10px rgba(128, 38, 38, 0.4);
 }
 
+/* ── Skip link ── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: #bb7125;
+  color: #111314;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: top 0.1s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* ── Focus-visible ring ── */
+:focus-visible {
+  outline: 2px solid #bb7125;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* ── Page enter animation ── */
 @keyframes pageEnter {
   from {
