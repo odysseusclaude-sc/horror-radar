@@ -1,27 +1,21 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { computeOps, DEFAULT_WEIGHTS } from "../../lib/opsCalculator";
-import type { OpsWeights } from "../../lib/opsCalculator";
-import { useParams, Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
-  ResponsiveContainer,
+  Area,
+  CartesianGrid,
   ComposedChart,
   Line,
-  Area,
+  ReferenceArea,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ReferenceArea,
-  Brush,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
 } from "recharts";
+import { useWatchlist } from "../../hooks/useWatchlist";
+import { useCompare } from "../../hooks/useCompare";
 
-/* ── API Response Types ──────────────────────────────────────────── */
+/* ── API types (timeline endpoint) ─────────────────────────────────── */
 
 interface TimelineGame {
   appid: number;
@@ -66,21 +60,11 @@ interface TimelineSnapshotRaw {
 
 interface TimelineSnapshot extends TimelineSnapshotRaw {
   day_index: number;
-  review_velocity?: number;
 }
 
-type EventType =
-  | "youtube_demo"
-  | "youtube_game"
-  | "reddit"
-  | "steam_update"
-  | "game_launch"
-  | "demo_launch";
-
-interface TimelineEvent {
+interface TimelineEventRaw {
   date: string;
-  day_index: number;
-  type: EventType;
+  type: string;
   title: string;
   detail: string;
   channel_name?: string;
@@ -90,6 +74,10 @@ interface TimelineEvent {
   score?: number;
   num_comments?: number;
   post_url?: string;
+}
+
+interface TimelineEvent extends TimelineEventRaw {
+  day_index: number;
 }
 
 interface TimelineVideo {
@@ -107,19 +95,7 @@ interface TimelineVideo {
 interface TimelineResponse {
   game: TimelineGame;
   snapshots: TimelineSnapshotRaw[];
-  events: Array<{
-    date: string;
-    type: string;
-    title: string;
-    detail: string;
-    channel_name?: string;
-    subscriber_count?: number;
-    view_count?: number;
-    subreddit?: string;
-    score?: number;
-    num_comments?: number;
-    post_url?: string;
-  }>;
+  events: TimelineEventRaw[];
   videos: TimelineVideo[];
   reddit_mentions: Array<{
     post_id: string;
@@ -131,143 +107,6 @@ interface TimelineResponse {
     posted_at: string | null;
   }>;
 }
-
-/* ── Derived types ───────────────────────────────────────────────── */
-
-interface PhaseInfo {
-  id: string;
-  label: string;
-  start_date: string;
-  end_date: string;
-  start_day: number;
-  end_day: number;
-  duration_days: number;
-  summary: string;
-  dominant_signal: string;
-  key_event: string;
-  insight: string;
-}
-
-interface CreatorImpact {
-  channel_name: string;
-  subscriber_count: number;
-  video_title: string;
-  upload_date: string;
-  view_count: number;
-  reviews_before_7d: number;
-  reviews_after_7d: number;
-  ccu_before_7d: number;
-  ccu_after_7d: number;
-  raw_review_delta: number;
-  velocity_before: number;
-  velocity_after: number;
-  impact_score: number;
-  covers: string;
-  shared_date: boolean;
-}
-
-/* ── Palette (kept for Recharts inline colors) ──────────────────── */
-
-const C = {
-  bg: "#111314",
-  surface: "#1a1a1c",
-  border: "#2a2420",
-  white: "#e8e0d4",
-  dim: "#6b6058",
-  ops: "#802626",
-  reviews: "#e8e0d4",
-  ccu: "#802626",
-  score: "#bb7125",
-  twitch: "#a36aa5",
-  ghost: "rgba(255,255,255,0.06)",
-  ghostStroke: "rgba(255,255,255,0.12)",
-  green: "#5ec269",
-} as const;
-
-/* ── Keyframes ────────────────────────────────────────────────────── */
-
-const styleTag = `
-@keyframes autopsyFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.autopsy-stagger-1 { animation: autopsyFadeIn 0.5s ease-out 0.1s both; }
-.autopsy-stagger-2 { animation: autopsyFadeIn 0.5s ease-out 0.25s both; }
-.autopsy-stagger-3 { animation: autopsyFadeIn 0.5s ease-out 0.4s both; }
-.autopsy-stagger-4 { animation: autopsyFadeIn 0.5s ease-out 0.55s both; }
-.autopsy-stagger-5 { animation: autopsyFadeIn 0.5s ease-out 0.7s both; }
-.autopsy-phase-card { transition: all 0.25s ease; }
-.autopsy-phase-card:hover { transform: translateY(-2px); }
-.autopsy-event-flag { cursor: pointer; transition: opacity 0.15s; }
-.autopsy-event-flag:hover { opacity: 0.8; }
-`;
-
-/* ── Phase band colors ─────────────────────────────────────────────── */
-
-const PHASE_BAND_COLORS: Record<string, string> = {
-  pre_launch:  "rgba(163,106,165,0.06)",
-  launch_week: "rgba(128,38,38,0.08)",
-  discovery:   "rgba(187,113,37,0.07)",
-  settling:    "rgba(74,222,128,0.06)",
-  long_tail:   "rgba(107,96,88,0.03)",
-};
-
-const PHASE_ACCENT_COLORS: Record<string, string> = {
-  pre_launch:  "#a36aa5",
-  launch_week: "#802626",
-  discovery:   "#bb7125",
-  settling:    "#5ec269",
-  long_tail:   "#6b6058",
-};
-
-/* ── Event constants ─────────────────────────────────────────────── */
-
-const EVENT_COLORS: Record<string, string> = {
-  demo_launch:  "#a36aa5",
-  game_launch:  "#802626",
-  youtube_demo: "#a36aa5",
-  youtube_game: "#a36aa5",
-  reddit:       "#bb7125",
-  steam_update: "#5ec269",
-};
-
-const EVENT_LABELS: Record<string, string> = {
-  demo_launch:  "Demo Launch",
-  game_launch:  "Game Launch",
-  youtube_demo: "YouTube (Demo)",
-  youtube_game: "YouTube (Game)",
-  reddit:       "Reddit",
-  steam_update: "Steam Update",
-};
-
-const EVENT_ICONS: Record<string, string> = {
-  demo_launch:  "▶",
-  game_launch:  "★",
-  youtube_demo: "●",
-  youtube_game: "●",
-  reddit:       "◆",
-  steam_update: "■",
-};
-
-/* ── Series toggle config ─────────────────────────────────────────── */
-
-interface SeriesConfig {
-  key: string;
-  label: string;
-  color: string;
-  defaultOn: boolean;
-  panel: 1 | 2 | 3;
-}
-
-const SERIES: SeriesConfig[] = [
-  { key: "raw_ops",           label: "OPS (Raw)",     color: C.ops,      defaultOn: true,  panel: 1 },
-  { key: "review_count",      label: "Reviews",       color: C.reviews,  defaultOn: true,  panel: 2 },
-  { key: "review_velocity",   label: "Rev. Velocity", color: "#f97316",  defaultOn: true,  panel: 2 },
-  { key: "peak_ccu",          label: "Peak CCU",      color: C.ccu,      defaultOn: false, panel: 2 },
-  { key: "review_score_pct",  label: "Score %",       color: C.score,    defaultOn: true,  panel: 3 },
-  { key: "demo_review_count", label: "Demo Reviews",  color: "#22d3ee",  defaultOn: false, panel: 2 },
-  { key: "yt_cumulative_views", label: "YT Views",    color: "#38bdf8",  defaultOn: true,  panel: 3 },
-];
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -281,12 +120,17 @@ function fmtDate(d: string): string {
   return new Date(d + "T00:00:00Z").toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
     timeZone: "UTC",
   });
 }
 
-function eventShape(type: string): string {
-  return EVENT_ICONS[type] || "●";
+function fmtDateShort(d: string): string {
+  return new Date(d + "T00:00:00Z").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function daysBetween(a: string, b: string): number {
@@ -307,6 +151,19 @@ function parseTags(raw: string | null): string[] {
   }
 }
 
+function deriveSubgenre(tags: string[], genres: string[]): string {
+  const all = [...tags, ...genres].map((t) => t.toLowerCase());
+  if (all.some((t) => t.includes("psychological"))) return "Psychological Horror";
+  if (all.some((t) => t.includes("survival horror"))) return "Survival Horror";
+  if (all.some((t) => t.includes("lovecraft") || t.includes("cosmic"))) return "Cosmic Horror";
+  if (all.some((t) => t.includes("slasher"))) return "Slasher";
+  if (all.some((t) => t.includes("gothic"))) return "Gothic Horror";
+  if (all.some((t) => t.includes("zombie"))) return "Zombie Horror";
+  if (all.some((t) => t.includes("creature"))) return "Creature Horror";
+  if (all.some((t) => t.includes("supernatural"))) return "Supernatural";
+  return "Horror";
+}
+
 function parseGenres(raw: string | null): string[] {
   if (!raw) return [];
   try {
@@ -318,684 +175,494 @@ function parseGenres(raw: string | null): string[] {
   }
 }
 
-function derivePhases(snapshots: TimelineSnapshot[], releaseDate: string): PhaseInfo[] {
+function opsTier(score: number): { label: string; cls: string } {
+  if (score >= 60) return { label: "BREAKOUT", cls: "text-status-pos" };
+  if (score >= 30) return { label: "WATCH", cls: "text-status-warn" };
+  return { label: "COLD", cls: "text-status-neg" };
+}
+
+function getSteamRating(pct: number): string {
+  if (pct >= 95) return "Overwhelmingly Positive";
+  if (pct >= 80) return "Very Positive";
+  if (pct >= 70) return "Mostly Positive";
+  if (pct >= 40) return "Mixed";
+  if (pct >= 20) return "Mostly Negative";
+  return "Overwhelmingly Negative";
+}
+
+function priceBadge(price: number | null): string {
+  if (price == null) return "Unknown";
+  if (price === 0) return "Free";
+  return `$${price.toFixed(2)}`;
+}
+
+/* ── Phase derivation ──────────────────────────────────────────────── */
+
+interface Phase {
+  id: "demo" | "launch" | "discovery" | "settling";
+  label: string;
+  range: string;
+  start_day: number;
+  end_day: number;
+  color: string;
+  bandClass: string;
+  accentClass: string;
+  icon: string;
+  summary: string;
+}
+
+function derivePhases(snapshots: TimelineSnapshot[]): Phase[] {
   if (snapshots.length === 0) return [];
-  const phases: PhaseInfo[] = [];
   const firstDay = snapshots[0].day_index;
   const lastDay = snapshots[snapshots.length - 1].day_index;
-  const firstDate = snapshots[0].date;
-  const lastDate = snapshots[snapshots.length - 1].date;
-
-  function dateAtDay(day: number): string {
-    const d = new Date(releaseDate + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() + day);
-    return d.toISOString().slice(0, 10);
-  }
+  const phases: Phase[] = [];
 
   if (firstDay < 0) {
-    const endDay = Math.min(-1, lastDay);
     phases.push({
-      id: "pre_launch", label: "Pre-Launch",
-      start_date: firstDate, end_date: dateAtDay(endDay),
-      start_day: firstDay, end_day: endDay,
-      duration_days: endDay - firstDay + 1,
-      summary: "Demo/wishlist phase before full game launch.",
-      dominant_signal: "Demo reviews, wishlists",
-      key_event: "Pre-release visibility building",
-      insight: "Pre-launch activity helps gauge initial demand and build an audience.",
+      id: "demo",
+      label: "Demo Phase",
+      range: `Day ${firstDay} to -1`,
+      start_day: firstDay,
+      end_day: Math.min(-1, lastDay),
+      color: "#b07db2",
+      bandClass: "bg-[rgba(176,125,178,0.06)] border border-[rgba(176,125,178,0.15)]",
+      accentClass: "text-status-special",
+      icon: "\u{1F579}",
+      summary: "Pre-launch visibility and demo traction.",
     });
   }
   if (lastDay >= 0) {
-    const startDay = Math.max(0, firstDay);
-    const endDay = Math.min(7, lastDay);
     phases.push({
-      id: "launch_week", label: "Launch Week",
-      start_date: dateAtDay(startDay), end_date: dateAtDay(endDay),
-      start_day: startDay, end_day: endDay,
-      duration_days: endDay - startDay + 1,
-      summary: "Initial burst of reviews, CCU, and media coverage.",
-      dominant_signal: "Review velocity, peak CCU",
-      key_event: "Game launch on Steam",
-      insight: "The first week sets the tone — strong velocity here often predicts sustained interest.",
+      id: "launch",
+      label: "Launch Week",
+      range: "Days 0 – 7",
+      start_day: 0,
+      end_day: Math.min(7, lastDay),
+      color: "#5ec269",
+      bandClass: "bg-[rgba(94,194,105,0.06)] border border-[rgba(94,194,105,0.15)]",
+      accentClass: "text-status-pos",
+      icon: "\u{1F680}",
+      summary: "Initial reviews, CCU, and creator uploads.",
     });
   }
   if (lastDay > 7) {
-    const startDay = Math.max(8, firstDay);
-    const endDay = Math.min(30, lastDay);
     phases.push({
-      id: "discovery", label: "Discovery Window",
-      start_date: dateAtDay(startDay), end_date: dateAtDay(endDay),
-      start_day: startDay, end_day: endDay,
-      duration_days: endDay - startDay + 1,
-      summary: "YouTube and Twitch coverage drives organic discovery.",
-      dominant_signal: "YouTube views, creator uploads",
-      key_event: "Creator coverage and word-of-mouth",
-      insight: "Games that get picked up by creators in this window have the best breakout odds.",
+      id: "discovery",
+      label: "Discovery",
+      range: "Days 8 – 30",
+      start_day: 8,
+      end_day: Math.min(30, lastDay),
+      color: "#e8a832",
+      bandClass: "bg-[rgba(232,168,50,0.06)] border border-[rgba(232,168,50,0.15)]",
+      accentClass: "text-status-warn",
+      icon: "\u{1F50E}",
+      summary: "Creator coverage drives organic discovery.",
     });
   }
   if (lastDay > 30) {
-    const startDay = Math.max(31, firstDay);
-    const endDay = Math.min(90, lastDay);
     phases.push({
-      id: "settling", label: "Settling",
-      start_date: dateAtDay(startDay), end_date: dateAtDay(endDay),
-      start_day: startDay, end_day: endDay,
-      duration_days: endDay - startDay + 1,
-      summary: "Review accumulation slows; game finds its steady audience.",
-      dominant_signal: "Review score stability, owner growth",
-      key_event: "Patch cadence and community response",
-      insight: "Sustained review positivity and update cadence separate lasting hits from flash-in-the-pan.",
-    });
-  }
-  if (lastDay > 90) {
-    const startDay = Math.max(91, firstDay);
-    phases.push({
-      id: "long_tail", label: "Long Tail",
-      start_date: dateAtDay(startDay), end_date: lastDate,
-      start_day: startDay, end_day: lastDay,
-      duration_days: lastDay - startDay + 1,
-      summary: "Beyond the breakout window — organic trickle and sale bumps.",
-      dominant_signal: "Slow review growth, sale events",
-      key_event: "Outside active monitoring scope",
-      insight: "Most OPS signal has decayed. The game's trajectory is largely set.",
+      id: "settling",
+      label: "Settling",
+      range: "Day 31+",
+      start_day: 31,
+      end_day: lastDay,
+      color: "#918377",
+      bandClass: "bg-[rgba(145,131,119,0.06)] border border-[rgba(145,131,119,0.15)]",
+      accentClass: "text-text-dim",
+      icon: "\u{23F3}",
+      summary: "Review accumulation slows; audience settles.",
     });
   }
   return phases;
 }
 
-function getSteamRating(pct: number): { label: string; color: string } {
-  if (pct >= 95) return { label: "Overwhelmingly Positive", color: "#5ec269" };
-  if (pct >= 80) return { label: "Very Positive",           color: "#5ec269" };
-  if (pct >= 70) return { label: "Mostly Positive",         color: "#86efac" };
-  if (pct >= 40) return { label: "Mixed",                   color: "#facc15" };
-  if (pct >= 20) return { label: "Mostly Negative",         color: "#f87171" };
-  return           { label: "Overwhelmingly Negative",      color: "#ef4444" };
+/* ── Stat cards for Overview ───────────────────────────────────────── */
+
+interface OverviewStat {
+  icon: string;
+  label: string;
+  value: string;
+  sub: string | null;
+  tone?: "green" | "amber" | "neg" | null;
 }
 
-function opsScoreColor(score: number): string {
-  if (score >= 60) return "#5ec269";
-  if (score >= 30) return "#e8a832";
-  return "#e25535";
+/* ── Events grouping ──────────────────────────────────────────────── */
+
+interface EventGroup {
+  key: "youtube" | "reddit" | "steam";
+  label: string;
+  icon: string;
+  accentClass: string;
+  dotClass: string;
+  items: TimelineEvent[];
 }
 
-function opsScoreGlyph(score: number): string {
-  if (score >= 60) return "▲";
-  if (score >= 30) return "◆";
-  return "▼";
-}
-
-function opsScoreTier(score: number): string {
-  if (score >= 60) return "BREAKOUT";
-  if (score >= 30) return "WATCH";
-  return "COLD";
-}
-
-function compBarColor(pct: number): string {
-  if (pct >= 70) return "#5ec269";
-  if (pct >= 40) return "#e8a832";
-  return "#6b6058";
-}
-
-function deriveCreatorImpacts(videos: TimelineVideo[], snapshots: TimelineSnapshot[]): CreatorImpact[] {
-  if (videos.length === 0 || snapshots.length === 0) return [];
-
-  function findClosestSnapshot(targetDate: string): TimelineSnapshot | null {
-    let best: TimelineSnapshot | null = null;
-    let bestDist = Infinity;
-    for (const s of snapshots) {
-      const dist = Math.abs(daysBetween(s.date, targetDate));
-      if (dist < bestDist) { bestDist = dist; best = s; }
-    }
-    return best;
-  }
-
-  function findSnapshotNearDay(dayOffset: number, pubDate: string): TimelineSnapshot | null {
-    const d = new Date(pubDate + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() + dayOffset);
-    return findClosestSnapshot(d.toISOString().slice(0, 10));
-  }
-
-  function velocityDelta(pubDate: string): { before: number; after: number } {
-    const dayBefore3 = findSnapshotNearDay(-3, pubDate);
-    const dayBefore0 = findClosestSnapshot(pubDate);
-    const dayAfter3  = findSnapshotNearDay(3, pubDate);
-    const revPre  = (dayBefore0?.review_count ?? 0) - (dayBefore3?.review_count ?? 0);
-    const revPost = (dayAfter3?.review_count  ?? 0) - (dayBefore0?.review_count ?? 0);
-    return { before: revPre / 3, after: revPost / 3 };
-  }
-
-  const latestSnap = snapshots[snapshots.length - 1];
-  const maxReviews = latestSnap?.review_count ?? 1;
-
-  const rawImpacts = videos
-    .filter((v) => v.published_at)
-    .map((v) => {
-      const pubDate = v.published_at!.slice(0, 10);
-      const before = findSnapshotNearDay(-7, pubDate);
-      const after  = findSnapshotNearDay(7, pubDate);
-      const reviewsBefore = before?.review_count ?? 0;
-      const reviewsAfter  = after?.review_count  ?? reviewsBefore;
-      const ccuBefore = before?.peak_ccu ?? 0;
-      const ccuAfter  = after?.peak_ccu  ?? ccuBefore;
-      const rawDelta  = reviewsAfter - reviewsBefore;
-      const vel = velocityDelta(pubDate);
-      return {
-        channel_name: v.channel_name || "Unknown",
-        subscriber_count: v.subscriber_count ?? 0,
-        video_title: v.title,
-        upload_date: pubDate,
-        view_count: v.view_count ?? 0,
-        reviews_before_7d: reviewsBefore,
-        reviews_after_7d: reviewsAfter,
-        ccu_before_7d: ccuBefore,
-        ccu_after_7d: ccuAfter,
-        raw_review_delta: rawDelta,
-        velocity_before: vel.before,
-        velocity_after: vel.after,
-        impact_score: 0,
-        covers: v.covers || "game",
-        shared_date: false,
-      };
+function groupEvents(events: TimelineEvent[]): EventGroup[] {
+  const yt = events.filter((e) => e.type === "youtube_demo" || e.type === "youtube_game");
+  const rd = events.filter((e) => e.type === "reddit");
+  const st = events.filter(
+    (e) => e.type === "steam_update" || e.type === "game_launch" || e.type === "demo_launch",
+  );
+  const groups: EventGroup[] = [];
+  if (yt.length)
+    groups.push({
+      key: "youtube",
+      label: "YouTube",
+      icon: "\u25B6",
+      accentClass: "text-status-neg",
+      dotClass: "bg-status-neg",
+      items: yt,
     });
-
-  // Split same-day attribution proportionally
-  const byDate = new Map<string, typeof rawImpacts>();
-  for (const imp of rawImpacts) {
-    const group = byDate.get(imp.upload_date) || [];
-    group.push(imp);
-    byDate.set(imp.upload_date, group);
-  }
-  for (const [, group] of byDate) {
-    if (group.length <= 1) continue;
-    const totalSubs = group.reduce((s, g) => s + Math.max(1, g.subscriber_count), 0);
-    const totalDelta = group[0].raw_review_delta;
-    for (const imp of group) {
-      const share = Math.max(1, imp.subscriber_count) / totalSubs;
-      imp.raw_review_delta = Math.round(totalDelta * share);
-      imp.shared_date = true;
-    }
-  }
-  for (const imp of rawImpacts) {
-    imp.impact_score = maxReviews > 0
-      ? Math.max(0, Math.min(100, Math.round((imp.raw_review_delta / Math.max(1, maxReviews)) * 300)))
-      : 0;
-  }
-  return rawImpacts.sort((a, b) => b.impact_score - a.impact_score);
+  if (rd.length)
+    groups.push({
+      key: "reddit",
+      label: "Reddit",
+      icon: "\u{1F4AC}",
+      accentClass: "text-secondary",
+      dotClass: "bg-secondary",
+      items: rd,
+    });
+  if (st.length)
+    groups.push({
+      key: "steam",
+      label: "Steam",
+      icon: "\u{1F6E0}",
+      accentClass: "text-status-info",
+      dotClass: "bg-status-info",
+      items: st,
+    });
+  return groups;
 }
 
-/* ── Verdict builder ──────────────────────────────────────────────── */
+/* ── Custom Tooltip (Recharts) ────────────────────────────────────── */
 
-function buildVerdict(
-  latestSnapshot: TimelineSnapshot | null,
-  latestWithOps: TimelineSnapshot | null,
-  creatorImpacts: CreatorImpact[],
-): { headline: string; bullets: string[] } {
-  const bullets: string[] = [];
-  const opsScore = latestWithOps?.ops_score ?? 0;
-  const velComp  = latestWithOps?.velocity_component ?? null;
-  const decayComp = latestWithOps?.decay_component ?? null;
-  const reviewPct = latestSnapshot?.review_score_pct ?? null;
-  const reviewCount = latestSnapshot?.review_count ?? null;
-
-  // Creator coverage
-  const highImpact = creatorImpacts.filter(c => c.subscriber_count >= 400_000);
-  if (creatorImpacts.length === 0) {
-    bullets.push("No creator coverage yet — opportunity window is open.");
-  } else if (highImpact.length > 0) {
-    const top = highImpact[0];
-    const delta = top.reviews_after_7d - top.reviews_before_7d;
-    bullets.push(
-      `${top.channel_name} (${fmtNum(top.subscriber_count)}) uploaded · reviews +${delta} in 7 days.`
-    );
-  } else {
-    bullets.push(
-      `${creatorImpacts.length} creator${creatorImpacts.length > 1 ? "s" : ""} covered — no mid-tier or above yet.`
-    );
-  }
-
-  // Velocity
-  if (velComp != null && velComp >= 2.0) {
-    bullets.push(`Velocity ${velComp.toFixed(1)}× age-expected — accelerating past peers.`);
-  } else if (velComp != null && velComp >= 1.0) {
-    bullets.push(`Velocity ${velComp.toFixed(1)}× expected — tracking with strong peers.`);
-  } else if (decayComp != null && decayComp >= 1.2) {
-    bullets.push(`Decay retention ${decayComp.toFixed(1)}× — interest holding after launch week.`);
-  }
-
-  // Sentiment
-  if (reviewPct != null && reviewCount != null && reviewCount >= 10) {
-    const rating = getSteamRating(reviewPct);
-    bullets.push(`${Math.round(reviewPct)}% positive (${fmtNum(reviewCount)} reviews) — ${rating.label}.`);
-  }
-
-  // Demo conversion
-  const demoScore = latestSnapshot?.demo_review_score_pct ?? null;
-  const demoCount = latestSnapshot?.demo_review_count ?? null;
-  if (demoCount != null && demoCount > 0 && demoScore != null && reviewPct != null) {
-    const diff = Math.round(reviewPct - demoScore);
-    if (diff > 0) {
-      bullets.push(`Demo converted upward: ${Math.round(demoScore)}% → ${Math.round(reviewPct)}% on full release.`);
-    } else {
-      bullets.push(`${fmtNum(demoCount)} demo reviews at ${Math.round(demoScore)}%.`);
-    }
-  }
-
-  // Headline
-  let headline: string;
-  if (opsScore >= 60) {
-    if (creatorImpacts.length === 0) {
-      headline = "You're early — no creator coverage yet at breakout strength.";
-    } else if (highImpact.length === 0) {
-      headline = "Ride this before the mid-tier creators land.";
-    } else {
-      headline = "Creator-driven breakout — momentum is real.";
-    }
-  } else if (opsScore >= 30) {
-    headline = velComp != null && velComp >= 1.5
-      ? "Signals are building — watch for creator coverage to confirm."
-      : "Moderate signal — needs a catalyst to break out.";
-  } else if (opsScore > 0) {
-    headline = "Too early to call — limited data, check back soon.";
-  } else {
-    headline = "No OPS data yet — check back after first daily collection.";
-  }
-
-  return { headline, bullets: bullets.slice(0, 4) };
-}
-
-/* ── Custom Tooltip ───────────────────────────────────────────────── */
-
-function AutopsyTooltip({ active, payload, visibleSeries, events }: any) {
+function ChartTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as TimelineSnapshot;
+  const d = payload[0]?.payload as TimelineSnapshot | undefined;
   if (!d) return null;
-  const eventsOnDay = (events as TimelineEvent[]).filter((e) => e.date === d.date);
-
   return (
     <div
-      className="font-mono text-[11px] leading-relaxed max-w-[260px] rounded"
-      style={{ background: C.surface, border: `1px solid ${C.border}`, padding: "10px 14px", color: C.white }}
+      className="font-mono text-[11px] rounded-md px-3 py-2 leading-relaxed"
+      style={{ background: "#1a1a1c", border: "1px solid #2a2420", color: "#e8e0d4" }}
     >
-      <div className="font-bold text-xs mb-1" style={{ color: C.dim }}>
-        {fmtDate(d.date)} — Day {d.day_index}
+      <div className="text-text-dim mb-1">
+        {fmtDateShort(d.date)} · Day {d.day_index}
       </div>
-      {visibleSeries.raw_ops && d.raw_ops != null && (
-        <div><span style={{ color: C.ops }}>OPS</span> {d.raw_ops.toFixed(1)}{" "}
-          <span className="text-[9px]" style={{ color: C.dim }}>(capped: {d.ops_score})</span>
-        </div>
-      )}
-      {visibleSeries.review_count && d.review_count != null && (
-        <div><span style={{ color: C.reviews }}>Reviews</span> {fmtNum(d.review_count)}</div>
-      )}
-      {visibleSeries.peak_ccu && d.peak_ccu != null && (
-        <div><span style={{ color: C.ccu }}>Peak CCU</span> {fmtNum(d.peak_ccu)}</div>
-      )}
-      {(d as any).review_velocity != null && visibleSeries.review_velocity && (
-        <div><span style={{ color: "#f97316" }}>Velocity</span> {(d as any).review_velocity.toFixed(1)}/day</div>
-      )}
-      {visibleSeries.review_score_pct && d.review_score_pct != null && d.review_score_pct > 0 && (
+      {d.ops_score != null && (
         <div>
-          <span style={{ color: C.score }}>Score</span> {d.review_score_pct.toFixed(1)}%{" "}
-          <span className="text-[9px]" style={{ color: getSteamRating(d.review_score_pct).color }}>
-            {getSteamRating(d.review_score_pct).label}
-          </span>
+          <span style={{ color: "#5ec269" }}>OPS</span> {Math.round(d.ops_score)}
         </div>
       )}
-      {visibleSeries.demo_review_count && d.demo_review_count != null && d.demo_review_count > 0 && (
-        <div><span style={{ color: "#22d3ee" }}>Demo Rev</span> {d.demo_review_count}</div>
+      {d.review_count != null && (
+        <div>
+          <span className="text-text-mid">Reviews</span> {fmtNum(d.review_count)}
+        </div>
       )}
-      {visibleSeries.yt_cumulative_views && d.yt_cumulative_views > 0 && (
-        <div><span style={{ color: "#38bdf8" }}>YT Views</span> {fmtNum(d.yt_cumulative_views)}</div>
-      )}
-      {eventsOnDay.length > 0 && (
-        <div className="mt-1.5 pt-1 border-t" style={{ borderColor: C.border }}>
-          {eventsOnDay.map((e, i) => (
-            <div key={i} className="text-[10px]" style={{ color: EVENT_COLORS[e.type] || C.dim }}>
-              {eventShape(e.type)} {e.title}
-            </div>
-          ))}
+      {d.peak_ccu != null && d.peak_ccu > 0 && (
+        <div>
+          <span style={{ color: "#802626" }}>CCU</span> {fmtNum(d.peak_ccu)}
         </div>
       )}
     </div>
   );
 }
 
-/* ── Event Flag Card Overlay ──────────────────────────────────────── */
+/* ============================================================
+   MAIN COMPONENT
+   ============================================================ */
 
-function EventCard({ event, onClose }: { event: TimelineEvent; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60"
-      onClick={onClose}
-    >
-      <div
-        className="rounded-md w-[90%] max-w-[420px]"
-        style={{
-          background: C.surface,
-          border: `1px solid ${C.border}`,
-          borderTop: `3px solid ${EVENT_COLORS[event.type] || C.dim}`,
-          padding: "24px 28px",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <span
-              className="font-mono text-[10px] uppercase tracking-[1.5px]"
-              style={{ color: EVENT_COLORS[event.type] || C.dim }}
-            >
-              {EVENT_LABELS[event.type] || event.type}
-            </span>
-            <h3 className="text-text-main text-lg font-bold mt-1">{event.title}</h3>
-          </div>
-          <button onClick={onClose} className="text-text-dim hover:text-text-main text-xl px-1 leading-none">
-            &times;
-          </button>
-        </div>
-        <div className="font-mono text-[11px] text-text-dim mb-2.5">
-          {fmtDate(event.date)} — Day {event.day_index}
-        </div>
-        <p className="text-text-main text-sm leading-relaxed">{event.detail}</p>
-        {event.channel_name && (
-          <div className="font-mono text-[11px] text-text-dim mt-3">
-            <span style={{ color: "#22d3ee" }}>{event.channel_name}</span>
-            {event.subscriber_count && <> · {fmtNum(event.subscriber_count)} subs</>}
-            {event.view_count && <> · {fmtNum(event.view_count)} views</>}
-          </div>
-        )}
-        {event.subreddit && (
-          <div className="font-mono text-[11px] text-text-dim mt-3">
-            <span style={{ color: "#f97316" }}>r/{event.subreddit}</span>
-            {event.score && <> · {fmtNum(event.score)} upvotes</>}
-            {event.num_comments && <> · {event.num_comments} comments</>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+type ZoomRange = "7d" | "30d" | "all";
+const SECTION_IDS = ["overview", "timeline", "creators", "events", "community"] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
-/* ==================================================================
-   SIGNAL TRACE — Main Component
-   ================================================================== */
+const SECTION_LABELS: Record<SectionId, { label: string; icon: string }> = {
+  overview: { label: "Overview", icon: "\u{1F3AE}" },
+  timeline: { label: "Timeline", icon: "\u{1F4C8}" },
+  creators: { label: "Creator Impact", icon: "\u25B6" },
+  events: { label: "Events", icon: "\u{1F4CB}" },
+  community: { label: "Community", icon: "\u{1F465}" },
+};
 
-export default function TheAutopsy() {
+export default function Autopsy() {
   const { appid } = useParams<{ appid: string }>();
-
-  /* ── Data fetching ── */
   const [data, setData] = useState<TimelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<ZoomRange>("30d");
+  const [activeSection, setActiveSection] = useState<SectionId>("overview");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    youtube: true,
+    reddit: true,
+    steam: true,
+  });
+
+  const { isWatched, toggle: toggleWatch } = useWatchlist();
+  const { isInCompare, toggle: toggleCompare, canAdd: canAddCompare } = useCompare();
 
   useEffect(() => {
-    if (!appid) { setError("No app ID specified"); setLoading(false); return; }
+    if (!appid) {
+      setError("No app ID specified");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     fetch(`${import.meta.env.VITE_API_URL || "/api"}/games/${appid}/timeline`)
-      .then((r) => { if (!r.ok) throw new Error("Game not found"); return r.json(); })
+      .then((r) => {
+        if (!r.ok) throw new Error("Game not found");
+        return r.json();
+      })
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [appid]);
 
-  /* ── State ── */
-  const [visibleSeries, setVisibleSeries] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    SERIES.forEach((s) => (init[s.key] = s.defaultOn));
-    return init;
-  });
-  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
-  const [showSandbox, setShowSandbox] = useState(false);
-  const [sandboxWeights, setSandboxWeights] = useState<OpsWeights>(DEFAULT_WEIGHTS);
-  const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>({
-    startIndex: 0, endIndex: 0,
-  });
-
-  const toggleSeries = useCallback((key: string) => {
-    setVisibleSeries((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
-
-  /* ── Derived data ── */
+  /* ── Derived series ── */
   const game = data?.game ?? null;
   const releaseDate = game?.release_date ?? null;
 
   const snapshots: TimelineSnapshot[] = useMemo(() => {
     if (!data?.snapshots || !releaseDate) return [];
-    return data.snapshots.map((s) => ({ ...s, day_index: daysBetween(releaseDate, s.date) }));
+    return data.snapshots.map((s) => ({
+      ...s,
+      day_index: daysBetween(releaseDate, s.date),
+    }));
   }, [data, releaseDate]);
 
   const events: TimelineEvent[] = useMemo(() => {
     if (!data?.events || !releaseDate) return [];
-    return data.events.map((e) => ({ ...e, type: e.type as EventType, day_index: daysBetween(releaseDate, e.date) }));
+    return data.events.map((e) => ({
+      ...e,
+      day_index: daysBetween(releaseDate, e.date),
+    }));
   }, [data, releaseDate]);
 
-  const phases = useMemo(() => {
-    if (!releaseDate) return [];
-    return derivePhases(snapshots, releaseDate);
-  }, [snapshots, releaseDate]);
-
-  const creatorImpacts = useMemo(() => {
-    if (!data?.videos) return [];
-    return deriveCreatorImpacts(data.videos, snapshots);
-  }, [data?.videos, snapshots]);
-
+  const phases = useMemo(() => derivePhases(snapshots), [snapshots]);
   const tags = useMemo(() => parseTags(game?.tags ?? null), [game?.tags]);
-  // parseGenres is available but not currently used in render
-  void parseGenres;
+  const genres = useMemo(() => parseGenres(game?.genres ?? null), [game?.genres]);
+  const subgenre = useMemo(() => deriveSubgenre(tags, genres), [tags, genres]);
 
-  /* ── Brush + chartData ── */
-  useEffect(() => {
-    if (snapshots.length > 0) setBrushRange({ startIndex: 0, endIndex: snapshots.length - 1 });
-  }, [snapshots.length]);
-
-  const chartData = useMemo(() => {
-    if (snapshots.length === 0) return snapshots;
-    return snapshots.map((s, i) => {
-      let velocity: number | undefined;
-      if (i >= 3 && s.review_count != null) {
-        const prev = snapshots[i - 3];
-        if (prev?.review_count != null) velocity = Math.max(0, (s.review_count - prev.review_count) / 3);
-      } else if (i > 0 && s.review_count != null) {
-        const prev = snapshots[i - 1];
-        if (prev?.review_count != null) velocity = Math.max(0, s.review_count - prev.review_count);
-      }
-      return { ...s, review_velocity: velocity };
-    });
-  }, [snapshots]);
-
-  const activePhase = useMemo(() => {
-    if (snapshots.length === 0) return null;
-    const mid = Math.round((brushRange.startIndex + brushRange.endIndex) / 2);
-    const snap = snapshots[mid];
-    if (!snap) return null;
-    for (const p of phases) {
-      if (snap.day_index >= p.start_day && snap.day_index <= p.end_day) return p.id;
+  const latestSnapshot = useMemo(() => {
+    for (let i = snapshots.length - 1; i >= 0; i--) {
+      if (snapshots[i].review_count != null) return snapshots[i];
     }
-    return null;
-  }, [brushRange, snapshots, phases]);
-
-  /* ── Key snapshots ── */
-  const opsPeak = useMemo(() => {
-    let best = { score: 0, day: 0, date: "" };
-    snapshots.forEach((s) => {
-      const raw = s.raw_ops ?? s.ops_score ?? 0;
-      if (raw > best.score) best = { score: Math.round(raw * 10) / 10, day: s.day_index, date: s.date };
-    });
-    return best;
+    return snapshots[snapshots.length - 1] ?? null;
   }, [snapshots]);
 
   const latestWithOps = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
       if (snapshots[i].ops_score != null) return snapshots[i];
     }
-    return snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+    return null;
   }, [snapshots]);
 
-  const latestSnapshot = useMemo(() => {
+  const opsConfidence = latestWithOps?.ops_confidence ?? null;
+
+  const maxCcu = useMemo(() => {
+    return snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
+  }, [snapshots]);
+
+  const reviewsPerDay = useMemo(() => {
+    if (!latestSnapshot?.review_count || !releaseDate) return null;
+    const days = Math.max(1, daysBetween(releaseDate, latestSnapshot.date));
+    return latestSnapshot.review_count / days;
+  }, [latestSnapshot, releaseDate]);
+
+  const patchCount = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
-      if (snapshots[i].review_count != null) return snapshots[i];
+      const v = snapshots[i].patch_count_30d;
+      if (v != null) return v;
     }
-    return snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+    return null;
   }, [snapshots]);
 
-  const latestVelocity = useMemo(() => {
-    const withVel = chartData.filter((d) => d.review_velocity != null);
-    return withVel.length > 0 ? withVel[withVel.length - 1].review_velocity! : null;
-  }, [chartData]);
+  const uniqueChannels = useMemo(() => {
+    const seen = new Set<string>();
+    data?.videos?.forEach((v) => v.channel_id && seen.add(v.channel_id));
+    return seen.size;
+  }, [data?.videos]);
 
-  const reviewDelta7d = useMemo(() => {
-    const last = latestSnapshot;
-    if (!last?.review_count) return null;
-    const targetDay = last.day_index - 7;
-    let best: TimelineSnapshot | null = null;
-    let bestDist = Infinity;
-    for (const s of snapshots) {
-      if (s.review_count == null || s.date === last.date) continue;
-      const dist = Math.abs(s.day_index - targetDay);
-      if (dist < bestDist) { bestDist = dist; best = s; }
-    }
-    if (!best?.review_count || bestDist > 4) return null;
-    return last.review_count - best.review_count;
-  }, [snapshots, latestSnapshot]);
+  const daysSinceLaunch = useMemo(() => {
+    if (!releaseDate) return null;
+    return daysBetween(releaseDate, new Date().toISOString().slice(0, 10));
+  }, [releaseDate]);
 
-  /* ── OPS momentum ── */
-  const opsMomentum = useMemo(() => {
-    const opsSnaps = snapshots.filter((s) => s.ops_score != null);
-    if (opsSnaps.length < 2) return { arrow: "", label: "" };
-    const latest = opsSnaps[opsSnaps.length - 1].ops_score!;
-    const prev   = opsSnaps[opsSnaps.length - 2].ops_score!;
-    if (latest > prev) return { arrow: "↗", label: "rising" };
-    if (latest < prev) return { arrow: "↘", label: "falling" };
-    return { arrow: "→", label: "stable" };
-  }, [snapshots]);
+  const overviewStats: OverviewStat[] = useMemo(() => {
+    const stats: OverviewStat[] = [];
+    stats.push({
+      icon: "\u26A1",
+      label: "OPS",
+      value: latestWithOps?.ops_score != null ? String(Math.round(latestWithOps.ops_score)) : "—",
+      sub: latestWithOps?.ops_score != null
+        ? `${opsTier(latestWithOps.ops_score).label} tier · ${opsConfidence ?? "—"} confidence`
+        : "No OPS data yet",
+      tone: latestWithOps?.ops_score != null
+        ? latestWithOps.ops_score >= 60 ? "green" : latestWithOps.ops_score >= 30 ? "amber" : "neg"
+        : null,
+    });
+    stats.push({
+      icon: "\u2B50",
+      label: "Reviews",
+      value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—",
+      sub:
+        latestSnapshot?.review_score_pct != null
+          ? `${Math.round(latestSnapshot.review_score_pct)}% positive${
+              reviewsPerDay ? ` · ${reviewsPerDay.toFixed(1)}/day avg` : ""
+            }`
+          : reviewsPerDay
+          ? `${reviewsPerDay.toFixed(1)}/day avg`
+          : null,
+    });
+    stats.push({
+      icon: "\u{1F3AE}",
+      label: "Peak CCU",
+      value: maxCcu > 0 ? fmtNum(maxCcu) : "—",
+      sub: latestSnapshot?.peak_ccu != null && latestSnapshot.peak_ccu < maxCcu
+        ? `Now ${fmtNum(latestSnapshot.peak_ccu)} current`
+        : null,
+    });
+    stats.push({
+      icon: "\u{1F4C5}",
+      label: "Age",
+      value: daysSinceLaunch != null ? `${daysSinceLaunch}d` : "—",
+      sub: releaseDate ? `Released ${fmtDate(releaseDate)}` : null,
+      tone: daysSinceLaunch != null ? (daysSinceLaunch <= 7 ? "green" : daysSinceLaunch <= 30 ? "amber" : null) : null,
+    });
+    stats.push({
+      icon: "\u25B6",
+      label: "YouTube",
+      value: String(uniqueChannels),
+      sub: uniqueChannels === 1 ? "Creator covering this game" : "Creators covering this game",
+    });
+    stats.push({
+      icon: "\u{1F6E0}",
+      label: "Patches",
+      value: patchCount != null ? String(patchCount) : "—",
+      sub: patchCount != null ? "Updates in first 30 days" : "No update data",
+    });
+    return stats;
+  }, [latestWithOps, latestSnapshot, maxCcu, daysSinceLaunch, releaseDate, uniqueChannels, patchCount, reviewsPerDay, opsConfidence]);
 
-  /* ── Story sentence ── */
-  const storySentence = useMemo(() => {
-    if (!game || !latestSnapshot) return "";
-    const daysSinceLaunch = releaseDate ? daysBetween(releaseDate, new Date().toISOString().slice(0, 10)) : 0;
-    const maxCcu = snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
-    const parts: string[] = [`${game.title}${game.developer ? ` by ${game.developer}` : ""}`];
-    if (daysSinceLaunch > 0) parts.push(`launched ${daysSinceLaunch} days ago`);
-    if (latestSnapshot.review_count != null) {
-      let p = `with ${fmtNum(latestSnapshot.review_count)} reviews`;
-      if (latestSnapshot.review_score_pct != null) p += ` (${Math.round(latestSnapshot.review_score_pct)}% positive)`;
-      parts.push(p);
-    }
-    if (maxCcu > 0) parts.push(`and a peak of ${fmtNum(maxCcu)} concurrent players`);
-    return parts.join(" ") + ".";
-  }, [game, latestSnapshot, releaseDate, snapshots]);
+  /* ── Chart data (zoom-windowed) ── */
+  const chartData = useMemo(() => {
+    if (snapshots.length === 0) return snapshots;
+    if (zoom === "all") return snapshots;
+    const windowDays = zoom === "7d" ? 7 : 30;
+    const lastDay = snapshots[snapshots.length - 1].day_index;
+    const minDay = lastDay - windowDays;
+    return snapshots.filter((s) => s.day_index >= minDay);
+  }, [snapshots, zoom]);
 
-  /* ── Receipts rows (milestone snapshots) ── */
-  const receiptRows = useMemo(() => {
-    if (snapshots.length === 0) return [];
-    const milestones = [0, 7, 14, 30, 60, 90];
-    const usedDates = new Set<string>();
-    const rows: TimelineSnapshot[] = [];
-
-    for (const m of milestones) {
-      let closest: TimelineSnapshot | null = null;
-      let bestDist = Infinity;
-      for (const s of snapshots) {
-        const dist = Math.abs(s.day_index - m);
-        if (dist < bestDist) { bestDist = dist; closest = s; }
-      }
-      if (closest && bestDist <= 3 && !usedDates.has(closest.date)) {
-        rows.push(closest);
-        usedDates.add(closest.date);
-      }
-    }
-    const latest = snapshots[snapshots.length - 1];
-    if (latest && !usedDates.has(latest.date)) rows.push(latest);
-
-    return rows.sort((a, b) => a.day_index - b.day_index);
-  }, [snapshots]);
-
-  /* ── OPS radar + sandbox (MUST be before early returns) ── */
-  const radarData = useMemo(() => {
-    if (!latestWithOps) return null;
-    const comps = [
-      { label: "Velocity",  value: latestWithOps.velocity_component,  max: 5.0 },
-      { label: "Decay",     value: latestWithOps.decay_component,     max: 2.0 },
-      { label: "Reviews",   value: latestWithOps.review_component,    max: 5.0 },
-      { label: "YouTube",   value: latestWithOps.youtube_component,   max: 2.0 },
-      { label: "CCU",       value: latestWithOps.ccu_component,       max: 5.0 },
-      { label: "Sentiment", value: latestWithOps.sentiment_component, max: 2.0 },
-      { label: "Twitch",    value: latestWithOps.twitch_component,    max: 3.0 },
-    ];
-    if (!comps.some((c) => c.value != null && c.value > 0)) return null;
-    return comps.map((c) => ({
-      axis: c.label,
-      score: c.value != null && c.max > 0 ? Math.min(100, Math.round((c.value / c.max) * 100)) : 0,
-      peer: 50,
-    }));
-  }, [latestWithOps]);
-
-  const ytVideoCount = data?.videos?.length ?? 0;
-
-  const sandboxScore = useMemo(() => {
-    if (!latestWithOps) return null;
-    return computeOps(
-      {
-        velocity:  latestWithOps.velocity_component  ?? null,
-        decay:     latestWithOps.decay_component     ?? null,
-        reviews:   latestWithOps.review_component    ?? null,
-        youtube:   latestWithOps.youtube_component   ?? null,
-        ccu:       latestWithOps.ccu_component       ?? null,
-        sentiment: latestWithOps.sentiment_component ?? null,
-        twitch:    latestWithOps.twitch_component    ?? null,
-      },
-      sandboxWeights,
-    );
-  }, [latestWithOps, sandboxWeights]);
-
-  /* ── Shared chart props ── */
-  const gridProps = { stroke: C.border, strokeDasharray: "2 4", vertical: false };
-  const xAxisProps = {
-    dataKey: "date",
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
-    tickLine: false,
-    axisLine: { stroke: C.border },
-    tickFormatter: (v: string) => fmtDate(v),
-    interval: Math.max(1, Math.floor(snapshots.length / 12)),
-  };
-  const yAxisStyle = {
-    tick: { fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" },
-    tickLine: false, axisLine: false, width: 50,
-  };
-
-  const renderPhaseBands = () =>
-    phases.map((p) => (
-      <ReferenceArea
-        key={p.id} x1={p.start_date} x2={p.end_date}
-        fill={PHASE_BAND_COLORS[p.id] || "transparent"} fillOpacity={1} ifOverflow="extendDomain"
-      />
-    ));
-
-  const renderEventLines = (showIcons: boolean) =>
-    events.map((e, i) => (
-      <ReferenceLine
-        key={`ev-${i}`} x={e.date}
-        stroke={EVENT_COLORS[e.type] || C.dim} strokeDasharray="3 3" strokeOpacity={0.4}
-        label={showIcons ? { value: eventShape(e.type), position: "top", fill: EVENT_COLORS[e.type] || C.dim, fontSize: 14, fontFamily: "'JetBrains Mono', monospace" } : undefined}
-      />
-    ));
-
+  const hasOps = snapshots.some((s) => s.ops_score != null);
   const todayDate = new Date().toISOString().slice(0, 10);
 
-  const handleBrushChange = useCallback((range: any) => {
-    if (range?.startIndex != null && range?.endIndex != null) {
-      setBrushRange({ startIndex: range.startIndex, endIndex: range.endIndex });
+  /* ── YouTube videos with impact derivation ── */
+  const creatorCards = useMemo(() => {
+    if (!data?.videos || snapshots.length === 0) return [];
+    const latestReviews = latestSnapshot?.review_count ?? 0;
+    return data.videos
+      .filter((v) => v.published_at)
+      .map((v) => {
+        const pubDate = v.published_at!.slice(0, 10);
+        const findSnap = (offset: number) => {
+          const d = new Date(pubDate + "T00:00:00Z");
+          d.setUTCDate(d.getUTCDate() + offset);
+          const target = d.toISOString().slice(0, 10);
+          let best: TimelineSnapshot | null = null;
+          let bestDist = Infinity;
+          for (const s of snapshots) {
+            const dist = Math.abs(daysBetween(s.date, target));
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = s;
+            }
+          }
+          return best;
+        };
+        const before = findSnap(-7);
+        const after = findSnap(7);
+        const rawDelta = (after?.review_count ?? 0) - (before?.review_count ?? 0);
+        const impact = latestReviews > 0
+          ? Math.max(0, Math.min(100, Math.round((rawDelta / Math.max(1, latestReviews)) * 300)))
+          : 0;
+        const tierCls =
+          impact >= 70 ? "status-pos" : impact >= 40 ? "status-warn" : "status-info";
+        return {
+          video_id: v.video_id,
+          channel_name: v.channel_name || "Unknown",
+          subscriber_count: v.subscriber_count ?? 0,
+          title: v.title,
+          published_at: pubDate,
+          view_count: v.view_count ?? 0,
+          review_delta: rawDelta,
+          impact,
+          tierCls,
+          covers: v.covers,
+          day_index: releaseDate ? daysBetween(releaseDate, pubDate) : 0,
+        };
+      })
+      .sort((a, b) => b.impact - a.impact);
+  }, [data?.videos, snapshots, latestSnapshot, releaseDate]);
+
+  /* ── Events grouping ── */
+  const eventGroups = useMemo(() => groupEvents(events), [events]);
+
+  /* ── Community stats ── */
+  const latestTwitchViewers = useMemo(() => {
+    for (let i = snapshots.length - 1; i >= 0; i--) {
+      if (snapshots[i].twitch_viewers != null) return snapshots[i].twitch_viewers;
     }
+    return null;
+  }, [snapshots]);
+
+  const latestTwitchStreams = useMemo(() => {
+    for (let i = snapshots.length - 1; i >= 0; i--) {
+      if (snapshots[i].twitch_streams != null) return snapshots[i].twitch_streams;
+    }
+    return null;
+  }, [snapshots]);
+
+  const peakTwitch = useMemo(() => {
+    return snapshots.reduce((mx, s) => Math.max(mx, s.twitch_viewers ?? 0), 0);
+  }, [snapshots]);
+
+  const redditCount = data?.reddit_mentions?.length ?? 0;
+  const redditTopUpvotes = useMemo(() => {
+    if (!data?.reddit_mentions?.length) return 0;
+    return data.reddit_mentions.reduce((mx, r) => Math.max(mx, r.score ?? 0), 0);
+  }, [data?.reddit_mentions]);
+
+  /* ── Scrollspy for section nav ── */
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
+
+  useEffect(() => {
+    if (loading || error) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id as SectionId);
+          }
+        }
+      },
+      { rootMargin: "-40% 0px -55% 0px", threshold: 0 },
+    );
+    for (const id of SECTION_IDS) {
+      const el = sectionRefs.current[id];
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [loading, error]);
+
+  const setSectionRef = useCallback((id: SectionId) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
   }, []);
 
-  /* ── Loading / Error states ── */
+  /* ── Loading / Error ── */
   if (loading) {
     return (
       <div className="bg-background-dark min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="font-mono text-sm text-primary mb-2">Loading signal trace…</div>
-          <div className="font-mono text-xs text-text-dim">Fetching data for app {appid}</div>
-        </div>
+        <div className="font-mono text-xs text-text-dim tracking-[2px]">LOADING SIGNAL TRACE…</div>
       </div>
     );
   }
@@ -1004,786 +671,651 @@ export default function TheAutopsy() {
     return (
       <div className="bg-background-dark min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-bold text-primary mb-2">Game Not Found</div>
-          <div className="font-mono text-xs text-text-dim">{error || "No data available for this game."}</div>
-          <Link to="/browse" className="font-mono inline-block mt-5 text-xs text-primary underline">
-            Back to Browse
-          </Link>
+          <div className="text-xl font-bold text-primary mb-2">Game Not Found</div>
+          <div className="font-mono text-xs text-text-dim mb-4">{error ?? "No data available."}</div>
+          <Link to="/" className="font-mono text-xs text-secondary hover:underline">← Back to Database</Link>
         </div>
       </div>
     );
   }
 
-  if (snapshots.length === 0) {
-    return (
-      <div className="bg-background-dark min-h-screen text-text-main px-10 py-8">
-        <style>{styleTag}</style>
-        <div className="font-mono text-[10px] text-primary uppercase tracking-[2px] mb-1">Signal Trace</div>
-        <h1 className="font-serif text-2xl font-bold mb-1">{game.title}</h1>
-        <div className="font-mono text-xs text-text-dim mb-6">{game.developer || "Unknown developer"}</div>
-        <div className="bg-surface-dark border border-border-dark rounded-md p-10 text-center">
-          <div className="text-text-dim text-base">No snapshot data yet</div>
-          <div className="font-mono text-xs text-text-dim mt-2">
-            Timeline data will appear after the first daily snapshot collection.
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const watched = isWatched(game.appid);
+  const inCompare = isInCompare(game.appid);
+  const canAddToCompare = canAddCompare || inCompare;
 
-  /* ── Computed display values ── */
-  const hasOpsData = snapshots.some((s) => s.ops_score != null);
-  const maxCcu = snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
-  const daysSinceLaunch = releaseDate ? daysBetween(releaseDate, todayDate) : null;
-  const opsScore = latestWithOps?.ops_score ?? 0;
-  const verdict = buildVerdict(latestSnapshot, latestWithOps, creatorImpacts);
+  const coverInitials = game.title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("") || "??";
 
-  const opsComponents = latestWithOps
-    ? [
-        { label: "VELOCITY", value: latestWithOps.velocity_component, max: 5.0 },
-        { label: "DECAY",    value: latestWithOps.decay_component,    max: 2.0 },
-        { label: "REVIEWS",  value: latestWithOps.review_component,   max: 5.0 },
-        { label: "YOUTUBE",  value: latestWithOps.youtube_component,  max: 1.8 },
-        { label: "CCU",      value: latestWithOps.ccu_component,      max: 5.0 },
-      ]
-    : [];
-
-  /* ── Stat cards ── */
-  const statCards = [
-    {
-      label: "Reviews",
-      value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—",
-      sub: reviewDelta7d != null && reviewDelta7d > 0 ? `+${fmtNum(reviewDelta7d)} this week` : null,
-      borderColor: "#802626",
-    },
-    {
-      label: "Velocity",
-      value: latestVelocity != null ? `${latestVelocity.toFixed(1)}/day` : "—",
-      sub: latestVelocity != null ? "3-day rolling avg" : null,
-      borderColor: "#5ec269",
-    },
-    {
-      label: "Peak CCU",
-      value: maxCcu > 0 ? fmtNum(maxCcu) : "—",
-      sub: (() => {
-        const cur = latestSnapshot?.peak_ccu;
-        if (!cur || !maxCcu || cur >= maxCcu) return null;
-        return `→ ${fmtNum(cur)} current`;
-      })(),
-      borderColor: "#b07db2",
-    },
-    {
-      label: "Sentiment",
-      value: latestSnapshot?.review_score_pct != null ? `${Math.round(latestSnapshot.review_score_pct)}%` : "—",
-      sub: (() => {
-        const pct = latestSnapshot?.review_score_pct ?? null;
-        const demo = latestSnapshot?.demo_review_score_pct ?? null;
-        if (pct == null || demo == null) return pct != null ? getSteamRating(pct).label : null;
-        const diff = Math.round(pct - demo);
-        return `${diff >= 0 ? "+" : ""}${diff} vs demo`;
-      })(),
-      borderColor: "#6b9ddb",
-    },
-  ];
-
-  /* ================================================================
+  /* ============================================================
      RENDER
-     ================================================================ */
+     ============================================================ */
+
   return (
-    <div className="bg-background-dark min-h-screen text-text-main">
-      <style>{styleTag}</style>
+    <>
+      {/* Breadcrumb */}
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-2 px-4 md:px-6 xl:px-10 py-3 text-xs text-text-dim"
+      >
+        <Link to="/" className="hover:text-text-main transition-colors">Database</Link>
+        <span aria-hidden="true" className="opacity-50">/</span>
+        <span aria-current="page" className="text-text-mid truncate max-w-[60vw]">{game.title}</span>
+      </nav>
 
-      {/* ── Breadcrumb ── */}
-      <div className="px-10 py-3.5 font-mono text-[11px] tracking-[1.5px] text-text-dim uppercase">
-        <Link to="/browse" className="text-text-mid hover:text-secondary transition-colors">← BROWSE</Link>
-        {" · "}
-        <span>{game.title}</span>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════
-          HERO: 2-column — title/verdict left, OPS sidecar right
-      ══════════════════════════════════════════════════════════ */}
-      <section className="max-w-[1200px] mx-auto px-10 pb-9 grid md:grid-cols-[1fr_320px] gap-10 items-start border-b border-border-dark autopsy-stagger-1">
-
-        {/* Left column */}
-        <div>
-          <h1 className="font-serif text-3xl font-bold leading-[1.05] mb-2 tracking-tight">
-            {game.title}
-          </h1>
-          <div className="font-mono text-xs tracking-[2px] text-text-mid uppercase mb-7">
-            {[
-              game.developer,
-              game.price_usd != null ? (game.price_usd === 0 ? "Free" : `$${game.price_usd.toFixed(2)}`) : null,
-              daysSinceLaunch != null ? `Day ${daysSinceLaunch} since launch` : null,
-              game.has_demo ? "Demo available" : null,
-            ].filter(Boolean).join(" · ")}
-          </div>
-
-          {/* Steam tags strip */}
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-6">
-              {tags.slice(0, 8).map((t) => (
-                <span key={t} className="font-mono text-[9px] px-1.5 py-0.5 rounded border border-border-dark text-text-dim bg-white/[0.04]">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Streamer Verdict card */}
-          <div
-            className="rounded-lg relative"
-            style={{
-              padding: "22px 26px",
-              background: "linear-gradient(135deg, rgba(94,194,105,0.08), rgba(94,194,105,0.02))",
-              border: "1px solid rgba(94,194,105,0.25)",
-              borderLeft: "4px solid #5ec269",
-            }}
-          >
-            <div className="font-mono text-[10px] tracking-[2.5px] text-status-pos mb-2.5 flex items-center gap-2">
-              <span className="text-[9px]">▶</span> STREAMER VERDICT
-            </div>
-            <h2 className="font-serif text-[22px] font-bold leading-[1.3] mb-3.5 text-text-main">
-              {verdict.headline}
-            </h2>
-            {verdict.bullets.length > 0 && (
-              <ul className="grid sm:grid-cols-2 gap-2.5 list-none mb-0">
-                {verdict.bullets.map((b, i) => (
-                  <li key={i} className="text-sm text-text-main flex items-start gap-2 leading-relaxed py-1.5">
-                    <span className="text-status-pos font-bold flex-shrink-0">✓</span>
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="flex gap-3 mt-4 pt-4 border-t border-border-dark flex-wrap">
-              <a
-                href={`https://store.steampowered.com/app/${game.appid}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded bg-primary text-white uppercase font-bold hover:bg-primary-light transition-colors"
-              >
-                ▸ Open on Steam
-              </a>
-              <a
-                href={`https://store.steampowered.com/app/${game.appid}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border border-border-dark text-text-mid uppercase font-bold hover:border-text-dim transition-colors"
-              >
-                ★ Wishlist
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Right column — OPS sidecar */}
-        <aside className="bg-surface-dark border border-border-dark rounded-[10px] p-6 autopsy-stagger-2">
-          <div className="font-mono text-[10px] tracking-[2px] text-text-dim uppercase mb-2.5">
-            OPS Breakdown
-          </div>
-
-          {opsScore > 0 ? (
-            <>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-base font-bold" style={{ color: opsScoreColor(opsScore) }}>
-                  {opsScoreGlyph(opsScore)}
-                </span>
-                <span
-                  className="font-mono text-[56px] font-bold leading-none"
-                  style={{ color: opsScoreColor(opsScore) }}
-                >
-                  {Math.round(opsScore)}
-                </span>
-                <span className="font-mono text-sm text-text-dim">/ 100</span>
-              </div>
-              <div className="font-mono text-[11px] tracking-[1.5px] mb-3.5" style={{ color: opsScoreColor(opsScore) }}>
-                {opsScoreTier(opsScore)}
-                {opsMomentum.arrow && (
-                  <span className="ml-2 text-text-dim">{opsMomentum.arrow} {opsMomentum.label}</span>
-                )}
-              </div>
-
-              {/* Percentile bar */}
-              <div className="w-full h-1 bg-border-dark rounded overflow-hidden mb-1.5">
-                <div
-                  className="h-full rounded"
-                  style={{ width: `${opsScore}%`, background: opsScoreColor(opsScore) }}
-                />
-              </div>
-              <div className="font-mono text-[10px] text-text-dim tracking-[1px] mb-4 uppercase">
-                Score within 0–100 range
-              </div>
-
-              {/* Component bars */}
-              {opsComponents.length > 0 && (
-                <div className="flex flex-col gap-2" role="list" aria-label="OPS component breakdown">
-                  {opsComponents.map((comp) => {
-                    const pct = comp.value != null ? Math.min(100, (comp.value / comp.max) * 100) : 0;
-                    return (
-                      <div key={comp.label} className="grid grid-cols-[70px_1fr_40px] gap-2 items-center font-mono text-[10px]" role="listitem">
-                        <span className="text-text-mid tracking-[1px]">{comp.label}</span>
-                        <div className="h-1 bg-border-dark rounded overflow-hidden">
-                          <div
-                            className="h-full rounded"
-                            style={{ width: `${pct}%`, background: compBarColor(pct) }}
-                          />
-                        </div>
-                        <span className="text-right text-text-main">
-                          {comp.value != null ? comp.value.toFixed(1) : "—"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {latestWithOps?.ops_confidence && (
-                <div className="mt-3 pt-3 border-t border-border-dark font-mono text-[10px] text-text-dim">
-                  Confidence: <span className="text-text-mid">{latestWithOps.ops_confidence}</span>
-                  {" · "} Formula v5
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-text-dim text-sm italic">No OPS score yet</div>
-          )}
-        </aside>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          4 STAT CARDS
-      ══════════════════════════════════════════════════════════ */}
-      <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-          {statCards.map((card) => (
-            <div
-              key={card.label}
-              className="px-4 py-3.5 rounded"
-              style={{
-                background: "#1f1f22",
-                borderLeft: `3px solid ${card.borderColor}`,
-              }}
-            >
-              <div className="font-mono text-[9px] tracking-[2px] text-text-dim uppercase mb-1">
-                {card.label}
-              </div>
-              <div className="font-mono text-[22px] font-bold leading-tight text-text-main">
-                {card.value}
-              </div>
-              {card.sub && (
-                <div className="font-mono text-[11px] mt-0.5" style={{ color: "#5ec269" }}>
-                  {card.sub}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          SIGNAL TRACE — Charts
-      ══════════════════════════════════════════════════════════ */}
-      <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-3">
-        <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">Signal trace</p>
-        <h2 className="font-serif text-[32px] font-bold mb-3 tracking-tight">The shape of its breakout</h2>
-        <p className="text-sm text-text-mid mb-7 max-w-[680px] leading-[1.55]">{storySentence}</p>
-
-        {/* Series toggle pills */}
-        <div className="flex gap-2 flex-wrap mb-4 items-center">
-          {SERIES.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => toggleSeries(s.key)}
-              className="font-mono text-[10px] px-3 py-1 rounded transition-colors"
-              style={{
-                border: `1px solid ${visibleSeries[s.key] ? s.color : C.border}`,
-                background: visibleSeries[s.key] ? `${s.color}20` : "transparent",
-                color: visibleSeries[s.key] ? s.color : C.dim,
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Panel 1: OPS */}
-        {hasOpsData && (
-          <div className="bg-surface-dark border border-border-dark rounded-md mb-2 px-3 pt-4 pb-2">
-            <div className="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-2 pl-2">
-              OPS Score
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <ComposedChart data={chartData} syncId="signal" margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid {...gridProps} />
-                {renderPhaseBands()}
-                <XAxis {...xAxisProps} hide />
-                <YAxis {...yAxisStyle} tickFormatter={(v: number) => v.toFixed(1)} />
-                <Tooltip content={(props: any) => <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />} cursor={{ stroke: C.dim, strokeDasharray: "3 3" }} />
-                {renderEventLines(true)}
-                <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" label={{ value: "Today", fill: C.dim, fontSize: 10, position: "top" }} />
-                {visibleSeries.raw_ops && (
-                  <Line dataKey="raw_ops" stroke={C.ops} strokeWidth={2.5} dot={false} connectNulls activeDot={{ r: 4, fill: C.ops, stroke: C.bg, strokeWidth: 2 }} />
-                )}
-              </ComposedChart>
-            </ResponsiveContainer>
-            {events.length > 0 && (
-              <div className="flex gap-1 flex-wrap px-2 pt-1.5 pb-1 border-t border-border-dark">
-                {events.map((e, i) => (
-                  <button
-                    key={i}
-                    className="autopsy-event-flag font-mono text-[10px] px-1.5 py-0.5 rounded"
-                    onClick={() => setSelectedEvent(e)}
-                    title={e.title}
-                    style={{
-                      background: `${EVENT_COLORS[e.type] || C.dim}18`,
-                      border: `1px solid ${(EVENT_COLORS[e.type] || C.dim)}40`,
-                      color: EVENT_COLORS[e.type] || C.dim,
-                    }}
-                  >
-                    {eventShape(e.type)} D{e.day_index}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Panel 2: Reviews + CCU */}
-        <div className="bg-surface-dark border border-border-dark rounded-md mb-2 px-3 pt-4 pb-2">
-          <div className="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-2 pl-2">
-            Reviews + Concurrent Players
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <ComposedChart data={chartData} syncId="signal" margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid {...gridProps} />
-              {renderPhaseBands()}
-              <XAxis {...xAxisProps} hide />
-              <YAxis yAxisId="reviews" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <YAxis yAxisId="ccu" orientation="right" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <Tooltip content={(props: any) => <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />} cursor={{ stroke: C.dim, strokeDasharray: "3 3" }} />
-              {renderEventLines(false)}
-              <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" yAxisId="reviews" />
-              {visibleSeries.peak_ccu && (
-                <Area dataKey="peak_ccu" yAxisId="ccu" stroke={C.ccu} fill={C.ccu} fillOpacity={0.12} strokeWidth={1.5} connectNulls dot={snapshots.filter(s => s.peak_ccu != null).length <= 3 ? { r: 3, fill: C.ccu } : false} />
-              )}
-              {visibleSeries.review_count && (
-                <Line dataKey="review_count" yAxisId="reviews" stroke={C.reviews} strokeWidth={2} connectNulls dot={snapshots.filter(s => s.review_count != null).length <= 3 ? { r: 3, fill: C.reviews } : false} activeDot={{ r: 3, fill: C.reviews, stroke: C.bg, strokeWidth: 2 }} />
-              )}
-              {visibleSeries.demo_review_count && (
-                <Line dataKey="demo_review_count" yAxisId="reviews" stroke="#22d3ee" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
-              )}
-              {visibleSeries.review_velocity && (
-                <Line dataKey="review_velocity" yAxisId="ccu" stroke="#f97316" strokeWidth={1.5} dot={false} connectNulls strokeDasharray="4 2" activeDot={{ r: 3, fill: "#f97316", stroke: C.bg, strokeWidth: 2 }} />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Panel 3: Score % + YT Views */}
-        <div className="bg-surface-dark border border-border-dark rounded-md px-3 pt-4 pb-2">
-          <div className="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-2 pl-2">
-            Review Sentiment + YouTube Views
-          </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <ComposedChart data={chartData} syncId="signal" margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid {...gridProps} />
-              {renderPhaseBands()}
-              <XAxis {...xAxisProps} />
-              <YAxis yAxisId="score" {...yAxisStyle} domain={[0, 100]} tickFormatter={(v: number) => v + "%"} />
-              <YAxis yAxisId="ytviews" orientation="right" {...yAxisStyle} tickFormatter={(v: number) => fmtNum(v)} />
-              <Tooltip content={(props: any) => <AutopsyTooltip {...props} visibleSeries={visibleSeries} events={events} />} cursor={{ stroke: C.dim, strokeDasharray: "3 3" }} />
-              {visibleSeries.review_score_pct && (
-                <>
-                  <ReferenceArea yAxisId="score" y1={95} y2={100} fill="#22c55e" fillOpacity={0.04} />
-                  <ReferenceArea yAxisId="score" y1={80} y2={95} fill="#22c55e" fillOpacity={0.03} />
-                  <ReferenceArea yAxisId="score" y1={70} y2={80} fill="#86efac" fillOpacity={0.02} />
-                  <ReferenceLine yAxisId="score" y={80} stroke="#22c55e" strokeDasharray="8 6" strokeOpacity={0.25} label={{ value: "Very Positive", fill: "#22c55e", fontSize: 8, position: "insideTopLeft", fontFamily: "'JetBrains Mono', monospace" }} />
-                </>
-              )}
-              {renderEventLines(false)}
-              <ReferenceLine x={todayDate} stroke={C.dim} strokeDasharray="6 3" yAxisId="score" />
-              {visibleSeries.review_score_pct && (
-                <Line dataKey="review_score_pct" yAxisId="score" stroke={C.score} strokeWidth={2} connectNulls dot={snapshots.filter(s => s.review_score_pct != null).length <= 3 ? { r: 3, fill: C.score } : false} activeDot={{ r: 3, fill: C.score, stroke: C.bg, strokeWidth: 2 }} />
-              )}
-              {visibleSeries.yt_cumulative_views && (
-                <Area dataKey="yt_cumulative_views" yAxisId="ytviews" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.08} strokeWidth={1.5} dot={false} connectNulls />
-              )}
-              <Brush dataKey="date" height={28} stroke={C.border} fill={C.bg} tickFormatter={(v: string) => fmtDate(v)} onChange={handleBrushChange} />
-            </ComposedChart>
-          </ResponsiveContainer>
-          {visibleSeries.yt_cumulative_views && (
-            <div className="font-mono text-[9px] text-text-dim px-2 pt-1 opacity-60">
-              YT views are cumulative snapshots — step pattern reflects periodic collection.
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          RECEIPTS TABLE — Snapshot history
-      ══════════════════════════════════════════════════════════ */}
-      <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-3">
-        <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">Track record</p>
-        <h2 className="font-serif text-[32px] font-bold mb-3 tracking-tight">Snapshot history</h2>
-        <p className="text-sm text-text-mid mb-7 max-w-[680px] leading-[1.55]">
-          Key milestones from launch to today — reviews, sentiment, and OPS at each checkpoint.
-        </p>
-
-        <div className="bg-surface-dark border border-border-dark rounded-lg overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-[100px_1fr_110px_110px_90px] gap-4 px-5 py-3.5 bg-[#1f1f22] font-mono text-[10px] tracking-[2px] text-text-dim uppercase border-b border-border-dark">
-            <span>Date</span>
-            <span>Event</span>
-            <span className="text-right">Reviews</span>
-            <span className="text-right">Sentiment</span>
-            <span className="text-right">OPS</span>
-          </div>
-
-          {receiptRows.map((s, idx) => {
-            const eventsOnDay = events.filter((e) => e.date === s.date);
-            const isLatest = idx === receiptRows.length - 1;
-            const eventNote = eventsOnDay.length > 0
-              ? eventsOnDay.map((e) => e.title).join(", ")
-              : s.day_index === 0
-              ? "Game launched"
-              : isLatest
-              ? "Latest snapshot"
-              : "—";
-
+      {/* Mobile section nav pill bar */}
+      <nav
+        className="md:hidden sticky top-[57px] z-40 bg-surface-dark border-b border-border-dark px-4 py-2 overflow-x-auto"
+        aria-label="Page sections (mobile)"
+        style={{ scrollbarWidth: "none" }}
+      >
+        <ul className="flex gap-1 whitespace-nowrap list-none">
+          {SECTION_IDS.map((id) => {
+            const active = activeSection === id;
             return (
-              <div
-                key={s.date}
-                className="grid grid-cols-[100px_1fr_110px_110px_90px] gap-4 px-5 py-3.5 border-b border-border-dark text-sm items-center last:border-0"
-                style={isLatest ? { background: "rgba(94,194,105,0.05)" } : undefined}
-              >
-                <span className="font-mono text-[11px] text-text-mid">
-                  {fmtDate(s.date)} · D{s.day_index}
-                </span>
-                <span className="text-text-main text-sm truncate">{eventNote}</span>
-                <span className={`font-mono text-right ${s.review_count != null && s.review_count > 0 ? "text-text-main" : "text-text-dim"}`}>
-                  {s.review_count != null ? fmtNum(s.review_count) : "—"}
-                </span>
-                <span className={`font-mono text-right ${s.review_score_pct != null ? "text-text-main" : "text-text-dim"}`}>
-                  {s.review_score_pct != null ? `${Math.round(s.review_score_pct)}%` : "—"}
-                </span>
-                <span
-                  className="font-mono text-right font-bold"
-                  style={{ color: s.ops_score != null && s.ops_score > 0 ? opsScoreColor(s.ops_score) : C.dim }}
+              <li key={id}>
+                <a
+                  href={`#${id}`}
+                  className={
+                    "inline-flex items-center gap-1 px-3 py-2 rounded-full border text-xs font-medium transition-colors " +
+                    (active
+                      ? "text-secondary border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)]"
+                      : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.04]")
+                  }
                 >
-                  {s.ops_score != null && s.ops_score > 0 ? Math.round(s.ops_score) : "—"}
-                </span>
-              </div>
+                  <span aria-hidden="true">{SECTION_LABELS[id].icon}</span>
+                  {SECTION_LABELS[id].label}
+                </a>
+              </li>
             );
           })}
-        </div>
-      </section>
+        </ul>
+      </nav>
 
-      {/* ═══════════════════════════════════════════════════════
-          PHASE ANALYSIS
-      ══════════════════════════════════════════════════════════ */}
-      {phases.length > 0 && (
-        <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-4">
-          <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">Phase analysis</p>
-          <h2 className="font-serif text-[32px] font-bold mb-6 tracking-tight">Lifecycle breakdown</h2>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {phases.map((p) => {
-              const isActive = activePhase === p.id;
-              const accent = PHASE_ACCENT_COLORS[p.id] || C.dim;
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr] min-h-[calc(100vh-100px)]">
+        {/* Sidebar nav (desktop) */}
+        <nav
+          className="hidden md:block sticky top-[57px] h-[calc(100vh-57px)] border-r border-border-dark bg-surface-dark py-5 overflow-y-auto"
+          aria-label="Page sections"
+        >
+          <div className="text-xs font-semibold uppercase tracking-wider text-text-dim px-4 pb-3">
+            Sections
+          </div>
+          <ul className="list-none">
+            {SECTION_IDS.map((id) => {
+              const active = activeSection === id;
               return (
-                <div
-                  key={p.id}
-                  className="autopsy-phase-card flex-shrink-0 w-[200px] rounded-md p-3.5"
-                  style={{
-                    background: isActive ? `${accent}10` : C.surface,
-                    border: `1px solid ${isActive ? accent + "60" : C.border}`,
-                    borderTop: `3px solid ${accent}`,
-                  }}
-                >
-                  <div className="font-bold text-sm mb-1" style={{ color: accent }}>{p.label}</div>
-                  <div className="font-mono text-[10px] text-text-dim mb-2">
-                    {p.duration_days}d · Day {p.start_day}–{p.end_day}
-                  </div>
-                  <div className="font-mono text-[10px] text-text-main mb-1.5 leading-relaxed">{p.summary}</div>
-                  <div className="font-mono text-[9px] text-text-dim mb-1">
-                    <span style={{ color: accent }}>Signal:</span> {p.dominant_signal}
-                  </div>
-                  <div className="text-[10px] text-text-dim leading-relaxed italic border-t border-border-dark pt-1.5 mt-1.5">
-                    {p.insight}
-                  </div>
-                </div>
+                <li key={id}>
+                  <a
+                    href={`#${id}`}
+                    className={
+                      "flex items-center gap-2 px-4 py-2 text-sm border-l-2 transition-colors " +
+                      (active
+                        ? "text-text-main border-secondary bg-[rgba(187,113,37,0.05)]"
+                        : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.03]")
+                    }
+                  >
+                    <span aria-hidden="true" className="w-5 text-center">{SECTION_LABELS[id].icon}</span>
+                    {SECTION_LABELS[id].label}
+                  </a>
+                </li>
               );
             })}
-          </div>
-        </section>
-      )}
+          </ul>
+        </nav>
 
-      {/* ═══════════════════════════════════════════════════════
-          CREATOR IMPACT
-      ══════════════════════════════════════════════════════════ */}
-      <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-4">
-        <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">Creator impact</p>
-        <h2 className="font-serif text-[32px] font-bold mb-6 tracking-tight">YouTube coverage analysis</h2>
+        {/* MAIN CONTENT */}
+        <main id="main-content" className="p-4 md:p-6 xl:p-8 max-w-[960px]">
+          {/* OVERVIEW */}
+          <section
+            id="overview"
+            ref={setSectionRef("overview")}
+            className="mb-10 scroll-mt-20"
+          >
+            <div className="flex flex-col md:flex-row gap-5 mb-6 flex-wrap">
+              {/* Cover */}
+              <div
+                className="w-full max-w-[200px] md:w-40 md:max-w-none aspect-[4/5] bg-border-dark rounded-lg flex-shrink-0 flex items-center justify-center text-2xl text-text-dim overflow-hidden self-center md:self-start"
+                aria-hidden="true"
+              >
+                {game.header_image_url ? (
+                  <img
+                    src={game.header_image_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="font-mono">{coverInitials}</span>
+                )}
+              </div>
 
-        {creatorImpacts.length === 0 ? (
-          <div className="bg-surface-dark border border-border-dark rounded-md px-5 py-10 text-center">
-            <div className="text-text-dim text-sm">No YouTube coverage detected yet</div>
-            <div className="font-mono text-[11px] text-text-dim mt-2">
-              Creator impact data will appear when videos covering this game are found.
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Top creator hero card */}
-            {(() => {
-              const hero = creatorImpacts[0];
-              const velChange = hero.velocity_after - hero.velocity_before;
-              const velPct = hero.velocity_before > 0 ? Math.round((velChange / hero.velocity_before) * 100) : velChange > 0 ? 999 : 0;
-              return (
-                <div
-                  className="rounded-md mb-3 flex gap-6 items-stretch p-5"
-                  style={{
-                    background: `linear-gradient(135deg, ${C.surface} 0%, rgba(34,211,238,0.06) 100%)`,
-                    border: "1px solid rgba(34,211,238,0.25)",
-                    borderLeft: "4px solid #22d3ee",
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-[9px] uppercase tracking-[1.5px] text-[#22d3ee] mb-1.5">
-                      Breakout Catalyst
-                    </div>
-                    <div className="text-[22px] font-extrabold text-text-main mb-0.5">{hero.channel_name}</div>
-                    <div className="font-mono text-[11px] text-text-dim mb-2.5">
-                      {fmtNum(hero.subscriber_count)} subscribers · {fmtDate(hero.upload_date)}
-                    </div>
-                    <div className="font-mono text-[11px] text-text-main mb-2 overflow-hidden overflow-ellipsis whitespace-nowrap">
-                      "{hero.video_title}"
-                    </div>
-                    <p className="text-xs text-text-dim leading-relaxed max-w-[480px]">
-                      {hero.raw_review_delta > 0
-                        ? `Coverage drove +${hero.raw_review_delta} reviews in 7 days after upload${hero.shared_date ? " (attributed share)" : ""}${velPct > 0 ? `, accelerating velocity by ${Math.min(velPct, 999)}%` : ""}.`
-                        : "Highest measured impact of all covering channels."}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 grid grid-cols-2 gap-x-6 gap-y-3 self-center">
-                    {[
-                      { l: "Views", v: fmtNum(hero.view_count), c: C.white },
-                      { l: "Impact", v: String(hero.impact_score), c: hero.impact_score >= 70 ? C.ops : hero.impact_score >= 40 ? C.score : C.white },
-                      { l: "Rev +7d", v: `+${hero.reviews_after_7d - hero.reviews_before_7d}`, c: C.green },
-                      { l: "Velocity", v: `${velChange > 0 ? "+" : ""}${velChange.toFixed(1)}/d`, c: velChange > 0 ? C.green : C.dim },
-                    ].map(({ l, v, c }) => (
-                      <div key={l}>
-                        <div className="font-mono text-[8px] uppercase tracking-[1px] text-text-dim">{l}</div>
-                        <div className="font-mono text-xl font-bold" style={{ color: c }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+              {/* Title + badges + actions */}
+              <div className="flex-1 min-w-0">
+                <h1 className="font-serif text-2xl md:text-[2.375rem] font-bold leading-[1.15] mb-2">
+                  {game.title}
+                </h1>
+                <p className="text-sm text-text-mid mb-3">
+                  by{" "}
+                  {game.developer ? (
+                    <span className="text-[#c04040]">{game.developer}</span>
+                  ) : (
+                    <span>Unknown developer</span>
+                  )}
+                </p>
 
-            {/* Remaining creators table */}
-            {creatorImpacts.length > 1 && (
-              <div className="bg-surface-dark border border-border-dark rounded-md overflow-hidden">
-                <table className="w-full font-mono text-[11px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-border-dark">
-                      {["Creator", "Subs", "Video", "Date", "Views", "Rev ±", "Impact"].map((h) => (
-                        <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-[1px] text-text-dim font-normal">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {creatorImpacts.slice(1).map((c) => (
-                      <tr key={c.channel_name + c.upload_date} className="border-b border-border-dark">
-                        <td className="px-3 py-2">
-                          <span style={{ color: "#22d3ee" }}>{c.channel_name}</span>
-                          {c.shared_date && <span className="text-[8px] text-text-dim ml-1" title="Impact split by subs">*</span>}
-                        </td>
-                        <td className="px-3 py-2 text-text-dim">{fmtNum(c.subscriber_count)}</td>
-                        <td className="px-3 py-2 text-text-main max-w-[180px] overflow-hidden overflow-ellipsis whitespace-nowrap">{c.video_title}</td>
-                        <td className="px-3 py-2 text-text-dim">{fmtDate(c.upload_date)}</td>
-                        <td className="px-3 py-2 text-text-main">{fmtNum(c.view_count)}</td>
-                        <td className="px-3 py-2">
-                          <span className="text-text-dim">{c.reviews_before_7d}</span>
-                          <span style={{ color: C.green }}> +{c.reviews_after_7d - c.reviews_before_7d}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-11 h-1.5 bg-border-dark rounded overflow-hidden">
-                              <div
-                                className="h-full rounded"
-                                style={{ width: `${c.impact_score}%`, background: c.impact_score >= 70 ? C.ops : c.impact_score >= 40 ? C.score : C.dim }}
-                              />
-                            </div>
-                            <span className="text-text-dim text-[10px]">{c.impact_score}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="flex gap-2 px-3 py-1.5 border-t border-border-dark flex-wrap items-center">
-                  {creatorImpacts.map((c) => (
-                    <span
-                      key={c.channel_name + c.upload_date}
-                      className="font-mono text-[9px] px-2 py-0.5 rounded"
-                      style={{
-                        background: c.covers === "demo" ? "rgba(34,211,238,0.1)" : "rgba(128,38,38,0.1)",
-                        color: c.covers === "demo" ? "#22d3ee" : C.ccu,
-                        border: `1px solid ${c.covers === "demo" ? "#22d3ee30" : C.ccu + "30"}`,
-                      }}
-                    >
-                      {c.channel_name}: {c.covers.toUpperCase()}
+                <div className="flex gap-2 flex-wrap mb-4">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(163,106,165,0.3)] bg-[rgba(163,106,165,0.08)] text-tertiary">
+                    <span aria-hidden="true">{"\u{1F47B}"}</span> {subgenre}
+                  </span>
+                  {game.has_demo && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(107,157,219,0.3)] bg-[rgba(107,157,219,0.08)] text-status-info">
+                      <span aria-hidden="true">{"\u{1F579}"}</span> Demo Available
                     </span>
-                  ))}
-                  {creatorImpacts.some((c) => c.shared_date) && (
-                    <span className="font-mono text-[8px] text-text-dim ml-2">
-                      * Same-day uploads — delta split proportionally by subscriber count
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)] text-secondary">
+                    <span aria-hidden="true">{"\u{1F4B0}"}</span> {priceBadge(game.price_usd)}
+                  </span>
+                  {latestSnapshot?.review_score_pct != null && latestSnapshot.review_count != null && latestSnapshot.review_count >= 10 && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(94,194,105,0.3)] bg-[rgba(94,194,105,0.08)] text-status-pos">
+                      <span aria-hidden="true">{"\u2714"}</span> {getSteamRating(latestSnapshot.review_score_pct)}
                     </span>
                   )}
                 </div>
+
+                {/* Action row: Steam link + Watchlist + Compare */}
+                <div className="flex gap-2 flex-wrap">
+                  <a
+                    href={`https://store.steampowered.com/app/${game.appid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded bg-primary text-white uppercase font-bold hover:bg-primary-light transition-colors"
+                  >
+                    ▸ Open on Steam
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => toggleWatch(game.appid)}
+                    aria-pressed={watched}
+                    className={
+                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors " +
+                      (watched
+                        ? "border-[rgba(94,194,105,0.4)] bg-[rgba(94,194,105,0.08)] text-status-pos"
+                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
+                    }
+                  >
+                    {watched ? "★ Watching" : "☆ Watchlist"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleCompare(game.appid)}
+                    disabled={!canAddToCompare}
+                    aria-pressed={inCompare}
+                    className={
+                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
+                      (inCompare
+                        ? "border-[rgba(187,113,37,0.4)] bg-[rgba(187,113,37,0.08)] text-secondary"
+                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
+                    }
+                    title={!canAddToCompare ? "Compare limit reached" : undefined}
+                  >
+                    {inCompare ? "⊟ In Compare" : "⊞ Compare"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Overview stats grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              {overviewStats.map((stat) => (
+                <article
+                  key={stat.label}
+                  className="bg-surface-dark border border-border-dark rounded-lg p-4"
+                >
+                  <div className="text-xs text-text-dim uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
+                    <span className="text-sm" aria-hidden="true">{stat.icon}</span>
+                    {stat.label}
+                  </div>
+                  <div
+                    className={
+                      "font-mono text-xl font-semibold " +
+                      (stat.tone === "green"
+                        ? "text-status-pos"
+                        : stat.tone === "amber"
+                        ? "text-status-warn"
+                        : stat.tone === "neg"
+                        ? "text-status-neg"
+                        : "text-text-main")
+                    }
+                  >
+                    {stat.value}
+                  </div>
+                  {stat.sub && (
+                    <div className="text-xs text-text-dim mt-1 leading-snug">{stat.sub}</div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          {/* TIMELINE */}
+          <section id="timeline" ref={setSectionRef("timeline")} className="mb-10 scroll-mt-20">
+            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
+              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4C8}"}</span>
+              Timeline
+            </h2>
+
+            {snapshots.length === 0 ? (
+              <div className="bg-surface-dark border border-border-dark rounded-lg p-10 text-center">
+                <div className="text-text-dim text-sm">No snapshot data yet</div>
+                <div className="font-mono text-xs text-text-dim mt-2">
+                  Timeline populates after the first daily collection.
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="bg-surface-dark border border-border-dark rounded-lg p-5 mb-4">
+                  {/* Zoom controls */}
+                  <div
+                    className="flex items-center gap-3 mb-4 pb-3 border-b border-border-dark flex-wrap"
+                    role="group"
+                    aria-label="Zoom controls"
+                  >
+                    <span className="text-xs text-text-dim font-semibold flex items-center gap-1">
+                      <span aria-hidden="true">{"\u{1F50D}"}</span> Zoom
+                    </span>
+                    {(["7d", "30d", "all"] as ZoomRange[]).map((z) => (
+                      <button
+                        key={z}
+                        type="button"
+                        onClick={() => setZoom(z)}
+                        className={
+                          "font-mono text-xs px-3 py-1 rounded border transition-colors " +
+                          (zoom === z
+                            ? "text-secondary border-[rgba(187,113,37,0.4)] bg-[rgba(187,113,37,0.08)]"
+                            : "text-text-mid border-border-dark bg-white/[0.03] hover:text-text-main hover:border-text-dim")
+                        }
+                        aria-pressed={zoom === z}
+                      >
+                        {z === "7d" ? "7D" : z === "30d" ? "30D" : "All"}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="w-full h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={chartData}
+                        margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="opsTimelineGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#5ec269" stopOpacity={0.25} />
+                            <stop offset="100%" stopColor="#5ec269" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="#2a2420" strokeDasharray="2 4" vertical={false} />
+                        {phases.map((p) => {
+                          const startDate = snapshots.find((s) => s.day_index >= p.start_day)?.date;
+                          const endDate = [...snapshots].reverse().find((s) => s.day_index <= p.end_day)?.date;
+                          if (!startDate || !endDate) return null;
+                          return (
+                            <ReferenceArea
+                              key={p.id}
+                              x1={startDate}
+                              x2={endDate}
+                              fill={p.color}
+                              fillOpacity={0.06}
+                              stroke={p.color}
+                              strokeOpacity={0.15}
+                              ifOverflow="extendDomain"
+                              label={{
+                                value: p.label,
+                                position: "insideTopLeft",
+                                fill: p.color,
+                                fontSize: 10,
+                                fontFamily: "'JetBrains Mono', monospace",
+                              }}
+                            />
+                          );
+                        })}
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fill: "#918377", fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                          tickLine={false}
+                          axisLine={{ stroke: "#2a2420" }}
+                          tickFormatter={(v: string) => `D${daysBetween(releaseDate!, v)}`}
+                          interval={Math.max(0, Math.floor(chartData.length / 8))}
+                        />
+                        <YAxis
+                          tick={{ fill: "#918377", fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                          tickLine={false}
+                          axisLine={false}
+                          domain={[0, 100]}
+                          width={36}
+                        />
+                        <Tooltip
+                          content={<ChartTooltip />}
+                          cursor={{ stroke: "#918377", strokeDasharray: "3 3" }}
+                        />
+                        {hasOps && (
+                          <>
+                            <Area
+                              dataKey="ops_score"
+                              stroke="none"
+                              fill="url(#opsTimelineGrad)"
+                              connectNulls
+                              isAnimationActive={false}
+                            />
+                            <Line
+                              dataKey="ops_score"
+                              stroke="#5ec269"
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
+                              activeDot={{ r: 4, fill: "#5ec269", stroke: "#111314", strokeWidth: 2 }}
+                              isAnimationActive={false}
+                            />
+                          </>
+                        )}
+                        <ReferenceLine
+                          x={todayDate}
+                          stroke="#918377"
+                          strokeDasharray="6 3"
+                          label={{ value: "Today", fill: "#918377", fontSize: 10, position: "top" }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Phase cards */}
+                {phases.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {phases.map((p) => (
+                      <article
+                        key={p.id}
+                        className="bg-surface-dark border border-border-dark rounded-lg p-4"
+                      >
+                        <div
+                          className={"text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1 " + p.accentClass}
+                        >
+                          <span aria-hidden="true">{p.icon}</span>
+                          {p.label}
+                        </div>
+                        <div className="font-mono text-xs text-text-dim mb-2">{p.range}</div>
+                        <div className="text-xs text-text-mid leading-relaxed">{p.summary}</div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
+          {/* CREATOR IMPACT */}
+          <section id="creators" ref={setSectionRef("creators")} className="mb-10 scroll-mt-20">
+            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
+              <span className="text-secondary text-base" aria-hidden="true">{"\u25B6"}</span>
+              Creator Impact
+            </h2>
+
+            {creatorCards.length === 0 ? (
+              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
+                <div className="text-text-dim text-sm">No YouTube coverage detected yet</div>
+                <div className="font-mono text-xs text-text-dim mt-2">
+                  Creator cards appear when matched uploads are found.
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {creatorCards.slice(0, 9).map((c) => {
+                  const fillClass =
+                    c.tierCls === "status-pos"
+                      ? "bg-status-pos"
+                      : c.tierCls === "status-warn"
+                      ? "bg-status-warn"
+                      : "bg-status-info";
+                  const valueClass =
+                    c.tierCls === "status-pos"
+                      ? "text-status-pos"
+                      : c.tierCls === "status-warn"
+                      ? "text-status-warn"
+                      : "text-status-info";
+                  const initials =
+                    c.channel_name
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((w) => w[0]?.toUpperCase())
+                      .join("") || "?";
+                  return (
+                    <article
+                      key={c.video_id}
+                      className="bg-surface-dark border border-border-dark rounded-lg p-5 hover:border-[#3a342e] transition-colors"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-11 h-11 rounded-full bg-border-dark flex items-center justify-center text-sm font-semibold text-text-dim flex-shrink-0">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm truncate">{c.channel_name}</div>
+                          <div className="font-mono text-xs text-text-dim">
+                            {c.subscriber_count > 0 ? `${fmtNum(c.subscriber_count)} subscribers` : "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <p
+                        className="text-xs text-text-mid mb-3 leading-relaxed overflow-hidden"
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                        title={c.title}
+                      >
+                        <strong className="text-text-main font-medium">"{c.title}"</strong>
+                      </p>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xs text-text-dim font-semibold w-[50px] flex-shrink-0">
+                          Impact
+                        </span>
+                        <div
+                          className="flex-1 h-4 bg-white/[0.03] border border-border-dark rounded-sm overflow-hidden relative"
+                          role="progressbar"
+                          aria-valuenow={c.impact}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Impact score ${c.impact}`}
+                        >
+                          <div
+                            className={"absolute left-0 top-0 bottom-0 " + fillClass}
+                            style={{ width: `${Math.max(2, c.impact)}%`, opacity: 0.85 }}
+                          />
+                        </div>
+                        <span
+                          className={"font-mono text-sm font-semibold w-9 text-right " + valueClass}
+                        >
+                          {c.impact}
+                        </span>
+                      </div>
+                      <div className="font-mono text-[10px] text-text-dim mt-2">
+                        Day {c.day_index} · {fmtNum(c.view_count)} views
+                        {c.review_delta > 0 && (
+                          <span className="text-status-pos"> · +{c.review_delta} rev</span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
-          </>
-        )}
-      </section>
+          </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          OPS COMPONENT RADAR (when data available)
-      ══════════════════════════════════════════════════════════ */}
-      {radarData && (
-        <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-5">
-          <p className="font-mono text-[11px] tracking-[3px] text-primary uppercase mb-2">OPS anatomy</p>
-          <h2 className="font-serif text-[32px] font-bold mb-6 tracking-tight">Component radar</h2>
-          <div className="bg-surface-dark border border-border-dark rounded-md p-5 flex items-center gap-6">
-            <div className="flex-shrink-0 w-[200px]">
-              <div className="font-mono text-[9px] uppercase tracking-[1.5px] text-text-dim mb-1">
-                Each axis = normalised 0–100
-              </div>
-              <div className="font-mono text-[10px] text-text-dim leading-relaxed mb-3">
-                White ring = peer median (50).
-              </div>
-              <div className="flex flex-col gap-1">
-                {radarData.map((d) => (
-                  <div key={d.axis} className="flex justify-between font-mono text-[10px]">
-                    <span className="text-text-dim">{d.axis}</span>
-                    <span style={{ color: opsScoreColor(d.score) }}>{d.score}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <ResponsiveContainer width="100%" height={220}>
-                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                  <PolarGrid stroke={C.border} />
-                  <PolarAngleAxis dataKey="axis" tick={{ fill: C.dim, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} />
-                  <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Peer Median" dataKey="peer" stroke="rgba(255,255,255,0.2)" fill="rgba(255,255,255,0.04)" strokeDasharray="4 3" strokeWidth={1} dot={false} isAnimationActive={false} />
-                  <Radar name="This Game" dataKey="score" stroke={C.ops} fill={`${C.ops}25`} strokeWidth={2} dot={{ fill: C.ops, r: 3 }} isAnimationActive={false} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex-shrink-0 w-[240px] text-xs text-text-dim leading-relaxed border-l border-border-dark pl-5">
-              <div className="font-bold text-text-main mb-1">OPS v5 · 7 signals</div>
-              <p>Velocity (30%), Decay (20%), Review vol. (13%), YouTube (13%), CCU (10%), Sentiment (8%), Twitch (6%). NULL signals redistribute weight. Coverage penalty 0.40–1.00.</p>
-              <div className="mt-3 flex flex-col gap-1 font-mono text-[10px]">
-                <span><span style={{ color: "#5ec269" }}>▲</span> Breakout ≥60</span>
-                <span><span style={{ color: "#e8a832" }}>◆</span> Watch 30–59</span>
-                <span><span style={{ color: "#6b6058" }}>▼</span> Cold &lt;30</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+          {/* EVENTS */}
+          <section id="events" ref={setSectionRef("events")} className="mb-10 scroll-mt-20">
+            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
+              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4CB}"}</span>
+              Events Timeline
+            </h2>
 
-      {/* ═══════════════════════════════════════════════════════
-          OPS WEIGHT SANDBOX
-      ══════════════════════════════════════════════════════════ */}
-      {latestWithOps && (
-        <section className="max-w-[1200px] mx-auto px-10 py-12 border-b border-border-dark autopsy-stagger-5">
-          <button
-            onClick={() => setShowSandbox((v) => !v)}
-            className="font-mono text-[10px] px-3 py-1.5 rounded transition-colors mb-3"
-            style={{
-              border: `1px solid ${showSandbox ? C.ops : C.border}`,
-              background: showSandbox ? `${C.ops}15` : "transparent",
-              color: showSandbox ? C.ops : C.dim,
-            }}
-          >
-            {showSandbox ? "▲" : "▼"} Weight Sandbox
-          </button>
+            {eventGroups.length === 0 ? (
+              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
+                <div className="text-text-dim text-sm">No events tracked yet</div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {eventGroups.map((g) => {
+                  const expanded = expandedGroups[g.key] ?? true;
+                  return (
+                    <div key={g.key}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedGroups((prev) => ({ ...prev, [g.key]: !expanded }))
+                        }
+                        aria-expanded={expanded}
+                        aria-label={`${g.label} events, ${g.items.length} item${g.items.length === 1 ? "" : "s"}`}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-surface-dark border border-border-dark rounded-lg hover:bg-[#222224] transition-colors mb-2"
+                      >
+                        <div className={"flex items-center gap-2 text-sm font-semibold " + g.accentClass}>
+                          <span aria-hidden="true" className="text-base">{g.icon}</span>
+                          <span className="text-text-main">{g.label}</span>
+                        </div>
+                        <span className="font-mono text-xs text-text-dim bg-white/[0.03] py-[2px] px-2 rounded-full">
+                          {g.items.length} event{g.items.length === 1 ? "" : "s"}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className={
+                            "text-text-dim text-base transition-transform ml-2 " +
+                            (expanded ? "rotate-90" : "")
+                          }
+                        >
+                          ›
+                        </span>
+                      </button>
 
-          {showSandbox && (
-            <div
-              className="bg-surface-dark border border-border-dark rounded-md p-5 grid grid-cols-[1fr_auto] gap-4 items-start"
-            >
-              <div>
-                <div className="font-mono text-[9px] uppercase tracking-[1.5px] text-text-dim mb-3">
-                  Adjust component weights — see how OPS changes in real-time
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  {(Object.entries(sandboxWeights) as [keyof OpsWeights, number][]).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-2.5">
-                      <span className="font-mono text-[10px] text-text-dim capitalize w-16">{key}</span>
-                      <input
-                        type="range" min={0} max={0.6} step={0.01} value={val}
-                        onChange={(e) => setSandboxWeights((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-                        className="flex-1"
-                        style={{ accentColor: C.ops }}
-                      />
-                      <span className="font-mono text-[10px] text-text-main w-9 text-right">
-                        {(val * 100).toFixed(0)}%
-                      </span>
+                      {expanded && (
+                        <div className="flex flex-col gap-2 pl-4" role="list">
+                          {g.items.map((ev, i) => (
+                            <div
+                              key={`${g.key}-${i}`}
+                              role="listitem"
+                              className="flex items-start gap-3 px-4 py-3 bg-surface-dark border border-border-dark rounded-md text-sm"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={"w-2 h-2 rounded-full mt-[6px] flex-shrink-0 " + g.dotClass}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-text-main mb-[2px]">{ev.title}</div>
+                                <div className="text-xs text-text-dim flex gap-3 flex-wrap">
+                                  {ev.channel_name && <span>{ev.channel_name}</span>}
+                                  {ev.subscriber_count != null && <span>{fmtNum(ev.subscriber_count)} subs</span>}
+                                  {ev.view_count != null && <span>{fmtNum(ev.view_count)} views</span>}
+                                  {ev.subreddit && <span>r/{ev.subreddit}</span>}
+                                  {ev.score != null && <span>{fmtNum(ev.score)} upvotes</span>}
+                                  {ev.num_comments != null && <span>{ev.num_comments} comments</span>}
+                                  {ev.detail && !ev.channel_name && !ev.subreddit && <span>{ev.detail}</span>}
+                                </div>
+                              </div>
+                              <span className="font-mono text-xs text-text-dim whitespace-nowrap flex-shrink-0">
+                                Day {ev.day_index}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setSandboxWeights(DEFAULT_WEIGHTS)}
-                  className="font-mono text-[9px] mt-2.5 px-2.5 py-1 rounded border border-border-dark bg-transparent text-text-dim hover:text-text-main transition-colors"
-                >
-                  Reset to defaults
-                </button>
+                  );
+                })}
               </div>
+            )}
+          </section>
 
-              <div className="text-center min-w-[90px]">
-                <div className="font-mono text-[9px] uppercase tracking-[1.5px] text-text-dim mb-1.5">Sandbox OPS</div>
-                <div
-                  className="font-mono text-[40px] font-bold leading-none"
-                  style={{ color: sandboxScore != null ? opsScoreColor(sandboxScore) : C.dim }}
-                >
-                  {sandboxScore ?? "—"}
-                </div>
-                <div className="font-mono text-[9px] text-text-dim mt-1">
-                  vs actual{" "}
-                  <span style={{ color: C.ops }}>
-                    {latestWithOps?.ops_score != null ? Math.round(latestWithOps.ops_score) : "—"}
+          {/* COMMUNITY */}
+          <section id="community" ref={setSectionRef("community")} className="mb-10 scroll-mt-20">
+            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
+              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F465}"}</span>
+              Community Signals
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span aria-hidden="true" className="text-base">{"\u{1F4AC}"}</span>
+                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
+                    Reddit Mentions
                   </span>
                 </div>
-              </div>
+                <div className="font-mono text-xl font-semibold text-text-main mb-1">{redditCount}</div>
+                <div className="text-xs text-text-dim leading-snug">
+                  {redditCount === 0
+                    ? "No Reddit posts tracked yet."
+                    : `Posts across r/HorrorGaming, r/IndieGaming.${redditTopUpvotes > 0 ? ` Highest: ${fmtNum(redditTopUpvotes)} upvotes.` : ""}`}
+                </div>
+              </article>
+
+              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span aria-hidden="true" className="text-base">{"\u{1F4E2}"}</span>
+                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
+                    Steam Reviews
+                  </span>
+                </div>
+                <div className="font-mono text-xl font-semibold text-text-main mb-1">
+                  {latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—"}
+                </div>
+                <div className="text-xs text-text-dim leading-snug">
+                  {latestSnapshot?.review_score_pct != null
+                    ? `${Math.round(latestSnapshot.review_score_pct)}% positive — ${getSteamRating(latestSnapshot.review_score_pct)}.`
+                    : "Sentiment data not yet available."}
+                </div>
+              </article>
+
+              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span aria-hidden="true" className="text-base">{"\u{1F3A5}"}</span>
+                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
+                    Twitch Streams
+                  </span>
+                </div>
+                <div className="font-mono text-xl font-semibold text-text-main mb-1">
+                  {latestTwitchStreams != null ? latestTwitchStreams : "—"}
+                </div>
+                <div className="text-xs text-text-dim leading-snug">
+                  {peakTwitch > 0
+                    ? `Peak viewers: ${fmtNum(peakTwitch)}${latestTwitchViewers != null ? ` · now ${fmtNum(latestTwitchViewers)}` : ""}.`
+                    : "No Twitch activity tracked."}
+                </div>
+              </article>
+
+              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span aria-hidden="true" className="text-base">{"\u25B6"}</span>
+                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
+                    YouTube Reach
+                  </span>
+                </div>
+                <div className="font-mono text-xl font-semibold text-text-main mb-1">
+                  {data.videos.length > 0
+                    ? fmtNum(data.videos.reduce((s, v) => s + (v.view_count ?? 0), 0))
+                    : "—"}
+                </div>
+                <div className="text-xs text-text-dim leading-snug">
+                  {data.videos.length > 0
+                    ? `Cumulative views across ${uniqueChannels} creator${uniqueChannels === 1 ? "" : "s"}.`
+                    : "No videos matched yet."}
+                </div>
+              </article>
             </div>
-          )}
-        </section>
-      )}
-
-      {/* ── OPS peak note + YT video count footer ── */}
-      {hasOpsData && (opsPeak.score > 0 || ytVideoCount > 0) && (
-        <div className="max-w-[1200px] mx-auto px-10 py-8 flex gap-8 flex-wrap font-mono text-[11px] text-text-dim">
-          {opsPeak.score > 0 && (
-            <span>OPS peak: Day {opsPeak.day} at <span style={{ color: C.ops }}>{opsPeak.score}</span></span>
-          )}
-          {ytVideoCount > 0 && (
-            <span><span style={{ color: "#38bdf8" }}>{ytVideoCount}</span> YouTube videos tracked</span>
-          )}
-        </div>
-      )}
-
-      {/* ── Event Card Overlay ── */}
-      {selectedEvent && (
-        <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} />
-      )}
-    </div>
+          </section>
+        </main>
+      </div>
+    </>
   );
 }
