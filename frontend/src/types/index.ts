@@ -226,6 +226,26 @@ export interface RadarPickSummary {
   sentiment_pct: number | null;
 }
 
+export interface DeveloperGameItem {
+  appid: number;
+  title: string;
+  release_date: string | null;
+  price_usd: number | null;
+  header_image_url: string | null;
+  ops_score: number | null;
+  ops_confidence: string | null;
+}
+
+export interface DeveloperDetailOut {
+  developer_name: string;
+  total_games: number;
+  total_reviews: number;
+  avg_review_score: number | null;
+  best_game_appid: number | null;
+  computed_at: string | null;
+  games: DeveloperGameItem[];
+}
+
 export interface RadarPickResponse {
   appid: number;
   title: string;
