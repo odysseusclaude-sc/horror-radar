@@ -80,7 +80,7 @@ class OpsScoreOut(BaseModel):
     wishlist_bonus: float | None = None
     raw_ops: float | None = None
     price_modifier: float | None = None
-    formula_version: int | None = None
+    formula_version: str | None = None
 
     model_config = {"from_attributes": True}
 
