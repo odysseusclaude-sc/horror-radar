@@ -276,6 +276,8 @@ class TimelineSnapshotOut(BaseModel):
     decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
+    sentiment_component: float | None = None
+    twitch_component: float | None = None
     creator_response_component: float | None = None
     raw_ops: float | None = None
     twitch_viewers: int | None = None
