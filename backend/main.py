@@ -39,7 +39,7 @@ from collectors.youtube_tier2_discovery import run_tier2_discovery
 from collectors.metadata import backfill_subgenres
 from weekly_analysis import main as run_weekly_analysis
 from newsletter import run_newsletter
-from routers import games, channels, videos, runs, insights, radar, trends, health
+from routers import games, channels, videos, runs, insights, radar, trends, health, developers
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -472,4 +472,5 @@ app.include_router(runs.router)
 app.include_router(insights.router)
 app.include_router(radar.router)
 app.include_router(trends.router)
+app.include_router(developers.router)
 

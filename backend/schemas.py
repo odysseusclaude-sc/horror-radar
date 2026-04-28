@@ -276,6 +276,8 @@ class TimelineSnapshotOut(BaseModel):
     decay_component: float | None = None
     ccu_component: float | None = None
     youtube_component: float | None = None
+    sentiment_component: float | None = None
+    twitch_component: float | None = None
     creator_response_component: float | None = None
     raw_ops: float | None = None
     twitch_viewers: int | None = None
@@ -389,6 +391,27 @@ class RadarPickResponse(BaseModel):
     velocity_spark: list[RadarVelocitySpark] = []
     previous_picks: list[RadarPreviousPick] = []
     runners_up: list[RadarPickSummary] = []
+
+
+# --- Developer schemas ---
+
+class DeveloperGameItem(BaseModel):
+    appid: int
+    title: str
+    release_date: str | None = None
+    price_usd: float | None = None
+    header_image_url: str | None = None
+    ops_score: float | None = None
+    ops_confidence: str | None = None
+
+class DeveloperDetailOut(BaseModel):
+    developer_name: str
+    total_games: int = 0
+    total_reviews: int = 0
+    avg_review_score: float | None = None
+    best_game_appid: int | None = None
+    computed_at: str | None = None
+    games: list[DeveloperGameItem] = []
 
 
 # --- Health check ---

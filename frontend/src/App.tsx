@@ -6,6 +6,7 @@ import Autopsy from "./pages/game/ConceptA";
 import Trends from "./pages/Trends";
 import Compare from "./pages/Compare";
 import Pipeline from "./pages/Pipeline";
+import Developer from "./pages/Developer";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/game/:appid" element={<Autopsy />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/developers/:name" element={<Developer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
