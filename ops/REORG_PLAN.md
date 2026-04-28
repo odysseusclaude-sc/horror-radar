@@ -77,12 +77,20 @@ What's now in place:
   outside the Obsidian vault on purpose).
 - Three Lessons Learned entries appended to CLAUDE.md (rclone token leak,
   wrong-account OAuth, no-sudo VPS workarounds).
-- All committed on branch `ops/phase0-backup-system`, PR ready at
-  https://github.com/odysseusclaude-sc/horror-radar/pull/new/ops/phase0-backup-system
+- All committed on branch `ops/phase0-backup-system-v2`, merging via
+  https://github.com/odysseusclaude-sc/horror-radar/pull/9 (3 files, +415, MERGEABLE).
+  The original `ops/phase0-backup-system` branch was cut from `origin/main`
+  by mistake, which made its PR (#8) show 1,296 files / +154 769 — closed
+  in favour of #9. See "Lessons learned from Phase 0" below.
 
-Optional check NOT yet done: a real restore drill (decompress today's Drive
-backup on Mac, point a local FastAPI at it, hit `/api/games?limit=5`,
-confirm real data). Worth doing before Phase 1.
+Restore drill: **DONE 2026-04-29**. Latest Drive backup
+(`horrorindie-2026-04-28.db.gz`) decompressed cleanly, integrity check
+returned `('ok',)`, row counts matched this file's snapshot exactly
+(953 / 46 605 / 41 069), gpg env decrypt produced 12 keys, and an ORM-level
+smoke test against `models.Game × models.OpsScore` returned real data.
+Full log in `ops/BACKUP.md` "Restore drill log". HTTP smoke test deferred
+until a Py 3.10+ interpreter is installed on the Mac — `backend/main.py`
+uses `str | None` annotations that the system Python 3.9 can't parse.
 
 ### Phase 1 — Reconcile code (next)
 
@@ -160,8 +168,22 @@ Update CLAUDE.md to match reality (current claims that are wrong):
    ```
 4. Look at the existing plan file from the prior session if still present:
    `~/.claude/plans/lexical-forging-grove.md` (Phase 0 plan; superseded by this file).
-5. Decide which phase to advance. Default: do the optional restore drill,
-   then start Phase 1.
+5. Decide which phase to advance. The restore drill is DONE; the next
+   phase to plan is Phase 1 (origin → horror-radar reconciliation).
+
+## Lessons learned from Phase 0
+
+- **Branch reorg work off `horror-radar/main`, not `origin/main`.** The
+  first Phase 0 PR (#8, branch `ops/phase0-backup-system`) was cut from
+  `origin/main` because that's what local `main` was tracking on the Mac.
+  Against `horror-radar/main` (the actual deploy branch), the PR diff
+  exploded to 1,296 files / +154,769 because it dragged in the full
+  origin↔horror-radar divergence (Phase 1's job). Only ~390 lines were
+  actually Phase 0. Closed #8, re-cut as
+  `ops/phase0-backup-system-v2` off `horror-radar/main`, opened #9 with
+  the expected ~3-file diff. Whenever the target merge branch is
+  `horror-radar/main`, branch from it explicitly: `git checkout -b X
+  horror-radar/main`.
 
 ## Known gotchas (don't relearn the hard way)
 
