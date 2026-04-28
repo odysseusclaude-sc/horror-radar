@@ -387,6 +387,23 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What went wrong**: Attempted to implement all of Phase 3 in a single session. Each component touched multiple files, and the accumulation of reads + writes + builds + git operations filled the context.
 - **Do instead**: Break multi-file implementation phases into sub-sessions of 3-4 files max. Commit and push at each natural boundary (e.g., "shared components done", "hooks done", "wiring done"). Starting a fresh session from a clean commit is cheaper than resuming from a compressed summary.
 
+### 2026-04-29 — `rclone config show` leaks the OAuth token
+
+- **What happened**: While debugging an empty-Drive rclone setup, asked the user to paste `rclone config show gdrive` output. The user did. The output included the live `access_token` and (worse) the long-lived `refresh_token`, which grants ongoing read/write access to Google Drive. Token had to be revoked at https://myaccount.google.com/permissions and rclone re-auth'd.
+- **What went wrong**: Did not anticipate that `config show` dumps secrets verbatim. Asked for the whole output instead of just the lines that mattered (`scope`, `team_drive`).
+- **Do instead**: When asking the user to paste tool output that *might* contain secrets, scope the paste with grep up front. Examples: `rclone config show gdrive | grep -v token`, `git remote -v | sed 's/:[a-zA-Z0-9_-]*@/:REDACTED@/g'`. For rclone in particular, prefer `rclone about gdrive:` (shows quota + identity, no secrets) for diagnosing OAuth correctness.
+
+### 2026-04-29 — Headless rclone OAuth is easy to send to the wrong Google account
+
+- **What happened**: First rclone OAuth on the VPS authed against an empty Google account (Used: 0 B, Free: 14.999 GiB — the standard fresh-account quota). `rclone lsd gdrive:` returned nothing. Confused for several minutes.
+- **What went wrong**: Browser had multiple Google accounts signed in and the OAuth chooser auto-picked the wrong one. The "Used: 0 B" was the smoking gun but I checked scope first.
+- **Do instead**: After any rclone Drive auth, run `rclone about gdrive: | grep -E "^(Used|Free)"` first. If `Used` is suspiciously low for the target account (your daily-use Google has at least hundreds of MB), you authed to the wrong account before doing anything else. To force the right account, do the OAuth in an Incognito window or sign out of all Google accounts in your browser first.
+
+### 2026-04-29 — VPS has no `unzip`; `sudo` requires password
+
+- **What happened**: Trying to install rclone via the official `.zip` download failed because `unzip` isn't installed on this Debian 13 VPS, and `sudo` is interactive-only.
+- **Do instead**: Use `python3 -m zipfile -e file.zip /tmp/` — Python 3 stdlib is always present and handles zip extraction. For anything that would need `sudo` on the VPS, prefer user-space alternatives: install binaries to `~/bin/`, use user-level systemd at `~/.config/systemd/user/` (linger is enabled, units survive reboot), avoid `/usr/local/`, `/opt/`, and `/etc/systemd/system/`.
+
 ## gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
