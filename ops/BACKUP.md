@@ -192,3 +192,28 @@ If the VPS itself is destroyed, recovery is roughly:
 provision new VPS → install python/rclone → clone horror-radar from git →
 restore `.env` from Drive → restore `horrorindie.db` from Drive → restart
 service. Allow ~30 minutes.
+
+## Restore drill log
+
+Append-only record of restore drills run against this backup system. A
+backup that hasn't been restored is a hope, not a backup — run a drill any
+time the backup script changes or a new backup format is introduced.
+
+### 2026-04-29 — Initial restore drill (Mac-local, non-destructive)
+
+- **Backup file:** `horrorindie-2026-04-28.db.gz` (4 262 538 bytes, gzipped from 16 330 752 byte SQLite) pulled from Drive at `Backups/horror-radar/db/`.
+- **Decompress:** `gunzip -kc … > /tmp/…/horrorindie.db` succeeded.
+- **Integrity:** `PRAGMA integrity_check` returned `('ok',)`.
+- **Row counts** (match the `REORG_PLAN.md` snapshot exactly):
+  - `games` = 953
+  - `game_snapshots` = 46 605
+  - `ops_scores` = 41 069
+- **Env decrypt:** `gpg --decrypt env-2026-04-29.gpg` succeeded with the `horror-radar-env-backup` passphrase. 12 keys present, including `ANTHROPIC_API_KEY` (was undocumented in `CLAUDE.md`'s "Environment Variables" list).
+- **ORM smoke test** (substituted for the planned HTTP smoke test — system Python is 3.9 and `backend/main.py` uses `str | None` annotations that need 3.10+; full uvicorn boot deferred until a 3.10+ interpreter is on this Mac):
+  - 5 most-recently-released horror games returned with sane titles and 2026-04-x release dates.
+  - Cross-table join `OpsScore × Game` returned the top 5 OPS rows for `score_date = 2026-04-28` (max score 82.10 — Paragnosia: Museum).
+- **Cleanup:** `rm -P /tmp/…/.env && rm -rf /tmp/horror-radar-restore-drill`. No plaintext .env left on disk.
+- **Outcome:** PASS. Drive backup is restorable end-to-end. Next drill: schedule one immediately after the first time the backup script is modified, or quarterly otherwise.
+
+**Follow-up not blocking on this drill:**
+- Install Homebrew Python 3.10+ on the Mac so future drills can do the full HTTP smoke test (`uvicorn main:app` against the restored DB) without working around `str | None` annotations.
