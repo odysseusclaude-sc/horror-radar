@@ -48,8 +48,19 @@ future-Aloysius can understand the full state change).
 
 ## Follow-up (out of scope here)
 
-- Close the stale `ops/phase0-backup-system-v2` GitHub PR with a redirect
+- Close the stale `ops/phase0-backup-system-v2` GitHub PR (#9) with a redirect
   comment to this one.
+- 5 `claude/*` branches still on the GitHub `origin` remote after Phase 2's
+  local cleanup — pure orphans (no current PR or merged-PR-not-yet-cleaned-up):
+  - `claude/amazing-hamilton-d5aaaf`
+  - `claude/funny-booth-93afa6`
+  - `claude/hardcore-hugle`
+  - `claude/kind-pike` (source of merged PR #3)
+  - `claude/loving-fermi-b0df9a`
+  Cleanup with `git push origin --delete <branch>` per branch. Deferred.
+- 3 OPEN GitHub PRs reference `claude/*` heads that no longer exist on the
+  remote (zombie PRs): #5 (lessons-phase3), #6 (optimistic-hermann), #7
+  (upbeat-roentgen-b16118). Close with `gh pr close` or open a final commit.
 - `~/code/horror-radar` has a `second-brain` remote pointing at the old
   origin/second-brain repo. Confusing but not blocking; cleanup in a separate
   one-line PR if desired.
