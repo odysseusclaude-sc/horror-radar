@@ -120,29 +120,32 @@ def pipeline_health(db: Session = Depends(get_db)):
     """Pipeline observability: per-collector freshness and queue stats."""
     now = datetime.utcnow()
 
-    # Per-collector freshness (hours since last successful run).
-    # Display key → actual job_name written by the collector.
-    COLLECTOR_JOBS = {
-        "metadata": "metadata",
-        "reviews": "reviews",
-        "ccu": "ccu",
-        "youtube_scanner": "youtube_scan",
-        "twitch": "twitch_snapshots",
-        "reddit": "reddit_scan",
-        "ops": "ops",
+    # Per-collector freshness windows (hours).
+    # fresh_h: status="healthy" while hours_ago < fresh_h.
+    # stale_h: status="stale" while fresh_h <= hours_ago < stale_h, else "dead".
+    # Sized so missing one full cycle flips to "stale", two cycles flip to "dead".
+    COLLECTORS = {
+        "metadata":        {"job": "metadata",         "fresh_h":  1, "stale_h":  4},
+        "reviews":         {"job": "reviews",          "fresh_h": 26, "stale_h": 50},
+        "ccu":             {"job": "ccu",              "fresh_h": 26, "stale_h": 50},
+        "youtube_scanner": {"job": "youtube_scan",     "fresh_h": 26, "stale_h": 50},
+        "twitch":          {"job": "twitch_snapshots", "fresh_h":  8, "stale_h": 24},
+        "reddit":          {"job": "reddit_scan",      "fresh_h": 26, "stale_h": 50},
+        "ops":             {"job": "ops",              "fresh_h": 26, "stale_h": 50},
     }
     collector_health = {}
-    for display_name, job_name in COLLECTOR_JOBS.items():
-        run = db.query(CollectionRun).filter_by(job_name=job_name).filter(
+    for display_name, cfg in COLLECTORS.items():
+        run = db.query(CollectionRun).filter_by(job_name=cfg["job"]).filter(
             CollectionRun.status.in_(["success", "partial"])
         ).order_by(CollectionRun.finished_at.desc()).first()
 
         if run and run.finished_at:
             hours_ago = (now - run.finished_at.replace(tzinfo=None)).total_seconds() / 3600
+            fresh_h, stale_h = cfg["fresh_h"], cfg["stale_h"]
             collector_health[display_name] = {
                 "last_success": run.finished_at.isoformat(),
                 "hours_ago": round(hours_ago, 1),
-                "status": "healthy" if hours_ago < 8 else "stale" if hours_ago < 24 else "dead",
+                "status": "healthy" if hours_ago < fresh_h else "stale" if hours_ago < stale_h else "dead",
                 "items_processed": run.items_processed,
                 "items_failed": run.items_failed,
                 "api_calls_made": getattr(run, "api_calls_made", 0) or 0,
