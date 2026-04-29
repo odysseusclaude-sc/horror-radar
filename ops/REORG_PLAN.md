@@ -124,30 +124,66 @@ Steps:
 4. Wipe the 17 stale worktrees on Drive (`git worktree list` to enumerate, `git worktree remove` each). Wipe the 23 stale `claude/*` local branches.
 5. Add `.claude/skills/` to `.gitignore` going forward (don't bother rewriting history).
 
-### Phase 3 — VPS hardening
+### Phase 3 — GitHub cleanup ✅ DONE 2026-04-30
+
+Originally planned as part of "VPS hardening" alongside what's now Phase 4.
+Split out as its own phase mid-execution because GitHub-side cleanup turned
+out to be substantial enough to warrant separation (and to unblock Phase 4
+prerequisites cleanly). See `ops/PHASE3_AUDIT.md` for the full record.
+
+What landed:
+- PR #11 (Phase 2 Mac cleanup) merged.
+- 3 zombie PRs closed with redirect comments + branches deleted: #5 (lessons-phase3,
+  superseded), #6 (optimistic-hermann, superseded), #9 (phase0-backup-system-v2,
+  superseded by #11).
+- 2 Vercel auto-PRs closed: #4 (Speed Insights, declined), #1 (Web Analytics,
+  would have regressed Phase 1 work).
+- 2 rescue PRs opened and merged before closing originals: #12 rescued 3 Phase 0
+  CLAUDE.md lessons that #11 missed; #14 rescued the OPS formula regression
+  test from `claude/loving-fermi-b0df9a` (caught a real OPS_COMPONENT_META v6
+  drift bug on first run — fix tracked as Phase 4-or-earlier follow-up).
+- 5 fully-superseded branches deleted from `origin`: ops/phase0-backup-system,
+  phase1/origin-reconciliation, claude/lessons-phase3, claude/optimistic-hermann,
+  claude/loving-fermi-b0df9a (plus PR-deletion-on-close handled phase0-backup-system-v2,
+  ops/phase2-mac-cleanup, the two vercel/* branches).
+- PR #7 (`claude/upbeat-roentgen-b16118`, agentic layer) kept open pending
+  clean revive — its 4 LLM agents are unique unmerged work; spawned task to
+  cherry-pick the ~15 real project files onto a fresh branch off current main.
+- `vps/schemas-formula-version-str-2026-04-29` kept; its one-line
+  `formula_version: int → str` fix is genuine production code not yet on main.
+  Deferred to Phase 4 (VPS hardening) for resolution.
+- Repo settings: `delete_branch_on_merge=true`, `has_wiki=false`, topics set
+  (`horror-games`, `steam`, `indie-games`, `data-analysis`, `python`, `react`,
+  `fastapi`), branch protection on `main` (linear history, no force-push, no
+  deletion, admin override allowed for solo-dev workflow).
+- Local clone: `second-brain` git remote removed.
+- Phase 4 GitHub-side prerequisites verified accessible: deploy keys endpoint,
+  Actions permissions, Actions secrets — all return 200.
+
+### Phase 4 — VPS hardening
 
 Each task is independent; pick any order.
 
 1. **Domain + HTTPS.** Buy/point a domain (originally planned: `api.horror-radar.com`, see Lessons Learned 2026-04-05). Cloudflare DNS → VPS. Let's Encrypt via certbot. Update nginx with `server_name`, `listen 443 ssl`, redirect 80→443. Update Vercel rewrite to point at the HTTPS domain.
-2. **SSH deploy key.** Generate keypair on VPS, register on GitHub deploy keys, replace embedded-PAT remote URL on the VPS with `git@github.com:...` (closes Lessons Learned 2026-04-05 entry).
+2. **SSH deploy key.** Generate keypair on VPS, register on GitHub deploy keys (Phase 3 confirmed the endpoint is accessible), replace embedded-PAT remote URL on the VPS with `git@github.com:...` (closes Lessons Learned 2026-04-05 entry).
 3. **Move deployed dir** from `~/.openclaw/workspace/obsidian-vault/` to `~/horror-radar/` (still no sudo needed since the systemd unit is user-level — just edit `WorkingDirectory` in `~/.config/systemd/user/horror-radar.service`). The "obsidian-vault" path is misleading and lives under a Claude tool's workspace, which is fragile.
 4. **GitHub Actions deploy.** Push to `main` → Actions runs `git pull && systemctl --user restart horror-radar.service` over SSH. Replaces manual `horror-connect.sh` and ends the era of editing files on prod.
 5. **Discord webhook for alerts.** Hook into the existing watchdog: stale runs, failed jobs, API quota exhaustion. Logging is already in place; just send to a webhook.
-6. **VPS cleanup**: delete `~/.openclaw/workspace/horrorgameradar/`, the untracked `10 - Projects/` and `3 - Tags/` from the repo dir, `.bak` files. Decide whether the VPS-captured `schemas.py` commit (`b1f5f66`) should be merged to main or superseded — likely superseded since the schema field is changing again in v6.
+6. **VPS cleanup**: delete `~/.openclaw/workspace/horrorgameradar/`, the untracked `10 - Projects/` and `3 - Tags/` from the repo dir, `.bak` files. Decide the fate of branch `vps/schemas-formula-version-str-2026-04-29` (one-line `formula_version: int → str` fix from VPS, not yet on main) — either merge it to align main with VPS, or supersede it as part of the OPS v6 schema rework that Phase 5 may deploy.
 
-### Phase 4 — Product decision (gate, do not skip)
+### Phase 5 — Product decision (gate, do not skip)
 
-The VPS at the end of Phase 3 is still 25 commits behind `horror-radar/main`,
+The VPS at the end of Phase 4 is still 25 commits behind `horror-radar/main`,
 pinned at `ce9e722` + the merged second-brain fixes. That gap includes
 OPS v6, pipeline P1-P4, Norman frontend redesigns, classifier harness,
 multiplayer backfill. Highest-risk deploy in the project's history because
 it touches schema + scheduler + scoring + frontend simultaneously.
 
 Treat this as its own decision, not a cleanup. Plan: stay pinned for now,
-ship Phases 1-3 first, then evaluate the 25-commit jump as a separate
+ship Phases 1-4 first, then evaluate the 25-commit jump as a separate
 project with its own backup-and-rollback drill.
 
-### Phase 5 — Doc reality check
+### Phase 6 — Doc reality check
 
 Update CLAUDE.md to match reality (current claims that are wrong):
 - DB filename is `horrorindie.db`, not `horror_radar.db`.
