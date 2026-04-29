@@ -489,6 +489,16 @@ async def run_metadata_fetch(db) -> None:
 
     if not items:
         logger.info("pending_metadata queue empty — nothing to fetch")
+        # Heartbeat row so /health/pipeline sees metadata as fresh on empty ticks.
+        heartbeat = CollectionRun(
+            job_name="metadata",
+            status="success",
+            items_processed=0,
+            items_failed=0,
+            finished_at=datetime.now(timezone.utc),
+        )
+        db.add(heartbeat)
+        db.commit()
         return
 
     run = CollectionRun(job_name="metadata", status="running")
