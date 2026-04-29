@@ -67,7 +67,7 @@ export interface OpsScore {
   youtube_breadth: number | null;
   raw_ops: number | null;
   price_modifier: number | null;
-  formula_version: number | null;
+  formula_version: string | null;
 }
 
 export interface Channel {
