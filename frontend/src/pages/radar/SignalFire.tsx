@@ -474,7 +474,7 @@ export default function SignalFire() {
           </div>
 
           <div className="mt-5 text-base text-text-mid max-w-2xl leading-relaxed border-l-[3px] border-secondary pl-4 [&>strong]:text-text-main [&>strong]:font-semibold">
-            {buildVerdict(d)}
+            {d.verdict ?? buildVerdict(d)}
           </div>
 
           <div className="flex gap-4 mt-5 flex-wrap">

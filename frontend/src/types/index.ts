@@ -268,6 +268,7 @@ export interface RadarPickResponse {
   velocity_spark: RadarVelocitySpark[];
   previous_picks: RadarPreviousPick[];
   runners_up: RadarPickSummary[];
+  verdict: string | null;
 }
 
 export interface InsightsResponse {
