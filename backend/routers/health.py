@@ -120,17 +120,26 @@ def pipeline_health(db: Session = Depends(get_db)):
     """Pipeline observability: per-collector freshness and queue stats."""
     now = datetime.utcnow()
 
-    # Per-collector freshness (hours since last successful run)
-    collectors = ["metadata", "reviews", "ccu", "youtube_scanner", "twitch", "reddit", "ops"]
+    # Per-collector freshness (hours since last successful run).
+    # Display key → actual job_name written by the collector.
+    COLLECTOR_JOBS = {
+        "metadata": "metadata",
+        "reviews": "reviews",
+        "ccu": "ccu",
+        "youtube_scanner": "youtube_scan",
+        "twitch": "twitch_snapshots",
+        "reddit": "reddit_scan",
+        "ops": "ops",
+    }
     collector_health = {}
-    for name in collectors:
-        run = db.query(CollectionRun).filter_by(job_name=name).filter(
+    for display_name, job_name in COLLECTOR_JOBS.items():
+        run = db.query(CollectionRun).filter_by(job_name=job_name).filter(
             CollectionRun.status.in_(["success", "partial"])
         ).order_by(CollectionRun.finished_at.desc()).first()
 
         if run and run.finished_at:
             hours_ago = (now - run.finished_at.replace(tzinfo=None)).total_seconds() / 3600
-            collector_health[name] = {
+            collector_health[display_name] = {
                 "last_success": run.finished_at.isoformat(),
                 "hours_ago": round(hours_ago, 1),
                 "status": "healthy" if hours_ago < 8 else "stale" if hours_ago < 24 else "dead",
@@ -139,7 +148,7 @@ def pipeline_health(db: Session = Depends(get_db)):
                 "api_calls_made": getattr(run, "api_calls_made", 0) or 0,
             }
         else:
-            collector_health[name] = {"status": "never_run", "hours_ago": None}
+            collector_health[display_name] = {"status": "never_run", "hours_ago": None}
 
     # Work queue stats
     queue_stats = {
