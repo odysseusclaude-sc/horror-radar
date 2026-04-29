@@ -29,3 +29,6 @@ Thumbs.db
 
 # Reports
 backend/reports/
+
+# Workspace-local Claude tooling
+.claude/skills/

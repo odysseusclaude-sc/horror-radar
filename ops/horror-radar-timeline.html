@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horror Indie Radar — Project Timeline</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --blood: #8B0000;
+    --ember: #C0392B;
+    --rust: #7D3A2A;
+    --ash: #1A1A1A;
+    --charcoal: #111111;
+    --bone: #E8E0D0;
+    --mist: #A89B88;
+    --pale: #D4CBBC;
+    --vein: #3D1515;
+    --glow: rgba(139, 0, 0, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--charcoal);
+    color: var(--bone);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* Vertical blood streak decoration */
+  .streak {
+    position: fixed;
+    left: 50px;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent 0%, var(--blood) 15%, var(--rust) 50%, var(--blood) 85%, transparent 100%);
+    opacity: 0.3;
+  }
+
+  header {
+    padding: 80px 80px 60px 120px;
+    position: relative;
+    border-bottom: 1px solid var(--vein);
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--blood) 30%, var(--ember) 50%, var(--blood) 70%, transparent);
+  }
+
+  .project-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 8vw, 96px);
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    color: var(--bone);
+    margin-bottom: 8px;
+  }
+
+  h1 span {
+    color: var(--ember);
+    display: block;
+  }
+
+  .subtitle {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--mist);
+    font-weight: 300;
+    margin-top: 20px;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+
+  /* Phase navigation */
+  .phase-nav {
+    display: flex;
+    gap: 0;
+    padding: 0 80px 0 120px;
+    border-bottom: 1px solid var(--vein);
+    overflow-x: auto;
+  }
+
+  .phase-nav-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--mist);
+    padding: 16px 24px;
+    white-space: nowrap;
+    border-right: 1px solid var(--vein);
+    cursor: default;
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .phase-nav-item:hover {
+    color: var(--bone);
+    background: var(--glow);
+  }
+
+  /* Main timeline */
+  main {
+    padding: 0 80px 100px 120px;
+  }
+
+  .phase {
+    padding-top: 72px;
+    margin-bottom: 0;
+    position: relative;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: 48px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(139,0,0,0.25);
+    position: relative;
+  }
+
+  .phase-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--vein);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    position: relative;
+    top: 4px;
+  }
+
+  .phase-meta {
+    flex: 1;
+  }
+
+  .phase-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 6px;
+  }
+
+  .phase-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 0.04em;
+    color: var(--bone);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .phase-summary {
+    font-size: 15px;
+    color: var(--mist);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.5;
+    max-width: 560px;
+  }
+
+  /* Event cards */
+  .events {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  .event {
+    background: var(--ash);
+    border: 1px solid rgba(139,0,0,0.2);
+    padding: 28px 28px 24px;
+    position: relative;
+    transition: border-color 0.25s, transform 0.2s;
+  }
+
+  .event::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--ember), var(--vein));
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .event:hover {
+    border-color: rgba(139,0,0,0.5);
+    transform: translateY(-2px);
+  }
+
+  .event:hover::before {
+    opacity: 1;
+  }
+
+  .event-category {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding: 3px 8px;
+    display: inline-block;
+  }
+
+  .cat-arch { color: #5B8DB8; background: rgba(91,141,184,0.1); border: 1px solid rgba(91,141,184,0.25); }
+  .cat-design { color: #7DB87A; background: rgba(125,184,122,0.1); border: 1px solid rgba(125,184,122,0.25); }
+  .cat-product { color: #C4A862; background: rgba(196,168,98,0.1); border: 1px solid rgba(196,168,98,0.25); }
+  .cat-strategy { color: #B87AB0; background: rgba(184,122,176,0.1); border: 1px solid rgba(184,122,176,0.25); }
+  .cat-data { color: #87B8A8; background: rgba(135,184,168,0.1); border: 1px solid rgba(135,184,168,0.25); }
+  .cat-ui { color: #C47A7A; background: rgba(196,122,122,0.1); border: 1px solid rgba(196,122,122,0.25); }
+
+  .event-title {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--bone);
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+
+  .event-body {
+    font-size: 14px;
+    color: var(--pale);
+    line-height: 1.65;
+    font-weight: 300;
+  }
+
+  .event-body strong {
+    color: var(--bone);
+    font-weight: 600;
+  }
+
+  .event-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: rgba(139,0,0,0.12);
+    color: #d4a0a0;
+    padding: 1px 5px;
+    border: 1px solid rgba(139,0,0,0.2);
+    border-radius: 2px;
+  }
+
+  /* Full-width pivotal moment cards */
+  .pivot {
+    grid-column: 1 / -1;
+    background: var(--vein);
+    border: 1px solid var(--blood);
+    padding: 32px 36px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pivot::after {
+    content: '⬛';
+    position: absolute;
+    right: 36px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 80px;
+    opacity: 0.04;
+  }
+
+  .pivot .event-title {
+    font-size: 22px;
+    color: var(--bone);
+  }
+
+  .pivot .event-body {
+    color: var(--pale);
+    max-width: 720px;
+  }
+
+  /* Divider between phases */
+  .phase-divider {
+    margin: 60px 0 0;
+    height: 1px;
+    background: linear-gradient(to right, var(--blood) 0%, transparent 100%);
+    opacity: 0.2;
+  }
+
+  /* Footer */
+  footer {
+    padding: 40px 80px 40px 120px;
+    border-top: 1px solid var(--vein);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  footer p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--rust);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--charcoal); }
+  ::-webkit-scrollbar-thumb { background: var(--blood); }
+
+  @media (max-width: 768px) {
+    header, main, footer { padding-left: 28px; padding-right: 24px; }
+    .phase-nav { padding-left: 28px; }
+    .streak { display: none; }
+    .events { grid-template-columns: 1fr; }
+    h1 { font-size: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="streak"></div>
+
+<header>
+  <div class="project-label">Project Chronicle · Horror Indie Game Radar</div>
+  <h1>
+    Evolution<br>
+    <span>of the Radar</span>
+  </h1>
+  <p class="subtitle">A complete architectural, design, and strategic history of the Horror Indie Game Radar — from raw concept to curated platform identity.</p>
+</header>
+
+<nav class="phase-nav">
+  <div class="phase-nav-item">Phase I · Concept &amp; Foundation</div>
+  <div class="phase-nav-item">Phase II · Core Architecture</div>
+  <div class="phase-nav-item">Phase III · Scoring &amp; Data</div>
+  <div class="phase-nav-item">Phase IV · UI Design</div>
+  <div class="phase-nav-item">Phase V · Product Strategy</div>
+  <div class="phase-nav-item">Phase VI · Creator Identity</div>
+  <div class="phase-nav-item">Phase VII · AI Augmentation</div>
+</nav>
+
+<main>
+
+  <!-- PHASE I -->
+  <section class="phase" id="phase-1">
+    <div class="phase-header">
+      <div class="phase-number">01</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase I · Origin</div>
+        <div class="phase-title">Concept &amp; Initial Foundation</div>
+        <div class="phase-summary">The project begins as a personal pain-point solution: finding quality indie horror games is fragmented and noisy. A data-driven discovery platform is conceived.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event pivot">
+        <span class="event-category cat-product">Founding Premise</span>
+        <div class="event-title">The Discovery Problem</div>
+        <div class="event-body">The core insight driving the project: the indie horror games space is prolific but opaque. Steam's algorithm is optimized for revenue, not quality. YouTube coverage is dominated by big titles. Reddit is noisy and ephemeral. A dedicated, scored, curated radar could fill a structural gap in the ecosystem — surfacing overlooked games before they peak or disappear entirely.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-product">Initial Scope</span>
+        <div class="event-title">Platform Goals Defined</div>
+        <div class="event-body">Early decisions establish the platform's three core promises: <strong>discovery</strong> (surface games before they go viral), <strong>scoring</strong> (a proprietary quality signal), and <strong>curation</strong> (a weekly editorial spotlight). These three pillars remain consistent throughout all subsequent phases.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-strategy">Tool Philosophy</span>
+        <div class="event-title">Plan-Before-Code Workflow Adopted</div>
+        <div class="event-body">From the outset, a <strong>plan-before-code</strong> discipline is established. No feature or component is built without first designing its structure, defining its data shape, and articulating its purpose. This discipline shapes every subsequent technical decision and prevents scope creep during build phases.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE II -->
+  <section class="phase" id="phase-2">
+    <div class="phase-header">
+      <div class="phase-number">02</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase II · Backend</div>
+        <div class="phase-title">Core Architecture Build</div>
+        <div class="phase-summary">The backend stack is chosen, scaffolded, and integrated with primary data sources. Foundational decisions are made that determine the system's long-term shape.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event">
+        <span class="event-category cat-arch">Stack Decision</span>
+        <div class="event-title">Python / FastAPI Selected</div>
+        <div class="event-body"><strong>FastAPI</strong> is chosen as the web framework for its async-native design, automatic OpenAPI schema generation, and Pythonic developer ergonomics. The async model is deemed essential given the platform's need to make concurrent calls to multiple external APIs (Steam, YouTube, Reddit) without blocking.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-arch">ORM Layer</span>
+        <div class="event-title">SQLAlchemy for Data Persistence</div>
+        <div class="event-body"><strong>SQLAlchemy</strong> is adopted as the ORM. The declarative model approach allows game, score, and metadata entities to be defined clearly. The decision also future-proofs the system: the ORM abstraction makes swapping from SQLite (dev) to Postgres (production) a config-level concern rather than a code rewrite.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-arch">Scheduling</span>
+        <div class="event-title">APScheduler for Pipeline Automation</div>
+        <div class="event-body"><strong>APScheduler</strong> is integrated to run the data ingestion and scoring pipeline on a defined schedule. This allows the platform to run autonomously — pulling fresh Steam review counts, YouTube video metrics, and Reddit mentions on a recurring basis without manual triggering. The scheduler is embedded within the FastAPI app rather than as a separate service, keeping deployment simple.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-data">Integration</span>
+        <div class="event-title">Steam API Integration</div>
+        <div class="event-body">The <strong>Steam API</strong> becomes the primary data source. Key signals extracted: review counts, review sentiment ratios, recent vs. all-time review velocity, release dates, tags, and price. Review velocity (rate of recent reviews vs. all-time) becomes one of the earliest candidate signals for detecting games "breaking out."</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-data">Integration</span>
+        <div class="event-title">YouTube API Integration</div>
+        <div class="event-body">The <strong>YouTube Data API</strong> is added to capture content creator activity around each game. View counts, video counts, and publication dates around a game's title are pulled and normalised. This layer is designed to detect when a game is getting creator attention before it spikes in Steam reviews — enabling earlier discovery signals.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-data">Integration</span>
+        <div class="event-title">Reddit as Social Sentiment Layer</div>
+        <div class="event-body">Reddit data is introduced as a third signal layer. Subreddit post activity, upvote velocity, and mention frequency across horror and indie gaming communities are tracked. Reddit tends to be the earliest social signal — discussions happen here before YouTube videos and Steam review waves materialize.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE III -->
+  <section class="phase" id="phase-3">
+    <div class="phase-header">
+      <div class="phase-number">03</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase III · Intelligence</div>
+        <div class="phase-title">The OPS Scoring System</div>
+        <div class="phase-summary">Raw data is not enough. A proprietary scoring model is designed to synthesize multi-source signals into a single, interpretable quality and momentum score per game.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event pivot">
+        <span class="event-category cat-data">Core Model</span>
+        <div class="event-title">OPS — Overall Performance Score</div>
+        <div class="event-body">The <strong>OPS (Overall Performance Score)</strong> is the platform's central intellectual contribution. It synthesizes Steam review sentiment and velocity, YouTube video coverage and view momentum, and Reddit community activity into a single normalized score. The design goal is to make OPS function as a <em>signal of emerging quality</em> — not just current popularity. A game with few reviews but accelerating momentum should score competitively against a game with high total reviews but flat growth.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-data">Score Design</span>
+        <div class="event-title">Momentum vs. Magnitude Distinction</div>
+        <div class="event-body">A critical scoring design decision: the OPS model distinguishes between <strong>magnitude</strong> (total size of signals) and <strong>momentum</strong> (rate of change). Large established games dominate magnitude metrics. The platform's value lies in weighting momentum — so small games gaining fast traction surface high despite low absolute numbers.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-data">Taxonomy</span>
+        <div class="event-title">Hidden Gems Classification</div>
+        <div class="event-body">A dedicated <strong>"Hidden Gems"</strong> classification tier is developed within the scoring system. Games that score above a quality threshold but fall below a visibility threshold — i.e., high OPS but low total Steam review count and low YouTube view count — are flagged as Hidden Gems. This becomes one of the platform's hero features.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-arch">Pipeline</span>
+        <div class="event-title">Scheduled Re-Scoring Architecture</div>
+        <div class="event-body">The scoring pipeline is designed to run on a cadence, not just on ingest. This means every game in the database is re-scored periodically against fresh signal data. The score history is preserved, enabling <strong>timeline intelligence</strong> — showing how a game's OPS has evolved over time. This unlocks the game timeline page as a distinct product surface.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE IV -->
+  <section class="phase" id="phase-4">
+    <div class="phase-header">
+      <div class="phase-number">04</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase IV · Interface</div>
+        <div class="phase-title">UI/UX Design System</div>
+        <div class="phase-summary">With data architecture stable, the focus shifts to surfaces. A multi-tool design process is used — prototyping across Google Stitch, Figma Make, and Figma MCP — guided by Don Norman's design principles.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event">
+        <span class="event-category cat-ui">Design Fixture</span>
+        <div class="event-title">Hollowfield as the Mock Game</div>
+        <div class="event-body"><strong>Hollowfield</strong> — a fictional indie horror game — is created as a consistent design fixture. Every UI prompt, mockup, and component uses Hollowfield as the content stand-in. This discipline keeps design work grounded in realistic content shapes (title length, description tone, screenshot composition) and produces cohesive mockups across all sessions.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-design">Framework</span>
+        <div class="event-title">Don Norman's Principles as Design Law</div>
+        <div class="event-body">Don Norman's principles from <em>The Design of Everyday Things</em> — <strong>affordance, feedback, constraints, mapping, and discoverability</strong> — are explicitly adopted as the design evaluation framework. Every UI component is judged against these principles. This keeps design decisions principled rather than taste-driven, and creates a shared vocabulary for evaluating mockup quality.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-ui">Toolchain</span>
+        <div class="event-title">Multi-Tool Design Prototyping</div>
+        <div class="event-body">Design exploration uses a parallel toolchain: <strong>Claude Code</strong> for rapid component generation, <strong>Google Stitch</strong> for early layout ideation, <strong>Figma Make</strong> for structured mockup work, and the <strong>Figma MCP integration</strong> for closing the loop between AI-generated concepts and production Figma files. Multiple design concepts are generated before any single direction is committed to.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-ui">Page Design</span>
+        <div class="event-title">Hidden Gems Insights Page</div>
+        <div class="event-body">The <strong>Hidden Gems Insights Page</strong> is designed as a dashboard-style surface showing the current cohort of high-OPS, low-visibility games. Design focus: making the score and its components scannable at a glance, with visual hierarchy that emphasizes momentum signals. Card-based layout with sortable/filterable state.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-ui">Page Design</span>
+        <div class="event-title">Game Timeline Intelligence Page</div>
+        <div class="event-body">The <strong>Game Timeline Intelligence Page</strong> surfaces the historical OPS trajectory for a single game. Design challenge: communicating score change over time in a way that's immediately interpretable without being data-heavy. The page also overlays external events (YouTube video publication, Reddit spike dates) onto the OPS curve — making the cause-effect relationship visible.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-ui">Page Design</span>
+        <div class="event-title">Radar Pick Spotlight Page</div>
+        <div class="event-body">The <strong>Radar Pick Page</strong> is the platform's editorial crown jewel — a single-game deep-dive published weekly. Design emphasis: magazine-quality editorial layout, long-form reading experience, strong visual identity for the selected game. Hollowfield was the prototype subject. The page is intentionally distinct from the data-dense discovery pages — it is slow, immersive, and opinionated.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE V -->
+  <section class="phase" id="phase-5">
+    <div class="phase-header">
+      <div class="phase-number">05</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase V · Strategy</div>
+        <div class="phase-title">Market Analysis &amp; Product Positioning</div>
+        <div class="phase-summary">With core product in view, a serious market analysis phase begins. Who is this for? What is its competitive position? A full buyer persona analysis leads to a critical strategic pivot.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event">
+        <span class="event-category cat-strategy">Research</span>
+        <div class="event-title">Indie Horror Games Market Analysis</div>
+        <div class="event-body">A structured market analysis of the indie horror games ecosystem is conducted — covering market size, release volume trends, Steam discoverability dynamics, the role of YouTube in driving indie game sales, and the competitive landscape of existing discovery tools. Named references and real data sources are used rather than generalizations.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-strategy">Personas</span>
+        <div class="event-title">Buyer Persona Development</div>
+        <div class="event-body">Multiple buyer personas are developed and evaluated: casual horror game fans, hardcore genre enthusiasts, indie game developers wanting visibility benchmarks, and content creators seeking games to cover. Each persona is assessed for willingness to pay, frequency of platform use, and strategic fit with the platform's data capabilities.</div>
+      </div>
+
+      <div class="event pivot">
+        <span class="event-category cat-strategy">Pivot Point</span>
+        <div class="event-title">Primary Target: Mid-Tier YouTube Creators</div>
+        <div class="event-body"><strong>Mid-tier YouTube horror game creators</strong> (channels with ~10K–500K subscribers) are identified as the primary target persona. The reasoning: they have a professional need to find quality games early (before their competitors), a concrete monetary value in being first to cover a breakout title, limited time to do manual research across Steam/Reddit/YouTube, and enough audience scale to benefit meaningfully from OPS-driven discovery. This persona shapes all subsequent product decisions.</div>
+      </div>
+
+      <div class="event pivot">
+        <span class="event-category cat-strategy">Strategic Reframe</span>
+        <div class="event-title">From SaaS Product to Personal Curation Platform</div>
+        <div class="event-body">The most consequential strategic pivot: the platform is reframed away from a standalone SaaS product (with external users as customers) toward being a <strong>personal curation infrastructure</strong> supporting the builder's own emerging creator identity. The platform is the engine behind a horror curator brand — generating credibility, discovery data, and weekly editorial content — rather than a product sold independently. This reframe unifies the technical and creative dimensions of the project under a single mission.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE VI -->
+  <section class="phase" id="phase-6">
+    <div class="phase-header">
+      <div class="phase-number">06</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase VI · Brand</div>
+        <div class="phase-title">Creator Identity &amp; Content Strategy</div>
+        <div class="phase-summary">With the platform reframed as personal infrastructure, a creator strategy is built to match. Positioning, platform sequencing, and publication cadence are all designed from first principles.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event">
+        <span class="event-category cat-strategy">Positioning</span>
+        <div class="event-title">Cross-Media Horror Curator Identity</div>
+        <div class="event-body">The creator identity is defined as a <strong>cross-media horror curator</strong> — covering games, film, books, and art through the lens of genre expertise. This breadth distinguishes the brand from single-medium horror commentators and reflects the builder's genuine, longstanding passion across horror media forms.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-strategy">Competitive Positioning</span>
+        <div class="event-title">Contrasted with Jacob Geller's Style</div>
+        <div class="event-body">The creator positioning is explicitly differentiated from <strong>Jacob Geller's</strong> retrospective essay approach — deep, slow, literary video essays on established titles. The Radar's identity is positioned as <strong>forward-looking and discovery-oriented</strong>: finding what's emerging, scoring it, and creating the record of what was seen before it was obvious. Present-tense curation vs. retrospective analysis.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-strategy">Roadmap</span>
+        <div class="event-title">3-Month Creator Launch Playbook</div>
+        <div class="event-body">A sequenced <strong>3-month content launch playbook</strong> is designed: begin with <strong>Substack</strong> for written discovery dispatches (low friction, builds a reading audience), launch <strong>Discord</strong> in parallel for community around the curation brand, and move to <strong>YouTube</strong> in the third phase once the editorial voice is established in text and there is an engaged community to seed the channel's early growth.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-strategy">Content Architecture</span>
+        <div class="event-title">Radar Pick as Weekly Anchor Content</div>
+        <div class="event-body">The <strong>weekly Radar Pick</strong> — the editorial spotlight page on the platform — becomes the anchor content unit. Each week, one game is selected, scored, and written up in depth. This provides the Substack with a structured publication cadence, the Discord with a weekly discussion prompt, and eventually YouTube with a scripted subject. One piece of research, three platform outputs.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="phase-divider"></div>
+
+  <!-- PHASE VII -->
+  <section class="phase" id="phase-7">
+    <div class="phase-header">
+      <div class="phase-number">07</div>
+      <div class="phase-meta">
+        <div class="phase-tag">Phase VII · Frontier</div>
+        <div class="phase-title">AI Agent Orchestration Exploration</div>
+        <div class="phase-summary">The final frontier: exploring how AI agent architectures can augment or automate layers of the platform — from data analysis to content generation to autonomous pipeline management.</div>
+      </div>
+    </div>
+    <div class="events">
+      <div class="event">
+        <span class="event-category cat-arch">Exploration</span>
+        <div class="event-title">AI Agents as Platform Augmentation</div>
+        <div class="event-body">Interest in <strong>AI agent orchestration</strong> emerges as a way to go beyond scheduled scripts. The hypothesis: AI agents could analyze incoming game data, flag anomalies in OPS trajectories, draft preliminary Radar Pick write-ups, or even suggest score weight adjustments based on observed signal patterns. This represents a shift from the platform as a data pipeline toward the platform as an intelligent system.</div>
+      </div>
+
+      <div class="event">
+        <span class="event-category cat-arch">Evaluation</span>
+        <div class="event-title">LLM Evaluation Methods Research</div>
+        <div class="event-body">In parallel with agent exploration, a deep dive into <strong>LLM evaluation methodology</strong> is conducted — covering human evaluation frameworks, automated metrics (BLEU, ROUGE, BERTScore), LLM-as-judge approaches, and standard benchmarks (MMLU, HumanEval, SWE-bench). The motivation: any AI-generated content layer in the platform requires rigorous quality assessment before it can be trusted in production editorial output.</div>
+      </div>
+
+      <div class="event pivot">
+        <span class="event-category cat-strategy">Current State</span>
+        <div class="event-title">Where the Project Stands Now</div>
+        <div class="event-body">The Horror Indie Game Radar exists at a rich convergence point: a <strong>functioning data backend</strong> (FastAPI + SQLAlchemy + APScheduler, three API integrations, OPS scoring), a <strong>designed product UI</strong> (three key pages prototyped, design system in progress, Figma integration active), a <strong>clear strategic identity</strong> (personal curation infrastructure, mid-tier creator audience, cross-media horror brand), and an emerging <strong>AI augmentation layer</strong> being explored. The platform is simultaneously a technical project, an editorial product, and a creator brand in formation.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Horror Indie Game Radar · Project Chronicle</p>
+  <p>7 phases · Architecture, Design &amp; Strategy</p>
+</footer>
+
+</body>
+</html>
