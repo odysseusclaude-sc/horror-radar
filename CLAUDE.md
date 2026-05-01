@@ -416,6 +416,17 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What happened**: Trying to install rclone via the official `.zip` download failed because `unzip` isn't installed on this Debian 13 VPS, and `sudo` is interactive-only.
 - **Do instead**: Use `python3 -m zipfile -e file.zip /tmp/` — Python 3 stdlib is always present and handles zip extraction. For anything that would need `sudo` on the VPS, prefer user-space alternatives: install binaries to `~/bin/`, use user-level systemd at `~/.config/systemd/user/` (linger is enabled, units survive reboot), avoid `/usr/local/`, `/opt/`, and `/etc/systemd/system/`.
 
+### 2026-05-01 — `pending_metadata` queue invisible: SQL DEFAULTs never made it into the live schema
+
+- **What happened**: After pipeline-p1 (1669ede, 2026-04-07) introduced the `pending_metadata` work queue, no new game was ingested for 25 days. Discovery kept finding 4–200 AppIDs every 6h but every metadata run completed in <1ms with `items_processed=0` and `status="success"`. Total games stuck at 794; queue ballooned to 6,041 invisible rows.
+- **Root cause #1 — schema/INSERT mismatch**: The migration in `database.py` runs `CREATE TABLE IF NOT EXISTS pending_metadata (… next_eligible_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP …)`, but `Base.metadata.create_all()` had already created the table during the same `init_db()` call. SQLAlchemy `Column(default=…)` is a Python-side default — it does **not** emit a SQL `DEFAULT` clause unless you use `server_default=`. So the live schema had no SQL defaults, and `IF NOT EXISTS` made the migration a no-op. Discovery's `INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (…)` left `next_eligible_at = NULL`, and the worker filter `next_eligible_at <= NOW()` excludes NULL forever (SQL three-valued logic).
+- **Root cause #2 — UnboundLocalError**: Once the queue was unblocked, every appdetails-classification call raised `cannot access local variable 'categories'`. `metadata.py:394` referenced `categories` 14 lines before its assignment at `:408`. Masked while the queue was empty.
+- **Do instead**:
+  1. **For new SQL defaults**, use SQLAlchemy `server_default=text("CURRENT_TIMESTAMP")` so the default lives in the schema, not just Python — or always set values explicitly on INSERT. Treat `CREATE TABLE IF NOT EXISTS` migrations as suspect when an SQLAlchemy model also defines the table.
+  2. **Pipeline silent-success is a red flag.** `items_processed=0` with `status="success"` repeatedly should alert, not heart-beat. Add a `/health/pipeline` rule: more than N consecutive metadata runs with `processed=0` while discovery is finding new IDs → page.
+  3. **Verify queue eligibility, not queue depth.** "Queue empty" log messages can mean rows exist but the filter excludes them. When debugging a stuck worker, query the dequeue filter literally (`COUNT(*) WHERE next_eligible_at <= NOW()`), not `COUNT(*) FROM table`.
+  4. **Smoke-test the moment a queue starts moving.** UnboundLocalErrors and similar dead-code bugs hide behind empty queues. After unblocking, watch the very first batch's outcomes before walking away.
+
 ## gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
