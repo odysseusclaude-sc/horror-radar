@@ -295,22 +295,27 @@ async def run_discovery() -> int:
         if remaining > 0:
             logger.info(f"Batching: {total_queued} this run, {remaining} deferred (already in pending_metadata next run)")
 
-        # INSERT into pending_metadata with INSERT OR IGNORE
+        # INSERT into pending_metadata with INSERT OR IGNORE.
+        # Explicitly bind added_at / next_eligible_at / attempt_count: the live
+        # SQLite schema lacks DEFAULT clauses (Base.metadata.create_all created
+        # the table first; the later CREATE TABLE IF NOT EXISTS migration in
+        # database.py is a no-op), so omitting them leaves NULL and the worker's
+        # `next_eligible_at <= NOW()` filter excludes the row forever.
+        _enqueue_sql = _text(
+            "INSERT OR IGNORE INTO pending_metadata "
+            "(appid, source, priority, added_at, next_eligible_at, attempt_count) "
+            "VALUES (:appid, :source, :priority, :now, :now, 0)"
+        )
+        _now = datetime.now(timezone.utc)
         queued = 0
         for appid in batch_steam:
-            db.execute(_text(
-                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
-            ), {"appid": appid, "source": "discovery", "priority": 1})
+            db.execute(_enqueue_sql, {"appid": appid, "source": "discovery", "priority": 1, "now": _now})
             queued += 1
         for appid in batch_prefiltered:
-            db.execute(_text(
-                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
-            ), {"appid": appid, "source": "steamspy_prefiltered", "priority": 1})
+            db.execute(_enqueue_sql, {"appid": appid, "source": "steamspy_prefiltered", "priority": 1, "now": _now})
             queued += 1
         for appid in batch_ambiguous:
-            db.execute(_text(
-                "INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (:appid, :source, :priority)"
-            ), {"appid": appid, "source": "steamspy_ambiguous", "priority": 2})
+            db.execute(_enqueue_sql, {"appid": appid, "source": "steamspy_ambiguous", "priority": 2, "now": _now})
             queued += 1
 
         run.status = "success"
