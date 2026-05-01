@@ -387,6 +387,8 @@ async def _fetch_and_classify(
         price_usd = 0.0
         original_price_usd = 0.0
 
+    categories = data.get("categories", [])
+
     # Multiplayer detection via Steam category IDs (supplement tag-based detection)
     # IDs: 1=Multi-player, 36=Online Multi-Player, 38=Online Co-Op, 9=Co-op
     _MULTIPLAYER_CATEGORY_IDS = {1, 9, 36, 38}
@@ -405,7 +407,6 @@ async def _fetch_and_classify(
     # Next Fest flag: check if any package group name or category mentions "Next Fest"
     # Steam sometimes includes this in categories or package group titles during events
     next_fest = False
-    categories = data.get("categories", [])
     for cat in categories:
         if "next fest" in cat.get("description", "").lower():
             next_fest = True
