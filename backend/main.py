@@ -111,16 +111,25 @@ async def stale_run_watchdog():
             db.commit()
             logger.info(f"Dead letter cleanup: removed {len(expired)} expired entries")
 
-        # Alert if live DLQ is accumulating
+        # Alert on DLQ growth rather than absolute count. The flat threshold of 10
+        # has been firing every tick since the queue accumulated past it and is now
+        # ignored noise. Growth-rate alerting catches new incidents while letting
+        # the existing backlog drain (or be cleared) without spamming.
         dlq_count = db.query(DeadLetter).filter(
             DeadLetter.status == "dead",
             DeadLetter.expires_at > datetime.utcnow(),
         ).count()
-        if dlq_count >= 10:
+        recent_dlq_count = db.query(DeadLetter).filter(
+            DeadLetter.status == "dead",
+            DeadLetter.expires_at > datetime.utcnow(),
+            DeadLetter.last_failed_at > datetime.utcnow() - timedelta(hours=1),
+        ).count()
+        if recent_dlq_count >= 10:
             await send_discord_alert(
                 settings.discord_webhook_url,
-                "Dead Letter Queue Accumulating",
-                f"Dead letter queue: **{dlq_count}** items accumulated.\n"
+                "Dead Letter Queue Growing",
+                f"Dead letter queue grew by **{recent_dlq_count}** in the last hour "
+                f"(total live: {dlq_count}).\n"
                 "These AppIDs have failed metadata fetch 5+ times. "
                 "Check rate limits or Steam API availability.",
                 level="warning",

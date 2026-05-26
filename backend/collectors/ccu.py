@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy import func
 
-from collectors._http import fetch_with_retry, steam_api_limiter
+from collectors._http import BudgetExhausted, fetch_with_retry, steam_api_limiter
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_ccu
@@ -51,6 +51,9 @@ async def run_ccu_snapshots():
     processed = 0
     failed = 0
     today = date.today()
+    calls_at_start = steam_api_limiter.stats["calls_today"]
+    rl_at_start = steam_api_limiter.stats["rate_limited_today"]
+    budget_aborted = False
 
     try:
         games = db.query(Game).all()
@@ -77,6 +80,16 @@ async def run_ccu_snapshots():
 
         async with httpx.AsyncClient() as client:
             for game in games:
+                # Pre-check shared budget so we abort cleanly instead of counting
+                # 1k+ budget-raise iterations as per-item failures.
+                if not steam_api_limiter.has_budget():
+                    budget_aborted = True
+                    logger.warning(
+                        f"CCU aborting: shared steam_api_limiter budget exhausted "
+                        f"after {processed} processed / {failed} failed of {len(games)} games"
+                    )
+                    break
+
                 try:
                     latest = snap_by_appid.get(game.appid)
 
@@ -126,6 +139,10 @@ async def run_ccu_snapshots():
                     db.commit()
                     processed += 1
 
+                except BudgetExhausted as e:
+                    budget_aborted = True
+                    logger.warning(f"CCU budget exhausted mid-loop: {e}")
+                    break
                 except Exception as e:
                     logger.error(f"Error fetching CCU for AppID {game.appid}: {e}")
                     db.rollback()
@@ -135,11 +152,16 @@ async def run_ccu_snapshots():
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_api_limiter.stats["calls_today"] if hasattr(steam_api_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_api_limiter.stats["rate_limited_today"] if hasattr(steam_api_limiter, "stats") else 0
+        # Per-run delta, not the cumulative daily counter (which sums across all
+        # api-tier collectors and made every CCU run look like it hit the 2,000 cap).
+        run.api_calls_made = max(0, steam_api_limiter.stats["calls_today"] - calls_at_start)
+        run.api_calls_rate_limited = max(0, steam_api_limiter.stats["rate_limited_today"] - rl_at_start)
         db.commit()
 
-        logger.info(f"CCU snapshots complete: {processed} updated, {failed} failed")
+        logger.info(
+            f"CCU snapshots complete: {processed} updated, {failed} failed"
+            + (" (budget exhausted, aborted early)" if budget_aborted else "")
+        )
 
     except Exception as e:
         run.status = "failed"

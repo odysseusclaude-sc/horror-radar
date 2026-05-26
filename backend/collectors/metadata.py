@@ -489,8 +489,19 @@ async def run_metadata_fetch(db) -> None:
     )
 
     if not items:
+        # Distinguish "queue genuinely empty" from "all rows breaker-suspended".
+        # If rows exist but were pushed forward by the circuit breaker, writing
+        # a success heartbeat would reset the staleness clock on /health/pipeline
+        # and hide the breaker — so we skip the heartbeat in that case.
+        suspended_exists = db.query(PendingMetadata).filter(
+            or_(PendingMetadata.last_status != "success", PendingMetadata.last_status.is_(None)),
+        ).limit(1).first() is not None
+
+        if suspended_exists:
+            logger.info("pending_metadata queue suspended (breaker cooldown) — no heartbeat written")
+            return
+
         logger.info("pending_metadata queue empty — nothing to fetch")
-        # Heartbeat row so /health/pipeline sees metadata as fresh on empty ticks.
         heartbeat = CollectionRun(
             job_name="metadata",
             status="success",

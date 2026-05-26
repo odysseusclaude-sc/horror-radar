@@ -142,12 +142,19 @@ def pipeline_health(db: Session = Depends(get_db)):
         if run and run.finished_at:
             hours_ago = (now - run.finished_at.replace(tzinfo=None)).total_seconds() / 3600
             fresh_h, stale_h = cfg["fresh_h"], cfg["stale_h"]
+            items_p = run.items_processed or 0
+            items_f = run.items_failed or 0
+            freshness = "healthy" if hours_ago < fresh_h else "stale" if hours_ago < stale_h else "dead"
+            # If the most recent run's failure ratio crosses 50%, mark degraded
+            # regardless of how recent it was — freshness alone hides real failure.
+            total = items_p + items_f
+            status = "degraded" if total > 0 and items_f / total > 0.5 else freshness
             collector_health[display_name] = {
                 "last_success": run.finished_at.isoformat(),
                 "hours_ago": round(hours_ago, 1),
-                "status": "healthy" if hours_ago < fresh_h else "stale" if hours_ago < stale_h else "dead",
-                "items_processed": run.items_processed,
-                "items_failed": run.items_failed,
+                "status": status,
+                "items_processed": items_p,
+                "items_failed": items_f,
                 "api_calls_made": getattr(run, "api_calls_made", 0) or 0,
             }
         else:
