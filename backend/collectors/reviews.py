@@ -56,6 +56,8 @@ async def run_review_snapshots():
     processed = 0
     failed = 0
     today = date.today()
+    calls_at_start = steam_store_limiter.stats["calls_today"]
+    rl_at_start = steam_store_limiter.stats["rate_limited_today"]
 
     try:
         games = db.query(Game).all()
@@ -155,8 +157,11 @@ async def run_review_snapshots():
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_store_limiter.stats["calls_today"] if hasattr(steam_store_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_store_limiter.stats["rate_limited_today"] if hasattr(steam_store_limiter, "stats") else 0
+        # Per-run delta, not the cumulative daily counter (which sums across
+        # everything sharing steam_store_limiter and made review runs report
+        # inflated/meaningless API usage). Mirrors the ccu.py fix.
+        run.api_calls_made = max(0, steam_store_limiter.stats["calls_today"] - calls_at_start)
+        run.api_calls_rate_limited = max(0, steam_store_limiter.stats["rate_limited_today"] - rl_at_start)
         db.commit()
 
         logger.info(f"Review snapshots complete: {processed} snapped, {failed} failed")

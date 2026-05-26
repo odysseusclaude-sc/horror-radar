@@ -176,9 +176,13 @@ async def metadata_job():
             _metadata_health["consecutive_successes"] = 0
         # partial or other → leave consecutive_successes unchanged
 
-        # Adjust interval
+        # Adjust interval.
+        # circuit_open suspends the pending-metadata queue for 30 min (see
+        # collectors/metadata.py). Next run must land *after* that window or
+        # it wakes to an empty queue, returns "success" with proc=0, and the
+        # breaker re-trips on the run after — causing a 15/30 thrash cycle.
         if last_status == "circuit_open":
-            new_interval = 15
+            new_interval = 35
         elif _metadata_health["consecutive_successes"] >= 3:
             new_interval = 45
         else:

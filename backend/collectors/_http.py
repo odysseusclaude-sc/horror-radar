@@ -65,6 +65,11 @@ class BudgetedLimiter:
 
     @property
     def stats(self) -> dict:
+        # Reset on read too. Without this, a caller that snapshots stats
+        # before the first acquire() of a new UTC day captures yesterday's
+        # accumulator; the first acquire() then resets to 0 and any
+        # (after - before) delta clamps negative.
+        self._check_reset()
         return {"calls_today": self._calls_today, "rate_limited_today": self._rate_limited_today, "daily_cap": self._daily_cap}
 
 
