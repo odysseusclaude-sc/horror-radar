@@ -32,6 +32,7 @@ from collectors.youtube_stats import run_youtube_stats_refresh
 from collectors.ops import run_ops_calculation
 from collectors.twitch import run_twitch_snapshots
 from collectors.reddit import run_reddit_scan
+from collectors.delisted import run_delisted_recheck
 from collectors.dev_profile import run_dev_profiles
 from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
@@ -356,6 +357,23 @@ async def lifespan(app: FastAPI):
         "interval",
         hours=1,
         id="stale_run_watchdog",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+        jitter=300,
+    )
+
+    # Phase 2 delisted-game recheck: Tuesday at 04:00 UTC = 12:00 SGT
+    # Tuesday rather than Monday to keep it clear of the weekly-report cluster.
+    # Weekly cadence is enough — RECHECK_INTERVAL_DAYS=30 means each entry only
+    # has work to do roughly once a month; weekly tick just picks up due ones.
+    scheduler.add_job(
+        run_delisted_recheck,
+        "cron",
+        day_of_week="tue",
+        hour=4,
+        minute=0,
+        id="delisted_recheck_job",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=3600,
