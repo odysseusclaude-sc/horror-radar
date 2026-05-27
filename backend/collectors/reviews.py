@@ -15,6 +15,7 @@ import httpx
 from sqlalchemy import func
 
 from collectors._http import fetch_with_retry, steam_store_limiter
+from collectors.instrumentation import make_fetch_callback, record_failure_event
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_review_count, validate_review_score
@@ -99,10 +100,23 @@ async def run_review_snapshots():
                             "num_per_page": "0",
                         },
                         limiter=steam_store_limiter,
+                        on_failure=make_fetch_callback(db, appid=game.appid, collector="reviews"),
                     )
 
                     if not data or "query_summary" not in data:
                         failed += 1
+                        # Phase 2.5: HTTP-layer failures were already logged by
+                        # fetch_with_retry's on_failure. This branch fires when we
+                        # got a 200 but the payload shape is wrong — record it.
+                        if data is not None:
+                            record_failure_event(
+                                db,
+                                appid=game.appid,
+                                collector="reviews",
+                                error_class="malformed_payload",
+                                status_code=200,
+                                detail="missing query_summary",
+                            )
                         continue
 
                     summary = data["query_summary"]
@@ -150,6 +164,15 @@ async def run_review_snapshots():
                     logger.error(f"Error fetching reviews for AppID {game.appid}: {e}")
                     db.rollback()
                     failed += 1
+                    # Phase 2.5: capture unhandled exceptions too — these are the
+                    # ones we'd otherwise lose entirely.
+                    record_failure_event(
+                        db,
+                        appid=game.appid,
+                        collector="reviews",
+                        error_class="unknown_exception",
+                        detail=f"{type(e).__name__}: {e}",
+                    )
 
         run.status = "success" if failed == 0 else "partial"
         run.items_processed = processed

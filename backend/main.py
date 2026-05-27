@@ -37,9 +37,10 @@ from collectors import run_steam_extras
 from collectors.ops_autotune import run_ops_diagnostics
 from collectors.youtube_tier2_discovery import run_tier2_discovery
 from collectors.metadata import backfill_subgenres
+from collectors.instrumentation import prune_old_failures
 from weekly_analysis import main as run_weekly_analysis
 from newsletter import run_newsletter
-from routers import games, channels, videos, runs, insights, radar, trends, health, developers
+from routers import games, channels, videos, runs, insights, radar, trends, health, developers, failures
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -362,6 +363,28 @@ async def lifespan(app: FastAPI):
         jitter=300,
     )
 
+    # Phase 2.5: prune per_game_failures rows older than 30 days. Daily at
+    # 03:30 UTC = 11:30 SGT — sits between reddit (02:00) and steam_extras
+    # (03:00) is the actual ordering, but 03:30 also clears daily snapshots
+    # (04:00) by 30 min so the prune doesn't compete for DB locks.
+    def _prune_failures_job():
+        db = SessionLocal()
+        try:
+            prune_old_failures(db, retain_days=30)
+        finally:
+            db.close()
+    scheduler.add_job(
+        _prune_failures_job,
+        "cron",
+        hour=3,
+        minute=30,
+        id="per_game_failures_prune",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+        jitter=300,
+    )
+
     # OPS diagnostics: Monday at 06:00 UTC = 14:00 SGT (after dev profiles)
     scheduler.add_job(
         run_ops_diagnostics,
@@ -473,4 +496,5 @@ app.include_router(insights.router)
 app.include_router(radar.router)
 app.include_router(trends.router)
 app.include_router(developers.router)
+app.include_router(failures.router)
 
