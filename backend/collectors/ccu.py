@@ -14,6 +14,7 @@ import httpx
 from sqlalchemy import func
 
 from collectors._http import fetch_with_retry, steam_api_limiter
+from collectors.delisted import record_failure, record_success
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_ccu
@@ -53,7 +54,8 @@ async def run_ccu_snapshots():
     today = date.today()
 
     try:
-        games = db.query(Game).all()
+        # Skip games already classified as delisted (Phase 2 classifier).
+        games = db.query(Game).filter(Game.delisted_at.is_(None)).all()
 
         # Batch-load latest snapshot per game (1 query instead of N)
         latest_date_sub = (
@@ -92,6 +94,8 @@ async def run_ccu_snapshots():
 
                     if not data or "response" not in data:
                         failed += 1
+                        # Phase 2: per-game counter; probe Steam appdetails on threshold.
+                        await record_failure(client, db, game)
                         continue
 
                     current_ccu = data["response"].get("player_count", 0)
@@ -125,11 +129,20 @@ async def run_ccu_snapshots():
 
                     db.commit()
                     processed += 1
+                    # Phase 2: clear any prior failure streak.
+                    record_success(db, game)
 
                 except Exception as e:
                     logger.error(f"Error fetching CCU for AppID {game.appid}: {e}")
                     db.rollback()
                     failed += 1
+                    # Exception path: still increment counter so a flaky game eventually
+                    # trips the delisted probe. Wrap so probe failure can't escape.
+                    try:
+                        await record_failure(client, db, game)
+                    except Exception as inner:
+                        logger.error(f"record_failure for AppID {game.appid} failed: {inner}")
+                        db.rollback()
 
         run.status = "success" if failed == 0 else "partial"
         run.items_processed = processed

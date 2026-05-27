@@ -35,6 +35,17 @@ class Game(Base):
     next_fest = Column(Boolean, default=False)
     is_multiplayer = Column(Boolean, default=False)
     subgenre = Column(String)  # OPS v5 — e.g. "psychological", "supernatural", "cosmic"
+    # Phase 2 delisted-game classifier.
+    # consecutive_failures rolls forward across reviews + CCU runs (incremented on
+    # per-game failure, reset on per-game success). When it crosses DELISTED_THRESHOLD
+    # the collector probes Steam appdetails. If Steam confirms success:false WITH a
+    # "data" key (the canonical "genuinely missing" shape — distinct from the
+    # rate-limit shape that has no "data" key), delisted_at is set and the game is
+    # excluded from future reviews/CCU iteration. delisted_recheck_at gates the
+    # recheck job — every 30 days it re-probes; on success:true the game is reactivated.
+    consecutive_failures = Column(Integer, default=0, nullable=False)
+    delisted_at = Column(DateTime, nullable=True, index=True)
+    delisted_recheck_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

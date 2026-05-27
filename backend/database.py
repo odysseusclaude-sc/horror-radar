@@ -108,6 +108,11 @@ def _run_migrations():
         # Tier 2 YouTube discovery
         "ALTER TABLE youtube_channels ADD COLUMN tier INTEGER DEFAULT 1",
         "ALTER TABLE youtube_channels ADD COLUMN discovered_from TEXT",
+        # Phase 2 — delisted-game classifier
+        "ALTER TABLE games ADD COLUMN consecutive_failures INTEGER DEFAULT 0",
+        "ALTER TABLE games ADD COLUMN delisted_at TIMESTAMP",
+        "ALTER TABLE games ADD COLUMN delisted_recheck_at TIMESTAMP",
+        "CREATE INDEX IF NOT EXISTS ix_games_delisted_at ON games (delisted_at)",
     ]
     with engine.connect() as conn:
         for stmt in alter_statements:
