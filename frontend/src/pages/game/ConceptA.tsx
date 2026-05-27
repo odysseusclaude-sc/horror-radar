@@ -28,10 +28,13 @@ interface TimelineGame {
   tags: string | null;
   is_indie: boolean;
   is_horror: boolean;
+  is_multiplayer?: boolean;
   header_image_url: string | null;
   has_demo: boolean;
   demo_appid: number | null;
   demo_release_date: string | null;
+  short_description?: string | null;
+  next_fest?: string | null;
 }
 
 interface TimelineSnapshotRaw {
@@ -580,13 +583,6 @@ export default function Autopsy() {
     data.videos.length > 0 ||
     creatorCards.length > 0;
 
-  const coverInitials = game.title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "??";
-
   /* ============================================================
      RENDER
      ============================================================ */
@@ -611,84 +607,68 @@ export default function Autopsy() {
             id="overview"
             className="mb-10 scroll-mt-20"
           >
-            <div className="flex flex-col md:flex-row gap-6 mb-10 flex-wrap">
-              {/* Cover */}
-              <div
-                className="w-full max-w-[200px] md:w-40 md:max-w-none aspect-[4/5] bg-border-dark rounded-md flex-shrink-0 flex items-center justify-center text-2xl text-text-dim overflow-hidden self-center md:self-start"
-                aria-hidden="true"
-              >
-                {game.header_image_url ? (
-                  <img
-                    src={game.header_image_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="font-mono">{coverInitials}</span>
-                )}
-              </div>
+            {/* Title + metadata + actions */}
+            <div className="mb-10">
+              <h1 className="font-serif text-3xl md:text-[2.75rem] font-bold leading-[1.1] tracking-tight mb-3">
+                {game.title}
+              </h1>
+              <p className="text-sm text-text-dim mb-5">
+                {[
+                  game.developer,
+                  game.publisher && game.publisher !== game.developer ? `pub. ${game.publisher}` : null,
+                  subgenre,
+                  game.is_multiplayer && "Multiplayer",
+                  game.has_demo && "Demo available",
+                  priceBadge(game.price_usd),
+                  releaseDate && `Released ${fmtDate(releaseDate)}`,
+                  game.next_fest && `Next Fest ${game.next_fest}`,
+                  latestSnapshot?.review_score_pct != null &&
+                    latestSnapshot.review_count != null &&
+                    latestSnapshot.review_count >= 10 &&
+                    getSteamRating(latestSnapshot.review_score_pct),
+                ]
+                  .filter(Boolean)
+                  .join(" \u00b7 ")}
+              </p>
 
-              {/* Title + metadata + actions */}
-              <div className="flex-1 min-w-0 mt-1">
-                <h1 className="font-serif text-3xl md:text-[2.75rem] font-bold leading-[1.1] tracking-tight mb-3">
-                  {game.title}
-                </h1>
-                <p className="text-sm text-text-dim mb-5">
-                  {[
-                    game.developer,
-                    subgenre,
-                    game.has_demo && "Demo available",
-                    priceBadge(game.price_usd),
-                    releaseDate && `Released ${fmtDate(releaseDate)}`,
-                    latestSnapshot?.review_score_pct != null &&
-                      latestSnapshot.review_count != null &&
-                      latestSnapshot.review_count >= 10 &&
-                      getSteamRating(latestSnapshot.review_score_pct),
-                  ]
-                    .filter(Boolean)
-                    .join(" \u00b7 ")}
-                </p>
-
-                {/* Action row: hairline pills */}
-                <div className="flex gap-2 flex-wrap">
-                  <a
-                    href={`https://store.steampowered.com/app/${game.appid}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="border border-border-dark rounded-full px-3.5 py-1.5 text-sm text-secondary hover:border-text-mid transition-colors"
-                  >
-                    Open on Steam ↗
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => toggleWatch(game.appid)}
-                    aria-pressed={watched}
-                    className={
-                      "border rounded-full px-3.5 py-1.5 text-sm transition-colors " +
-                      (watched
-                        ? "border-status-pos/40 text-status-pos"
-                        : "border-border-dark text-text-main hover:border-text-mid")
-                    }
-                  >
-                    {watched ? "Watching" : "Watchlist"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleCompare(game.appid)}
-                    disabled={!canAddToCompare}
-                    aria-pressed={inCompare}
-                    className={
-                      "border rounded-full px-3.5 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
-                      (inCompare
-                        ? "border-secondary/40 text-secondary"
-                        : "border-border-dark text-text-main hover:border-text-mid")
-                    }
-                    title={!canAddToCompare ? "Compare limit reached" : undefined}
-                  >
-                    {inCompare ? "In Compare" : "Compare"}
-                  </button>
-                </div>
+              {/* Action row: hairline pills */}
+              <div className="flex gap-2 flex-wrap">
+                <a
+                  href={`https://store.steampowered.com/app/${game.appid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border border-border-dark rounded-full px-3.5 py-1.5 text-sm text-secondary hover:border-text-mid transition-colors"
+                >
+                  Open on Steam ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => toggleWatch(game.appid)}
+                  aria-pressed={watched}
+                  className={
+                    "border rounded-full px-3.5 py-1.5 text-sm transition-colors " +
+                    (watched
+                      ? "border-status-pos/40 text-status-pos"
+                      : "border-border-dark text-text-main hover:border-text-mid")
+                  }
+                >
+                  {watched ? "Watching" : "Watchlist"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleCompare(game.appid)}
+                  disabled={!canAddToCompare}
+                  aria-pressed={inCompare}
+                  className={
+                    "border rounded-full px-3.5 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
+                    (inCompare
+                      ? "border-secondary/40 text-secondary"
+                      : "border-border-dark text-text-main hover:border-text-mid")
+                  }
+                  title={!canAddToCompare ? "Compare limit reached" : undefined}
+                >
+                  {inCompare ? "In Compare" : "Compare"}
+                </button>
               </div>
             </div>
 
@@ -715,6 +695,43 @@ export default function Autopsy() {
               </div>
             )}
 
+            {/* SIGNAL COMPONENTS — OPS breakdown bars (hidden when null) */}
+            {latestWithOps && (() => {
+              const comps: Array<{ label: string; value: number | null }> = [
+                { label: "Reviews", value: latestWithOps.review_component },
+                { label: "Velocity", value: latestWithOps.velocity_component },
+                { label: "Decay", value: latestWithOps.decay_component },
+                { label: "CCU", value: latestWithOps.ccu_component },
+                { label: "YouTube", value: latestWithOps.youtube_component },
+                { label: "Sentiment", value: latestWithOps.sentiment_component },
+                { label: "Twitch", value: latestWithOps.twitch_component },
+              ];
+              const populated = comps.filter((c) => c.value != null);
+              if (populated.length === 0) return null;
+              return (
+                <div className="mb-10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                    Signal components
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-w-[520px]">
+                    {populated.map((c) => {
+                      const v = c.value as number;
+                      const pct = Math.max(0, Math.min(100, v));
+                      return (
+                        <div key={c.label} className="grid grid-cols-[96px_1fr_36px] items-center gap-3 text-sm">
+                          <span className="text-text-mid">{c.label}</span>
+                          <div className="h-2 bg-border-dark/50 rounded-sm overflow-hidden">
+                            <div className="h-full bg-secondary/70" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="font-mono text-xs text-text-main text-right">{Math.round(v)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* AT A GLANCE — interpunct strip */}
             <div className="mb-10">
               <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
@@ -730,6 +747,33 @@ export default function Autopsy() {
                 ].join("  ·  ")}
               </p>
             </div>
+
+            {/* ABOUT — Steam short description */}
+            {game.short_description && (
+              <div className="border-l-2 border-text-mid/30 pl-4 mb-8">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                  About
+                </div>
+                <p className="text-sm text-text-mid leading-relaxed max-w-[68ch]">
+                  {game.short_description}
+                </p>
+              </div>
+            )}
+
+            {/* TAGS — Steam community tags */}
+            {tags.length > 0 && (
+              <div className="mb-10">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                  Tags
+                </div>
+                <p className="text-sm text-text-dim leading-relaxed">
+                  {tags.slice(0, 12).join(" · ")}
+                  {tags.length > 12 && (
+                    <span className="text-text-dim/60"> · +{tags.length - 12} more</span>
+                  )}
+                </p>
+              </div>
+            )}
           </section>
 
           {/* TIMELINE */}
