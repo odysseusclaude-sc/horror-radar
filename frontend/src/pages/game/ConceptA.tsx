@@ -699,7 +699,7 @@ export default function Autopsy() {
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
-        className="flex items-center gap-2 px-4 md:px-6 xl:px-10 py-3 text-xs text-text-dim"
+        className="max-w-[1440px] mx-auto flex items-center gap-2 px-4 md:px-6 xl:px-10 py-3 text-xs text-text-dim"
       >
         <Link to="/" className="hover:text-text-main transition-colors">Database</Link>
         <span aria-hidden="true" className="opacity-50">/</span>
@@ -735,7 +735,7 @@ export default function Autopsy() {
         </ul>
       </nav>
 
-      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr] min-h-[calc(100vh-100px)]">
+      <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr] min-h-[calc(100vh-100px)]">
         {/* Sidebar nav (desktop) */}
         <nav
           className="hidden md:block sticky top-[57px] h-[calc(100vh-57px)] border-r border-border-dark bg-surface-dark py-5 overflow-y-auto"
