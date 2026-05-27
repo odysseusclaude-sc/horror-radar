@@ -99,12 +99,31 @@ async def fetch_with_retry(
     max_retries: int = 3,
     timeout: float = 30.0,
     headers: dict | None = None,
+    on_failure=None,  # Phase 2.5 instrumentation hook; see _http.py docstring.
 ) -> dict | None:
     """Fetch JSON with exponential backoff retry.
 
     Retries on 429, 5xx. Returns None on permanent failures (4xx except 429).
     For SteamSpy 429, waits 60s then retries once.
+
+    Phase 2.5 — on_failure callback:
+        Optional callable invoked exactly once if and only if this function
+        ultimately returns None. Receives a dict:
+
+            {"error_class": str,    # see taxonomy below
+             "status_code": int | None,
+             "attempts": int,       # 1..max_retries — how many times we tried
+             "detail": str | None}  # optional, truncated by recorder
+
+        error_class values: "http_429", "http_5xx", "http_4xx_not_429",
+        "http_403_youtube_rate", "youtube_quota", "timeout", "connect_error".
+
+        Default None → no instrumentation, all existing callers unchanged.
     """
+    # Captures the most recent failure if we end up returning None at the
+    # bottom (retries exhausted). Direct-return paths invoke on_failure inline.
+    last_failure: dict | None = None
+
     for attempt in range(max_retries):
         try:
             if limiter:
@@ -115,6 +134,12 @@ async def fetch_with_retry(
             if resp.status_code == 429:
                 if hasattr(limiter, "record_rate_limit"):
                     limiter.record_rate_limit()
+                last_failure = {
+                    "error_class": "http_429",
+                    "status_code": 429,
+                    "attempts": attempt + 1,
+                    "detail": None,
+                }
                 # SteamSpy special handling: wait 60s
                 if "steamspy.com" in url:
                     logger.warning("SteamSpy rate limit hit, waiting 60s")
@@ -128,6 +153,12 @@ async def fetch_with_retry(
                 continue
 
             if resp.status_code >= 500:
+                last_failure = {
+                    "error_class": "http_5xx",
+                    "status_code": resp.status_code,
+                    "attempts": attempt + 1,
+                    "detail": None,
+                }
                 wait = (2 ** attempt) + random.uniform(0, 1)
                 logger.warning(f"Server error {resp.status_code} on {url}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
                 await asyncio.sleep(wait)
@@ -147,9 +178,22 @@ async def fetch_with_retry(
                     global _youtube_quota_exhausted
                     _youtube_quota_exhausted = True
                     logger.error(f"YouTube daily quota exceeded, aborting: {url}")
+                    if on_failure:
+                        on_failure({
+                            "error_class": "youtube_quota",
+                            "status_code": 403,
+                            "attempts": attempt + 1,
+                            "detail": "quotaExceeded",
+                        })
                     return None
                 else:
                     # rateLimitExceeded, userRateLimitExceeded, or unknown 403
+                    last_failure = {
+                        "error_class": "http_403_youtube_rate",
+                        "status_code": 403,
+                        "attempts": attempt + 1,
+                        "detail": reason or "unknown",
+                    }
                     wait = (2 ** attempt) + random.uniform(1, 3)
                     logger.warning(f"YouTube 403 ({reason or 'unknown'}) on {url}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
                     await asyncio.sleep(wait)
@@ -157,16 +201,35 @@ async def fetch_with_retry(
 
             if resp.status_code >= 400:
                 logger.error(f"Client error {resp.status_code} on {url}, not retrying")
+                if on_failure:
+                    on_failure({
+                        "error_class": "http_4xx_not_429",
+                        "status_code": resp.status_code,
+                        "attempts": attempt + 1,
+                        "detail": None,
+                    })
                 return None
 
             return resp.json()
 
         except (httpx.TimeoutException, httpx.ConnectError) as e:
+            error_class = "timeout" if isinstance(e, httpx.TimeoutException) else "connect_error"
+            last_failure = {
+                "error_class": error_class,
+                "status_code": None,
+                "attempts": attempt + 1,
+                "detail": str(e)[:200] or None,
+            }
             if attempt == max_retries - 1:
                 logger.error(f"Failed after {max_retries} attempts on {url}: {e}")
+                if on_failure:
+                    on_failure(last_failure)
                 return None
             wait = (2 ** attempt) + random.uniform(0, 1)
             logger.warning(f"Network error on {url}: {e}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
             await asyncio.sleep(wait)
 
+    # Loop exhausted without success — fire callback with the most recent failure.
+    if on_failure and last_failure is not None:
+        on_failure(last_failure)
     return None

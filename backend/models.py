@@ -291,3 +291,32 @@ class DeadLetter(Base):
     last_failed_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime)                      # 7 days TTL
     status = Column(String, default="dead")            # dead | reprocessing | resolved
+
+
+class PerGameFailure(Base):
+    """Phase 2.5 instrumentation: one row per per-game failure in reviews/CCU.
+
+    Pure observability. Lets us answer "what is actually failing" with SQL
+    instead of guessing from run-level item_failed totals. After 24h of data
+    we can decide whether the real fix is retry-budget tuning, timeout bump,
+    per-AppID rate-limit handling, or something else entirely.
+
+    error_class taxonomy (see collectors/instrumentation.py for the full list):
+      - timeout, connect_error             — network layer
+      - http_429, http_5xx, http_4xx       — HTTP layer (status_code populated)
+      - malformed_payload                  — 200 OK but expected key missing
+      - unknown_exception                  — caught at collector level
+
+    Retention: pruned to 30 days by a daily job. Expected steady-state volume
+    is ~2000 rows/day, so the table tops out at ~60K rows. Trivial.
+    """
+    __tablename__ = "per_game_failures"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    appid = Column(Integer, nullable=False, index=True)
+    collector = Column(String, nullable=False)         # "reviews" | "ccu"
+    error_class = Column(String, nullable=False)
+    status_code = Column(Integer, nullable=True)       # HTTP code if known
+    attempts = Column(Integer, default=1)              # 1..max_retries
+    occurred_at = Column(DateTime, default=datetime.utcnow, index=True)
+    detail = Column(String, nullable=True)             # truncated to 500 chars

@@ -14,6 +14,7 @@ import httpx
 from sqlalchemy import func
 
 from collectors._http import fetch_with_retry, steam_api_limiter
+from collectors.instrumentation import make_fetch_callback, record_failure_event
 from database import SessionLocal
 from models import CollectionRun, Game, GameSnapshot
 from validators import validate_ccu
@@ -88,10 +89,22 @@ async def run_ccu_snapshots():
                         STEAM_CCU_URL,
                         params={"appid": str(game.appid)},
                         limiter=steam_api_limiter,
+                        on_failure=make_fetch_callback(db, appid=game.appid, collector="ccu"),
                     )
 
                     if not data or "response" not in data:
                         failed += 1
+                        # Phase 2.5: HTTP-layer failures already logged by fetch_with_retry.
+                        # This branch is the malformed-payload case (200 but no "response").
+                        if data is not None:
+                            record_failure_event(
+                                db,
+                                appid=game.appid,
+                                collector="ccu",
+                                error_class="malformed_payload",
+                                status_code=200,
+                                detail="missing response key",
+                            )
                         continue
 
                     current_ccu = data["response"].get("player_count", 0)
@@ -130,6 +143,14 @@ async def run_ccu_snapshots():
                     logger.error(f"Error fetching CCU for AppID {game.appid}: {e}")
                     db.rollback()
                     failed += 1
+                    # Phase 2.5: capture the otherwise-invisible exception class.
+                    record_failure_event(
+                        db,
+                        appid=game.appid,
+                        collector="ccu",
+                        error_class="unknown_exception",
+                        detail=f"{type(e).__name__}: {e}",
+                    )
 
         run.status = "success" if failed == 0 else "partial"
         run.items_processed = processed

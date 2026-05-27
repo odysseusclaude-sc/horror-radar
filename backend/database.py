@@ -139,6 +139,38 @@ def _run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+        # Phase 2.5 — per-game failure instrumentation table + indexes
+        try:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS per_game_failures ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "appid INTEGER NOT NULL, "
+                "collector TEXT NOT NULL, "
+                "error_class TEXT NOT NULL, "
+                "status_code INTEGER, "
+                "attempts INTEGER DEFAULT 1, "
+                "occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                "detail TEXT)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_per_game_failures_collector_occurred "
+                "ON per_game_failures (collector, occurred_at)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_per_game_failures_appid "
+                "ON per_game_failures (appid)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     # Backfill is_multiplayer from tags JSON for existing games
     import json as _json
