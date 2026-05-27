@@ -181,6 +181,14 @@ function opsTier(score: number): { label: string; cls: string } {
   return { label: "COLD", cls: "text-status-neg" };
 }
 
+function opsInterpretation(score: number, age: number | null): string {
+  const ageHint =
+    age == null ? "" : age <= 14 ? " in launch week" : age <= 60 ? " through first 60 days" : " over its discovery window";
+  if (score >= 60) return `Outperforming peers${ageHint}. Strong breakout signal.`;
+  if (score >= 30) return `Mixed signal${ageHint}. Some indicators above peers, others lagging.`;
+  return `Underperforming peers${ageHint}. Soft launch or fading interest.`;
+}
+
 function getSteamRating(pct: number): string {
   if (pct >= 95) return "Overwhelmingly Positive";
   if (pct >= 80) return "Very Positive";
@@ -276,16 +284,6 @@ function derivePhases(snapshots: TimelineSnapshot[]): Phase[] {
   return phases;
 }
 
-/* ── Stat cards for Overview ───────────────────────────────────────── */
-
-interface OverviewStat {
-  icon: string;
-  label: string;
-  value: string;
-  sub: string | null;
-  tone?: "green" | "amber" | "neg" | null;
-}
-
 /* ── Events grouping ──────────────────────────────────────────────── */
 
 interface EventGroup {
@@ -379,11 +377,6 @@ export default function Autopsy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomRange>("30d");
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    youtube: true,
-    reddit: true,
-    steam: true,
-  });
 
   const { isWatched, toggle: toggleWatch } = useWatchlist();
   const { isInCompare, toggle: toggleCompare, canAdd: canAddCompare } = useCompare();
@@ -476,61 +469,6 @@ export default function Autopsy() {
     return daysBetween(releaseDate, new Date().toISOString().slice(0, 10));
   }, [releaseDate]);
 
-  const overviewStats: OverviewStat[] = useMemo(() => {
-    const stats: OverviewStat[] = [];
-    stats.push({
-      icon: "\u26A1",
-      label: "OPS",
-      value: latestWithOps?.ops_score != null ? String(Math.round(latestWithOps.ops_score)) : "—",
-      sub: latestWithOps?.ops_score != null
-        ? `${opsTier(latestWithOps.ops_score).label} tier · ${opsConfidence ?? "—"} confidence`
-        : "No OPS data yet",
-      tone: latestWithOps?.ops_score != null
-        ? latestWithOps.ops_score >= 60 ? "green" : latestWithOps.ops_score >= 30 ? "amber" : "neg"
-        : null,
-    });
-    stats.push({
-      icon: "\u2B50",
-      label: "Reviews",
-      value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—",
-      sub:
-        latestSnapshot?.review_score_pct != null
-          ? `${Math.round(latestSnapshot.review_score_pct)}% positive${
-              reviewsPerDay ? ` · ${reviewsPerDay.toFixed(1)}/day avg` : ""
-            }`
-          : reviewsPerDay
-          ? `${reviewsPerDay.toFixed(1)}/day avg`
-          : null,
-    });
-    stats.push({
-      icon: "\u{1F3AE}",
-      label: "Peak CCU",
-      value: maxCcu > 0 ? fmtNum(maxCcu) : "—",
-      sub: latestSnapshot?.peak_ccu != null && latestSnapshot.peak_ccu < maxCcu
-        ? `Now ${fmtNum(latestSnapshot.peak_ccu)} current`
-        : null,
-    });
-    stats.push({
-      icon: "\u{1F4C5}",
-      label: "Age",
-      value: daysSinceLaunch != null ? `${daysSinceLaunch}d` : "—",
-      sub: releaseDate ? `Released ${fmtDate(releaseDate)}` : null,
-      tone: daysSinceLaunch != null ? (daysSinceLaunch <= 7 ? "green" : daysSinceLaunch <= 30 ? "amber" : null) : null,
-    });
-    stats.push({
-      icon: "\u25B6",
-      label: "YouTube",
-      value: String(uniqueChannels),
-      sub: uniqueChannels === 1 ? "Creator covering this game" : "Creators covering this game",
-    });
-    stats.push({
-      icon: "\u{1F6E0}",
-      label: "Patches",
-      value: patchCount != null ? String(patchCount) : "—",
-      sub: patchCount != null ? "Updates in first 30 days" : "No update data",
-    });
-    return stats;
-  }, [latestWithOps, latestSnapshot, maxCcu, daysSinceLaunch, releaseDate, uniqueChannels, patchCount, reviewsPerDay, opsConfidence]);
 
   /* ── Chart data (zoom-windowed) ── */
   const chartData = useMemo(() => {
@@ -676,10 +614,10 @@ export default function Autopsy() {
             id="overview"
             className="mb-10 scroll-mt-20"
           >
-            <div className="flex flex-col md:flex-row gap-5 mb-6 flex-wrap">
+            <div className="flex flex-col md:flex-row gap-6 mb-10 flex-wrap">
               {/* Cover */}
               <div
-                className="w-full max-w-[200px] md:w-40 md:max-w-none aspect-[4/5] bg-border-dark rounded-lg flex-shrink-0 flex items-center justify-center text-2xl text-text-dim overflow-hidden self-center md:self-start"
+                className="w-full max-w-[200px] md:w-40 md:max-w-none aspect-[4/5] bg-border-dark rounded-md flex-shrink-0 flex items-center justify-center text-2xl text-text-dim overflow-hidden self-center md:self-start"
                 aria-hidden="true"
               >
                 {game.header_image_url ? (
@@ -694,61 +632,49 @@ export default function Autopsy() {
                 )}
               </div>
 
-              {/* Title + badges + actions */}
-              <div className="flex-1 min-w-0">
-                <h1 className="font-serif text-2xl md:text-[2.375rem] font-bold leading-[1.15] mb-2">
+              {/* Title + metadata + actions */}
+              <div className="flex-1 min-w-0 mt-1">
+                <h1 className="font-serif text-3xl md:text-[2.75rem] font-bold leading-[1.1] tracking-tight mb-3">
                   {game.title}
                 </h1>
-                <p className="text-sm text-text-mid mb-3">
-                  by{" "}
-                  {game.developer ? (
-                    <span className="text-[#c04040]">{game.developer}</span>
-                  ) : (
-                    <span>Unknown developer</span>
-                  )}
+                <p className="text-sm text-text-dim mb-5">
+                  {[
+                    game.developer,
+                    subgenre,
+                    game.has_demo && "Demo available",
+                    priceBadge(game.price_usd),
+                    releaseDate && `Released ${fmtDate(releaseDate)}`,
+                    latestSnapshot?.review_score_pct != null &&
+                      latestSnapshot.review_count != null &&
+                      latestSnapshot.review_count >= 10 &&
+                      getSteamRating(latestSnapshot.review_score_pct),
+                  ]
+                    .filter(Boolean)
+                    .join(" \u00b7 ")}
                 </p>
 
-                <div className="flex gap-2 flex-wrap mb-4">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(163,106,165,0.3)] bg-[rgba(163,106,165,0.08)] text-tertiary">
-                    <span aria-hidden="true">{"\u{1F47B}"}</span> {subgenre}
-                  </span>
-                  {game.has_demo && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(107,157,219,0.3)] bg-[rgba(107,157,219,0.08)] text-status-info">
-                      <span aria-hidden="true">{"\u{1F579}"}</span> Demo Available
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)] text-secondary">
-                    <span aria-hidden="true">{"\u{1F4B0}"}</span> {priceBadge(game.price_usd)}
-                  </span>
-                  {latestSnapshot?.review_score_pct != null && latestSnapshot.review_count != null && latestSnapshot.review_count >= 10 && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(94,194,105,0.3)] bg-[rgba(94,194,105,0.08)] text-status-pos">
-                      <span aria-hidden="true">{"\u2714"}</span> {getSteamRating(latestSnapshot.review_score_pct)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Action row: Steam link + Watchlist + Compare */}
+                {/* Action row: hairline pills */}
                 <div className="flex gap-2 flex-wrap">
                   <a
                     href={`https://store.steampowered.com/app/${game.appid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded bg-primary text-white uppercase font-bold hover:bg-primary-light transition-colors"
+                    className="border border-border-dark rounded-full px-3.5 py-1.5 text-sm text-secondary hover:border-text-mid transition-colors"
                   >
-                    ▸ Open on Steam
+                    Open on Steam ↗
                   </a>
                   <button
                     type="button"
                     onClick={() => toggleWatch(game.appid)}
                     aria-pressed={watched}
                     className={
-                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors " +
+                      "border rounded-full px-3.5 py-1.5 text-sm transition-colors " +
                       (watched
-                        ? "border-[rgba(94,194,105,0.4)] bg-[rgba(94,194,105,0.08)] text-status-pos"
-                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
+                        ? "border-status-pos/40 text-status-pos"
+                        : "border-border-dark text-text-main hover:border-text-mid")
                     }
                   >
-                    {watched ? "★ Watching" : "☆ Watchlist"}
+                    {watched ? "Watching" : "Watchlist"}
                   </button>
                   <button
                     type="button"
@@ -756,56 +682,62 @@ export default function Autopsy() {
                     disabled={!canAddToCompare}
                     aria-pressed={inCompare}
                     className={
-                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
+                      "border rounded-full px-3.5 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
                       (inCompare
-                        ? "border-[rgba(187,113,37,0.4)] bg-[rgba(187,113,37,0.08)] text-secondary"
-                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
+                        ? "border-secondary/40 text-secondary"
+                        : "border-border-dark text-text-main hover:border-text-mid")
                     }
                     title={!canAddToCompare ? "Compare limit reached" : undefined}
                   >
-                    {inCompare ? "⊟ In Compare" : "⊞ Compare"}
+                    {inCompare ? "In Compare" : "Compare"}
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Overview stats grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              {overviewStats.map((stat) => (
-                <article
-                  key={stat.label}
-                  className="bg-surface-dark border border-border-dark rounded-lg p-4"
-                >
-                  <div className="text-xs text-text-dim uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
-                    <span className="text-sm" aria-hidden="true">{stat.icon}</span>
-                    {stat.label}
-                  </div>
-                  <div
-                    className={
-                      "font-mono text-xl font-semibold " +
-                      (stat.tone === "green"
-                        ? "text-status-pos"
-                        : stat.tone === "amber"
-                        ? "text-status-warn"
-                        : stat.tone === "neg"
-                        ? "text-status-neg"
-                        : "text-text-main")
-                    }
-                  >
-                    {stat.value}
-                  </div>
-                  {stat.sub && (
-                    <div className="text-xs text-text-dim mt-1 leading-snug">{stat.sub}</div>
+            {/* OPS masthead — vertical-bar TL;DR */}
+            {latestWithOps?.ops_score != null && (
+              <div className="border-l-2 border-secondary pl-4 mb-8">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-1">
+                  OPS
+                </div>
+                <div className="flex items-baseline gap-3 mb-1 flex-wrap">
+                  <span className={"font-mono text-5xl font-semibold " + opsTier(latestWithOps.ops_score).cls}>
+                    {Math.round(latestWithOps.ops_score)}
+                  </span>
+                  <span className={"font-mono text-sm uppercase tracking-wider " + opsTier(latestWithOps.ops_score).cls}>
+                    {opsTier(latestWithOps.ops_score).label}
+                  </span>
+                  {opsConfidence && (
+                    <span className="font-mono text-xs text-text-dim">{opsConfidence} confidence</span>
                   )}
-                </article>
-              ))}
+                </div>
+                <p className="text-sm text-text-mid leading-relaxed max-w-[60ch]">
+                  {opsInterpretation(latestWithOps.ops_score, daysSinceLaunch)}
+                </p>
+              </div>
+            )}
+
+            {/* AT A GLANCE — interpunct strip */}
+            <div className="mb-10">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                At a glance
+              </div>
+              <p className="text-sm text-text-main">
+                {[
+                  `Reviews ${latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—"}`,
+                  `Peak CCU ${maxCcu > 0 ? fmtNum(maxCcu) : "—"}`,
+                  `Age ${daysSinceLaunch != null ? daysSinceLaunch + "d" : "—"}`,
+                  `YouTube ${uniqueChannels}`,
+                  `Patches ${patchCount != null ? patchCount : "—"}`,
+                ].join("  ·  ")}
+              </p>
             </div>
           </section>
 
           {/* TIMELINE */}
           <section id="timeline" className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4C8}"}</span>
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
               Timeline
             </h2>
 
@@ -818,10 +750,10 @@ export default function Autopsy() {
               </div>
             ) : (
               <>
-                <div className="bg-surface-dark border border-border-dark rounded-lg p-5 mb-4">
+                <div className="mb-6">
                   {/* Zoom controls */}
                   <div
-                    className="flex items-center gap-3 mb-4 pb-3 border-b border-border-dark flex-wrap"
+                    className="flex items-center gap-3 mb-4 flex-wrap"
                     role="group"
                     aria-label="Zoom controls"
                   >
@@ -933,23 +865,25 @@ export default function Autopsy() {
                   </div>
                 </div>
 
-                {/* Phase cards */}
+                {/* Phase TL;DRs — vertical-bar narrative */}
                 {phases.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-4 mt-6">
                     {phases.map((p) => (
-                      <article
+                      <div
                         key={p.id}
-                        className="bg-surface-dark border border-border-dark rounded-lg p-4"
+                        className="border-l-2 pl-4"
+                        style={{ borderColor: p.color }}
                       >
                         <div
-                          className={"text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1 " + p.accentClass}
+                          className={"text-[11px] uppercase tracking-[0.14em] font-semibold mb-1 " + p.accentClass}
                         >
-                          <span aria-hidden="true">{p.icon}</span>
                           {p.label}
+                          <span className="text-text-dim font-mono normal-case tracking-normal ml-2">
+                            {p.range}
+                          </span>
                         </div>
-                        <div className="font-mono text-xs text-text-dim mb-2">{p.range}</div>
-                        <div className="text-xs text-text-mid leading-relaxed">{p.summary}</div>
-                      </article>
+                        <p className="text-sm text-text-mid leading-relaxed">{p.summary}</p>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -960,9 +894,8 @@ export default function Autopsy() {
           {/* CREATOR IMPACT */}
           {creatorCards.length > 0 && (
           <section id="creators" className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u25B6"}</span>
-              Creator Impact
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
+              Creator Coverage
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1050,92 +983,55 @@ export default function Autopsy() {
           )}
 
           {/* EVENTS */}
+          {eventGroups.length > 0 && (
           <section id="events" className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4CB}"}</span>
-              Events Timeline
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
+              Events
             </h2>
 
-            {eventGroups.length === 0 ? (
-              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
-                <div className="text-text-dim text-sm">No events tracked yet</div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-5">
-                {eventGroups.map((g) => {
-                  const expanded = expandedGroups[g.key] ?? true;
-                  return (
-                    <div key={g.key}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedGroups((prev) => ({ ...prev, [g.key]: !expanded }))
-                        }
-                        aria-expanded={expanded}
-                        aria-label={`${g.label} events, ${g.items.length} item${g.items.length === 1 ? "" : "s"}`}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-surface-dark border border-border-dark rounded-lg hover:bg-[#222224] transition-colors mb-2"
+            <div className="flex flex-col gap-6">
+              {eventGroups.map((g) => (
+                <div key={g.key}>
+                  <div className={"text-[11px] uppercase tracking-[0.14em] font-semibold mb-2 " + g.accentClass}>
+                    {g.label}
+                    <span className="text-text-dim font-mono normal-case tracking-normal ml-2">
+                      {g.items.length}
+                    </span>
+                  </div>
+                  <ul className="flex flex-col gap-2 pl-4 border-l border-border-dark list-none">
+                    {g.items.map((ev, i) => (
+                      <li
+                        key={`${g.key}-${i}`}
+                        className="text-sm flex items-baseline gap-3"
                       >
-                        <div className={"flex items-center gap-2 text-sm font-semibold " + g.accentClass}>
-                          <span aria-hidden="true" className="text-base">{g.icon}</span>
-                          <span className="text-text-main">{g.label}</span>
-                        </div>
-                        <span className="font-mono text-xs text-text-dim bg-white/[0.03] py-[2px] px-2 rounded-full">
-                          {g.items.length} event{g.items.length === 1 ? "" : "s"}
+                        <span className="font-mono text-xs text-text-dim w-10 flex-shrink-0">
+                          D{ev.day_index}
                         </span>
-                        <span
-                          aria-hidden="true"
-                          className={
-                            "text-text-dim text-base transition-transform ml-2 " +
-                            (expanded ? "rotate-90" : "")
-                          }
-                        >
-                          ›
-                        </span>
-                      </button>
-
-                      {expanded && (
-                        <div className="flex flex-col gap-2 pl-4" role="list">
-                          {g.items.map((ev, i) => (
-                            <div
-                              key={`${g.key}-${i}`}
-                              role="listitem"
-                              className="flex items-start gap-3 px-4 py-3 bg-surface-dark border border-border-dark rounded-md text-sm"
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={"w-2 h-2 rounded-full mt-[6px] flex-shrink-0 " + g.dotClass}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-text-main mb-[2px]">{ev.title}</div>
-                                <div className="text-xs text-text-dim flex gap-3 flex-wrap">
-                                  {ev.channel_name && <span>{ev.channel_name}</span>}
-                                  {ev.subscriber_count != null && <span>{fmtNum(ev.subscriber_count)} subs</span>}
-                                  {ev.view_count != null && <span>{fmtNum(ev.view_count)} views</span>}
-                                  {ev.subreddit && <span>r/{ev.subreddit}</span>}
-                                  {ev.score != null && <span>{fmtNum(ev.score)} upvotes</span>}
-                                  {ev.num_comments != null && <span>{ev.num_comments} comments</span>}
-                                  {ev.detail && !ev.channel_name && !ev.subreddit && <span>{ev.detail}</span>}
-                                </div>
-                              </div>
-                              <span className="font-mono text-xs text-text-dim whitespace-nowrap flex-shrink-0">
-                                Day {ev.day_index}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-text-main">{ev.title}</div>
+                          <div className="text-xs text-text-dim flex gap-3 flex-wrap mt-[2px]">
+                            {ev.channel_name && <span>{ev.channel_name}</span>}
+                            {ev.subscriber_count != null && <span>{fmtNum(ev.subscriber_count)} subs</span>}
+                            {ev.view_count != null && <span>{fmtNum(ev.view_count)} views</span>}
+                            {ev.subreddit && <span>r/{ev.subreddit}</span>}
+                            {ev.score != null && <span>{fmtNum(ev.score)} upvotes</span>}
+                            {ev.num_comments != null && <span>{ev.num_comments} comments</span>}
+                            {ev.detail && !ev.channel_name && !ev.subreddit && <span>{ev.detail}</span>}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </section>
+          )}
 
           {/* COMMUNITY */}
           <section id="community" className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F465}"}</span>
-              Community Signals
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
+              Community
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
