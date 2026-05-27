@@ -111,16 +111,25 @@ async def stale_run_watchdog():
             db.commit()
             logger.info(f"Dead letter cleanup: removed {len(expired)} expired entries")
 
-        # Alert if live DLQ is accumulating
+        # Alert on DLQ growth rather than absolute count. The flat threshold of 10
+        # has been firing every tick since the queue accumulated past it and is now
+        # ignored noise. Growth-rate alerting catches new incidents while letting
+        # the existing backlog drain (or be cleared) without spamming.
         dlq_count = db.query(DeadLetter).filter(
             DeadLetter.status == "dead",
             DeadLetter.expires_at > datetime.utcnow(),
         ).count()
-        if dlq_count >= 10:
+        recent_dlq_count = db.query(DeadLetter).filter(
+            DeadLetter.status == "dead",
+            DeadLetter.expires_at > datetime.utcnow(),
+            DeadLetter.last_failed_at > datetime.utcnow() - timedelta(hours=1),
+        ).count()
+        if recent_dlq_count >= 10:
             await send_discord_alert(
                 settings.discord_webhook_url,
-                "Dead Letter Queue Accumulating",
-                f"Dead letter queue: **{dlq_count}** items accumulated.\n"
+                "Dead Letter Queue Growing",
+                f"Dead letter queue grew by **{recent_dlq_count}** in the last hour "
+                f"(total live: {dlq_count}).\n"
                 "These AppIDs have failed metadata fetch 5+ times. "
                 "Check rate limits or Steam API availability.",
                 level="warning",
@@ -167,9 +176,13 @@ async def metadata_job():
             _metadata_health["consecutive_successes"] = 0
         # partial or other → leave consecutive_successes unchanged
 
-        # Adjust interval
+        # Adjust interval.
+        # circuit_open suspends the pending-metadata queue for 30 min (see
+        # collectors/metadata.py). Next run must land *after* that window or
+        # it wakes to an empty queue, returns "success" with proc=0, and the
+        # breaker re-trips on the run after — causing a 15/30 thrash cycle.
         if last_status == "circuit_open":
-            new_interval = 15
+            new_interval = 35
         elif _metadata_health["consecutive_successes"] >= 3:
             new_interval = 45
         else:

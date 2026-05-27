@@ -489,8 +489,19 @@ async def run_metadata_fetch(db) -> None:
     )
 
     if not items:
+        # Distinguish "queue genuinely empty" from "all rows breaker-suspended".
+        # If rows exist but were pushed forward by the circuit breaker, writing
+        # a success heartbeat would reset the staleness clock on /health/pipeline
+        # and hide the breaker — so we skip the heartbeat in that case.
+        suspended_exists = db.query(PendingMetadata).filter(
+            or_(PendingMetadata.last_status != "success", PendingMetadata.last_status.is_(None)),
+        ).limit(1).first() is not None
+
+        if suspended_exists:
+            logger.info("pending_metadata queue suspended (breaker cooldown) — no heartbeat written")
+            return
+
         logger.info("pending_metadata queue empty — nothing to fetch")
-        # Heartbeat row so /health/pipeline sees metadata as fresh on empty ticks.
         heartbeat = CollectionRun(
             job_name="metadata",
             status="success",
@@ -510,6 +521,8 @@ async def run_metadata_fetch(db) -> None:
     processed = 0
     failed = 0
     consecutive_failures = 0
+    calls_at_start = steam_store_limiter.stats["calls_today"]
+    rl_at_start = steam_store_limiter.stats["rate_limited_today"]
 
     try:
         async with httpx.AsyncClient() as client:
@@ -615,8 +628,9 @@ async def run_metadata_fetch(db) -> None:
         run.items_processed = processed
         run.items_failed = failed
         run.finished_at = datetime.now(timezone.utc)
-        run.api_calls_made = steam_store_limiter.stats["calls_today"] if hasattr(steam_store_limiter, "stats") else 0
-        run.api_calls_rate_limited = steam_store_limiter.stats["rate_limited_today"] if hasattr(steam_store_limiter, "stats") else 0
+        # Per-run delta, not the cumulative daily counter. Mirrors ccu.py / reviews.py.
+        run.api_calls_made = max(0, steam_store_limiter.stats["calls_today"] - calls_at_start)
+        run.api_calls_rate_limited = max(0, steam_store_limiter.stats["rate_limited_today"] - rl_at_start)
         db.commit()
 
         logger.info(f"Metadata fetch complete: {processed} games processed, {failed} failed")

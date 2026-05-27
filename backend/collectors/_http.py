@@ -27,6 +27,10 @@ class RateLimiter:
         self._last_request = asyncio.get_event_loop().time()
 
 
+class BudgetExhausted(RuntimeError):
+    """Raised by BudgetedLimiter.acquire() when the daily call cap is reached."""
+
+
 class BudgetedLimiter:
     """Rate limiter with a daily call budget cap."""
 
@@ -47,15 +51,25 @@ class BudgetedLimiter:
     async def acquire(self):
         self._check_reset()
         if self._daily_cap and self._calls_today >= self._daily_cap:
-            raise RuntimeError(f"Daily API budget exhausted ({self._daily_cap} calls)")
+            raise BudgetExhausted(f"Daily API budget exhausted ({self._daily_cap} calls)")
         await self._limiter.acquire()
         self._calls_today += 1
+
+    def has_budget(self) -> bool:
+        """Cheap pre-check so callers can break out of loops before the next acquire()."""
+        self._check_reset()
+        return not self._daily_cap or self._calls_today < self._daily_cap
 
     def record_rate_limit(self):
         self._rate_limited_today += 1
 
     @property
     def stats(self) -> dict:
+        # Reset on read too. Without this, a caller that snapshots stats
+        # before the first acquire() of a new UTC day captures yesterday's
+        # accumulator; the first acquire() then resets to 0 and any
+        # (after - before) delta clamps negative.
+        self._check_reset()
         return {"calls_today": self._calls_today, "rate_limited_today": self._rate_limited_today, "daily_cap": self._daily_cap}
 
 
@@ -68,8 +82,11 @@ STEAM_API_HEADERS = {
 }
 
 # Pre-configured rate limiters
-# Store endpoints (appdetails, reviews, store page scraping) — slower, more detectable
-steam_store_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=800)
+# Store endpoints (appdetails, reviews, store page scraping) — slower, more detectable.
+# Cap sized for ~1k-game catalog: ~970 horror games × 1 reviews call/day + metadata
+# queue drain (~50-200/day) + retries. Pacing (2-3s/call) is what keeps Steam happy;
+# the daily cap is a safety ceiling, not a throttle.
+steam_store_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=2000)
 
 # Web API endpoints (CCU, achievements, updates) — separate rate budget
 steam_api_limiter = BudgetedLimiter(min_interval=1.0, jitter=0.5, daily_cap=2000)
