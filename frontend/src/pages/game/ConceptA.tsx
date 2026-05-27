@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   Area,
@@ -28,10 +28,13 @@ interface TimelineGame {
   tags: string | null;
   is_indie: boolean;
   is_horror: boolean;
+  is_multiplayer?: boolean;
   header_image_url: string | null;
   has_demo: boolean;
   demo_appid: number | null;
   demo_release_date: string | null;
+  short_description?: string | null;
+  next_fest?: string | null;
 }
 
 interface TimelineSnapshotRaw {
@@ -181,6 +184,14 @@ function opsTier(score: number): { label: string; cls: string } {
   return { label: "COLD", cls: "text-status-neg" };
 }
 
+function opsInterpretation(score: number, age: number | null): string {
+  const ageHint =
+    age == null ? "" : age <= 14 ? " in launch week" : age <= 60 ? " through first 60 days" : " over its discovery window";
+  if (score >= 60) return `Outperforming peers${ageHint}. Strong breakout signal.`;
+  if (score >= 30) return `Mixed signal${ageHint}. Some indicators above peers, others lagging.`;
+  return `Underperforming peers${ageHint}. Soft launch or fading interest.`;
+}
+
 function getSteamRating(pct: number): string {
   if (pct >= 95) return "Overwhelmingly Positive";
   if (pct >= 80) return "Very Positive";
@@ -276,16 +287,6 @@ function derivePhases(snapshots: TimelineSnapshot[]): Phase[] {
   return phases;
 }
 
-/* ── Stat cards for Overview ───────────────────────────────────────── */
-
-interface OverviewStat {
-  icon: string;
-  label: string;
-  value: string;
-  sub: string | null;
-  tone?: "green" | "amber" | "neg" | null;
-}
-
 /* ── Events grouping ──────────────────────────────────────────────── */
 
 interface EventGroup {
@@ -372,16 +373,6 @@ function ChartTooltip({ active, payload }: any) {
    ============================================================ */
 
 type ZoomRange = "7d" | "30d" | "all";
-const SECTION_IDS = ["overview", "timeline", "creators", "events", "community"] as const;
-type SectionId = (typeof SECTION_IDS)[number];
-
-const SECTION_LABELS: Record<SectionId, { label: string; icon: string }> = {
-  overview: { label: "Overview", icon: "\u{1F3AE}" },
-  timeline: { label: "Timeline", icon: "\u{1F4C8}" },
-  creators: { label: "Creator Impact", icon: "\u25B6" },
-  events: { label: "Events", icon: "\u{1F4CB}" },
-  community: { label: "Community", icon: "\u{1F465}" },
-};
 
 export default function Autopsy() {
   const { appid } = useParams<{ appid: string }>();
@@ -389,12 +380,6 @@ export default function Autopsy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomRange>("30d");
-  const [activeSection, setActiveSection] = useState<SectionId>("overview");
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    youtube: true,
-    reddit: true,
-    steam: true,
-  });
 
   const { isWatched, toggle: toggleWatch } = useWatchlist();
   const { isInCompare, toggle: toggleCompare, canAdd: canAddCompare } = useCompare();
@@ -462,12 +447,6 @@ export default function Autopsy() {
     return snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
   }, [snapshots]);
 
-  const reviewsPerDay = useMemo(() => {
-    if (!latestSnapshot?.review_count || !releaseDate) return null;
-    const days = Math.max(1, daysBetween(releaseDate, latestSnapshot.date));
-    return latestSnapshot.review_count / days;
-  }, [latestSnapshot, releaseDate]);
-
   const patchCount = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
       const v = snapshots[i].patch_count_30d;
@@ -487,61 +466,6 @@ export default function Autopsy() {
     return daysBetween(releaseDate, new Date().toISOString().slice(0, 10));
   }, [releaseDate]);
 
-  const overviewStats: OverviewStat[] = useMemo(() => {
-    const stats: OverviewStat[] = [];
-    stats.push({
-      icon: "\u26A1",
-      label: "OPS",
-      value: latestWithOps?.ops_score != null ? String(Math.round(latestWithOps.ops_score)) : "—",
-      sub: latestWithOps?.ops_score != null
-        ? `${opsTier(latestWithOps.ops_score).label} tier · ${opsConfidence ?? "—"} confidence`
-        : "No OPS data yet",
-      tone: latestWithOps?.ops_score != null
-        ? latestWithOps.ops_score >= 60 ? "green" : latestWithOps.ops_score >= 30 ? "amber" : "neg"
-        : null,
-    });
-    stats.push({
-      icon: "\u2B50",
-      label: "Reviews",
-      value: latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—",
-      sub:
-        latestSnapshot?.review_score_pct != null
-          ? `${Math.round(latestSnapshot.review_score_pct)}% positive${
-              reviewsPerDay ? ` · ${reviewsPerDay.toFixed(1)}/day avg` : ""
-            }`
-          : reviewsPerDay
-          ? `${reviewsPerDay.toFixed(1)}/day avg`
-          : null,
-    });
-    stats.push({
-      icon: "\u{1F3AE}",
-      label: "Peak CCU",
-      value: maxCcu > 0 ? fmtNum(maxCcu) : "—",
-      sub: latestSnapshot?.peak_ccu != null && latestSnapshot.peak_ccu < maxCcu
-        ? `Now ${fmtNum(latestSnapshot.peak_ccu)} current`
-        : null,
-    });
-    stats.push({
-      icon: "\u{1F4C5}",
-      label: "Age",
-      value: daysSinceLaunch != null ? `${daysSinceLaunch}d` : "—",
-      sub: releaseDate ? `Released ${fmtDate(releaseDate)}` : null,
-      tone: daysSinceLaunch != null ? (daysSinceLaunch <= 7 ? "green" : daysSinceLaunch <= 30 ? "amber" : null) : null,
-    });
-    stats.push({
-      icon: "\u25B6",
-      label: "YouTube",
-      value: String(uniqueChannels),
-      sub: uniqueChannels === 1 ? "Creator covering this game" : "Creators covering this game",
-    });
-    stats.push({
-      icon: "\u{1F6E0}",
-      label: "Patches",
-      value: patchCount != null ? String(patchCount) : "—",
-      sub: patchCount != null ? "Updates in first 30 days" : "No update data",
-    });
-    return stats;
-  }, [latestWithOps, latestSnapshot, maxCcu, daysSinceLaunch, releaseDate, uniqueChannels, patchCount, reviewsPerDay, opsConfidence]);
 
   /* ── Chart data (zoom-windowed) ── */
   const chartData = useMemo(() => {
@@ -608,12 +532,6 @@ export default function Autopsy() {
   const eventGroups = useMemo(() => groupEvents(events), [events]);
 
   /* ── Community stats ── */
-  const latestTwitchViewers = useMemo(() => {
-    for (let i = snapshots.length - 1; i >= 0; i--) {
-      if (snapshots[i].twitch_viewers != null) return snapshots[i].twitch_viewers;
-    }
-    return null;
-  }, [snapshots]);
 
   const latestTwitchStreams = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
@@ -631,32 +549,6 @@ export default function Autopsy() {
     if (!data?.reddit_mentions?.length) return 0;
     return data.reddit_mentions.reduce((mx, r) => Math.max(mx, r.score ?? 0), 0);
   }, [data?.reddit_mentions]);
-
-  /* ── Scrollspy for section nav ── */
-  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
-
-  useEffect(() => {
-    if (loading || error) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id as SectionId);
-          }
-        }
-      },
-      { rootMargin: "-40% 0px -55% 0px", threshold: 0 },
-    );
-    for (const id of SECTION_IDS) {
-      const el = sectionRefs.current[id];
-      if (el) observer.observe(el);
-    }
-    return () => observer.disconnect();
-  }, [loading, error]);
-
-  const setSectionRef = useCallback((id: SectionId) => (el: HTMLElement | null) => {
-    sectionRefs.current[id] = el;
-  }, []);
 
   /* ── Loading / Error ── */
   if (loading) {
@@ -683,12 +575,13 @@ export default function Autopsy() {
   const inCompare = isInCompare(game.appid);
   const canAddToCompare = canAddCompare || inCompare;
 
-  const coverInitials = game.title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "??";
+  const hasRailContent =
+    redditCount > 0 ||
+    (latestSnapshot?.review_count ?? 0) > 0 ||
+    peakTwitch > 0 ||
+    (latestTwitchStreams ?? 0) > 0 ||
+    data.videos.length > 0 ||
+    creatorCards.length > 0;
 
   /* ============================================================
      RENDER
@@ -699,212 +592,193 @@ export default function Autopsy() {
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
-        className="flex items-center gap-2 px-4 md:px-6 xl:px-10 py-3 text-xs text-text-dim"
+        className="max-w-[1440px] mx-auto flex items-center gap-2 px-4 md:px-6 xl:px-10 py-3 text-xs text-text-dim"
       >
         <Link to="/" className="hover:text-text-main transition-colors">Database</Link>
         <span aria-hidden="true" className="opacity-50">/</span>
         <span aria-current="page" className="text-text-mid truncate max-w-[60vw]">{game.title}</span>
       </nav>
 
-      {/* Mobile section nav pill bar */}
-      <nav
-        className="md:hidden sticky top-[57px] z-40 bg-surface-dark border-b border-border-dark px-4 py-2 overflow-x-auto"
-        aria-label="Page sections (mobile)"
-        style={{ scrollbarWidth: "none" }}
-      >
-        <ul className="flex gap-1 whitespace-nowrap list-none">
-          {SECTION_IDS.map((id) => {
-            const active = activeSection === id;
-            return (
-              <li key={id}>
-                <a
-                  href={`#${id}`}
-                  className={
-                    "inline-flex items-center gap-1 px-3 py-2 rounded-full border text-xs font-medium transition-colors " +
-                    (active
-                      ? "text-secondary border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)]"
-                      : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.04]")
-                  }
-                >
-                  <span aria-hidden="true">{SECTION_LABELS[id].icon}</span>
-                  {SECTION_LABELS[id].label}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr] min-h-[calc(100vh-100px)]">
-        {/* Sidebar nav (desktop) */}
-        <nav
-          className="hidden md:block sticky top-[57px] h-[calc(100vh-57px)] border-r border-border-dark bg-surface-dark py-5 overflow-y-auto"
-          aria-label="Page sections"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-text-dim px-4 pb-3">
-            Sections
-          </div>
-          <ul className="list-none">
-            {SECTION_IDS.map((id) => {
-              const active = activeSection === id;
-              return (
-                <li key={id}>
-                  <a
-                    href={`#${id}`}
-                    className={
-                      "flex items-center gap-2 px-4 py-2 text-sm border-l-2 transition-colors " +
-                      (active
-                        ? "text-text-main border-secondary bg-[rgba(187,113,37,0.05)]"
-                        : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.03]")
-                    }
-                  >
-                    <span aria-hidden="true" className="w-5 text-center">{SECTION_LABELS[id].icon}</span>
-                    {SECTION_LABELS[id].label}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {/* MAIN CONTENT */}
-        <main id="main-content" className="p-4 md:p-6 xl:p-8 max-w-[960px]">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-6 xl:px-10">
+        <div className={hasRailContent ? "grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8" : ""}>
+        <main id="main-content" className="min-w-0 py-6 xl:py-8">
           {/* OVERVIEW */}
           <section
             id="overview"
-            ref={setSectionRef("overview")}
             className="mb-10 scroll-mt-20"
           >
-            <div className="flex flex-col md:flex-row gap-5 mb-6 flex-wrap">
-              {/* Cover */}
-              <div
-                className="w-full max-w-[200px] md:w-40 md:max-w-none aspect-[4/5] bg-border-dark rounded-lg flex-shrink-0 flex items-center justify-center text-2xl text-text-dim overflow-hidden self-center md:self-start"
-                aria-hidden="true"
-              >
-                {game.header_image_url ? (
-                  <img
-                    src={game.header_image_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="font-mono">{coverInitials}</span>
-                )}
-              </div>
+            {/* Title + metadata + actions */}
+            <div className="mb-10">
+              <h1 className="font-serif text-3xl md:text-[2.75rem] font-bold leading-[1.1] tracking-tight mb-3">
+                {game.title}
+              </h1>
+              <p className="text-sm text-text-dim mb-5">
+                {[
+                  game.developer,
+                  game.publisher && game.publisher !== game.developer ? `pub. ${game.publisher}` : null,
+                  subgenre,
+                  game.is_multiplayer && "Multiplayer",
+                  game.has_demo && "Demo available",
+                  priceBadge(game.price_usd),
+                  releaseDate && `Released ${fmtDate(releaseDate)}`,
+                  game.next_fest && `Next Fest ${game.next_fest}`,
+                  latestSnapshot?.review_score_pct != null &&
+                    latestSnapshot.review_count != null &&
+                    latestSnapshot.review_count >= 10 &&
+                    getSteamRating(latestSnapshot.review_score_pct),
+                ]
+                  .filter(Boolean)
+                  .join(" \u00b7 ")}
+              </p>
 
-              {/* Title + badges + actions */}
-              <div className="flex-1 min-w-0">
-                <h1 className="font-serif text-2xl md:text-[2.375rem] font-bold leading-[1.15] mb-2">
-                  {game.title}
-                </h1>
-                <p className="text-sm text-text-mid mb-3">
-                  by{" "}
-                  {game.developer ? (
-                    <span className="text-[#c04040]">{game.developer}</span>
-                  ) : (
-                    <span>Unknown developer</span>
+              {/* Action row: hairline pills */}
+              <div className="flex gap-2 flex-wrap">
+                <a
+                  href={`https://store.steampowered.com/app/${game.appid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border border-border-dark rounded-full px-3.5 py-1.5 text-sm text-secondary hover:border-text-mid transition-colors"
+                >
+                  Open on Steam ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => toggleWatch(game.appid)}
+                  aria-pressed={watched}
+                  className={
+                    "border rounded-full px-3.5 py-1.5 text-sm transition-colors " +
+                    (watched
+                      ? "border-status-pos/40 text-status-pos"
+                      : "border-border-dark text-text-main hover:border-text-mid")
+                  }
+                >
+                  {watched ? "Watching" : "Watchlist"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleCompare(game.appid)}
+                  disabled={!canAddToCompare}
+                  aria-pressed={inCompare}
+                  className={
+                    "border rounded-full px-3.5 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
+                    (inCompare
+                      ? "border-secondary/40 text-secondary"
+                      : "border-border-dark text-text-main hover:border-text-mid")
+                  }
+                  title={!canAddToCompare ? "Compare limit reached" : undefined}
+                >
+                  {inCompare ? "In Compare" : "Compare"}
+                </button>
+              </div>
+            </div>
+
+            {/* OPS masthead — vertical-bar TL;DR */}
+            {latestWithOps?.ops_score != null && (
+              <div className="border-l-2 border-secondary pl-4 mb-8">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-1">
+                  OPS
+                </div>
+                <div className="flex items-baseline gap-3 mb-1 flex-wrap">
+                  <span className={"font-mono text-5xl font-semibold " + opsTier(latestWithOps.ops_score).cls}>
+                    {Math.round(latestWithOps.ops_score)}
+                  </span>
+                  <span className={"font-mono text-sm uppercase tracking-wider " + opsTier(latestWithOps.ops_score).cls}>
+                    {opsTier(latestWithOps.ops_score).label}
+                  </span>
+                  {opsConfidence && (
+                    <span className="font-mono text-xs text-text-dim">{opsConfidence} confidence</span>
+                  )}
+                </div>
+                <p className="text-sm text-text-mid leading-relaxed max-w-[60ch]">
+                  {opsInterpretation(latestWithOps.ops_score, daysSinceLaunch)}
+                </p>
+              </div>
+            )}
+
+            {/* SIGNAL COMPONENTS — OPS breakdown bars (hidden when null) */}
+            {latestWithOps && (() => {
+              const comps: Array<{ label: string; value: number | null }> = [
+                { label: "Reviews", value: latestWithOps.review_component },
+                { label: "Velocity", value: latestWithOps.velocity_component },
+                { label: "Decay", value: latestWithOps.decay_component },
+                { label: "CCU", value: latestWithOps.ccu_component },
+                { label: "YouTube", value: latestWithOps.youtube_component },
+                { label: "Sentiment", value: latestWithOps.sentiment_component },
+                { label: "Twitch", value: latestWithOps.twitch_component },
+              ];
+              const populated = comps.filter((c) => c.value != null);
+              if (populated.length === 0) return null;
+              return (
+                <div className="mb-10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                    Signal components
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-w-[520px]">
+                    {populated.map((c) => {
+                      const v = c.value as number;
+                      const pct = Math.max(0, Math.min(100, v));
+                      return (
+                        <div key={c.label} className="grid grid-cols-[96px_1fr_36px] items-center gap-3 text-sm">
+                          <span className="text-text-mid">{c.label}</span>
+                          <div className="h-2 bg-border-dark/50 rounded-sm overflow-hidden">
+                            <div className="h-full bg-secondary/70" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="font-mono text-xs text-text-main text-right">{Math.round(v)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* AT A GLANCE — interpunct strip */}
+            <div className="mb-10">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                At a glance
+              </div>
+              <p className="text-sm text-text-main">
+                {[
+                  `Reviews ${latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—"}`,
+                  `Peak CCU ${maxCcu > 0 ? fmtNum(maxCcu) : "—"}`,
+                  `Age ${daysSinceLaunch != null ? daysSinceLaunch + "d" : "—"}`,
+                  `YouTube ${uniqueChannels}`,
+                  `Patches ${patchCount != null ? patchCount : "—"}`,
+                ].join("  ·  ")}
+              </p>
+            </div>
+
+            {/* ABOUT — Steam short description */}
+            {game.short_description && (
+              <div className="border-l-2 border-text-mid/30 pl-4 mb-8">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                  About
+                </div>
+                <p className="text-sm text-text-mid leading-relaxed max-w-[68ch]">
+                  {game.short_description}
+                </p>
+              </div>
+            )}
+
+            {/* TAGS — Steam community tags */}
+            {tags.length > 0 && (
+              <div className="mb-10">
+                <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-2">
+                  Tags
+                </div>
+                <p className="text-sm text-text-dim leading-relaxed">
+                  {tags.slice(0, 12).join(" · ")}
+                  {tags.length > 12 && (
+                    <span className="text-text-dim/60"> · +{tags.length - 12} more</span>
                   )}
                 </p>
-
-                <div className="flex gap-2 flex-wrap mb-4">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(163,106,165,0.3)] bg-[rgba(163,106,165,0.08)] text-tertiary">
-                    <span aria-hidden="true">{"\u{1F47B}"}</span> {subgenre}
-                  </span>
-                  {game.has_demo && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(107,157,219,0.3)] bg-[rgba(107,157,219,0.08)] text-status-info">
-                      <span aria-hidden="true">{"\u{1F579}"}</span> Demo Available
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)] text-secondary">
-                    <span aria-hidden="true">{"\u{1F4B0}"}</span> {priceBadge(game.price_usd)}
-                  </span>
-                  {latestSnapshot?.review_score_pct != null && latestSnapshot.review_count != null && latestSnapshot.review_count >= 10 && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium py-[3px] px-3 rounded-full border border-[rgba(94,194,105,0.3)] bg-[rgba(94,194,105,0.08)] text-status-pos">
-                      <span aria-hidden="true">{"\u2714"}</span> {getSteamRating(latestSnapshot.review_score_pct)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Action row: Steam link + Watchlist + Compare */}
-                <div className="flex gap-2 flex-wrap">
-                  <a
-                    href={`https://store.steampowered.com/app/${game.appid}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded bg-primary text-white uppercase font-bold hover:bg-primary-light transition-colors"
-                  >
-                    ▸ Open on Steam
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => toggleWatch(game.appid)}
-                    aria-pressed={watched}
-                    className={
-                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors " +
-                      (watched
-                        ? "border-[rgba(94,194,105,0.4)] bg-[rgba(94,194,105,0.08)] text-status-pos"
-                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
-                    }
-                  >
-                    {watched ? "★ Watching" : "☆ Watchlist"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleCompare(game.appid)}
-                    disabled={!canAddToCompare}
-                    aria-pressed={inCompare}
-                    className={
-                      "font-mono text-[11px] tracking-[1.5px] px-3.5 py-2 rounded border uppercase font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
-                      (inCompare
-                        ? "border-[rgba(187,113,37,0.4)] bg-[rgba(187,113,37,0.08)] text-secondary"
-                        : "border-border-dark text-text-mid hover:text-text-main hover:border-text-dim")
-                    }
-                    title={!canAddToCompare ? "Compare limit reached" : undefined}
-                  >
-                    {inCompare ? "⊟ In Compare" : "⊞ Compare"}
-                  </button>
-                </div>
               </div>
-            </div>
-
-            {/* Overview stats grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              {overviewStats.map((stat) => (
-                <article
-                  key={stat.label}
-                  className="bg-surface-dark border border-border-dark rounded-lg p-4"
-                >
-                  <div className="text-xs text-text-dim uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
-                    <span className="text-sm" aria-hidden="true">{stat.icon}</span>
-                    {stat.label}
-                  </div>
-                  <div
-                    className={
-                      "font-mono text-xl font-semibold " +
-                      (stat.tone === "green"
-                        ? "text-status-pos"
-                        : stat.tone === "amber"
-                        ? "text-status-warn"
-                        : stat.tone === "neg"
-                        ? "text-status-neg"
-                        : "text-text-main")
-                    }
-                  >
-                    {stat.value}
-                  </div>
-                  {stat.sub && (
-                    <div className="text-xs text-text-dim mt-1 leading-snug">{stat.sub}</div>
-                  )}
-                </article>
-              ))}
-            </div>
+            )}
           </section>
 
           {/* TIMELINE */}
-          <section id="timeline" ref={setSectionRef("timeline")} className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4C8}"}</span>
+          <section id="timeline" className="mb-10 scroll-mt-20">
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
               Timeline
             </h2>
 
@@ -917,10 +791,10 @@ export default function Autopsy() {
               </div>
             ) : (
               <>
-                <div className="bg-surface-dark border border-border-dark rounded-lg p-5 mb-4">
+                <div className="mb-6">
                   {/* Zoom controls */}
                   <div
-                    className="flex items-center gap-3 mb-4 pb-3 border-b border-border-dark flex-wrap"
+                    className="flex items-center gap-3 mb-4 flex-wrap"
                     role="group"
                     aria-label="Zoom controls"
                   >
@@ -1032,289 +906,177 @@ export default function Autopsy() {
                   </div>
                 </div>
 
-                {/* Phase cards */}
+                {/* Phase TL;DRs — vertical-bar narrative */}
                 {phases.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-4 mt-6">
                     {phases.map((p) => (
-                      <article
+                      <div
                         key={p.id}
-                        className="bg-surface-dark border border-border-dark rounded-lg p-4"
+                        className="border-l-2 pl-4"
+                        style={{ borderColor: p.color }}
                       >
                         <div
-                          className={"text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1 " + p.accentClass}
+                          className={"text-[11px] uppercase tracking-[0.14em] font-semibold mb-1 " + p.accentClass}
                         >
-                          <span aria-hidden="true">{p.icon}</span>
                           {p.label}
+                          <span className="text-text-dim font-mono normal-case tracking-normal ml-2">
+                            {p.range}
+                          </span>
                         </div>
-                        <div className="font-mono text-xs text-text-dim mb-2">{p.range}</div>
-                        <div className="text-xs text-text-mid leading-relaxed">{p.summary}</div>
-                      </article>
+                        <p className="text-sm text-text-mid leading-relaxed">{p.summary}</p>
+                      </div>
                     ))}
                   </div>
                 )}
               </>
             )}
           </section>
-
-          {/* CREATOR IMPACT */}
-          <section id="creators" ref={setSectionRef("creators")} className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u25B6"}</span>
-              Creator Impact
+          {/* EVENTS */}
+          {eventGroups.length > 0 && (
+          <section id="events" className="mb-10 scroll-mt-20">
+            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
+              Events
             </h2>
 
-            {creatorCards.length === 0 ? (
-              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
-                <div className="text-text-dim text-sm">No YouTube coverage detected yet</div>
-                <div className="font-mono text-xs text-text-dim mt-2">
-                  Creator cards appear when matched uploads are found.
+            <div className="flex flex-col gap-6">
+              {eventGroups.map((g) => (
+                <div key={g.key}>
+                  <div className={"text-[11px] uppercase tracking-[0.14em] font-semibold mb-2 " + g.accentClass}>
+                    {g.label}
+                    <span className="text-text-dim font-mono normal-case tracking-normal ml-2">
+                      {g.items.length}
+                    </span>
+                  </div>
+                  <ul className="flex flex-col gap-2 pl-4 border-l border-border-dark list-none">
+                    {g.items.map((ev, i) => (
+                      <li
+                        key={`${g.key}-${i}`}
+                        className="text-sm flex items-baseline gap-3"
+                      >
+                        <span className="font-mono text-xs text-text-dim w-10 flex-shrink-0">
+                          D{ev.day_index}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-text-main">{ev.title}</div>
+                          <div className="text-xs text-text-dim flex gap-3 flex-wrap mt-[2px]">
+                            {ev.channel_name && <span>{ev.channel_name}</span>}
+                            {ev.subscriber_count != null && <span>{fmtNum(ev.subscriber_count)} subs</span>}
+                            {ev.view_count != null && <span>{fmtNum(ev.view_count)} views</span>}
+                            {ev.subreddit && <span>r/{ev.subreddit}</span>}
+                            {ev.score != null && <span>{fmtNum(ev.score)} upvotes</span>}
+                            {ev.num_comments != null && <span>{ev.num_comments} comments</span>}
+                            {ev.detail && !ev.channel_name && !ev.subreddit && <span>{ev.detail}</span>}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+              ))}
+            </div>
+          </section>
+          )}
+        </main>
+
+        {/* RIGHT RAIL */}
+        {hasRailContent && (
+        <aside className="xl:py-8 flex flex-col gap-6 xl:sticky xl:top-6 xl:self-start">
+          {/* Community */}
+          {(redditCount > 0 ||
+            (latestSnapshot?.review_count ?? 0) > 0 ||
+            peakTwitch > 0 ||
+            (latestTwitchStreams ?? 0) > 0 ||
+            data.videos.length > 0) && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Community
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {creatorCards.slice(0, 9).map((c) => {
-                  const fillClass =
-                    c.tierCls === "status-pos"
-                      ? "bg-status-pos"
-                      : c.tierCls === "status-warn"
-                      ? "bg-status-warn"
-                      : "bg-status-info";
-                  const valueClass =
+              <dl className="text-sm space-y-2">
+                {redditCount > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Reddit posts</dt>
+                    <dd className="font-mono text-text-main">
+                      {redditCount}
+                      {redditTopUpvotes > 0 ? ` · ${fmtNum(redditTopUpvotes)} top` : ""}
+                    </dd>
+                  </div>
+                )}
+                {latestSnapshot?.review_count != null && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Steam reviews</dt>
+                    <dd className="font-mono text-text-main">
+                      {fmtNum(latestSnapshot.review_count)}
+                      {latestSnapshot.review_score_pct != null
+                        ? ` · ${Math.round(latestSnapshot.review_score_pct)}%`
+                        : ""}
+                    </dd>
+                  </div>
+                )}
+                {(peakTwitch > 0 || (latestTwitchStreams ?? 0) > 0) && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Twitch</dt>
+                    <dd className="font-mono text-text-main">
+                      {latestTwitchStreams ?? 0} streams
+                      {peakTwitch > 0 ? ` · ${fmtNum(peakTwitch)} peak` : ""}
+                    </dd>
+                  </div>
+                )}
+                {data.videos.length > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">YouTube views</dt>
+                    <dd className="font-mono text-text-main">
+                      {fmtNum(data.videos.reduce((s, v) => s + (v.view_count ?? 0), 0))} · {uniqueChannels} ch
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Top Creators */}
+          {creatorCards.length > 0 && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Top Creators
+              </div>
+              <ul className="flex flex-col gap-3 list-none">
+                {creatorCards.slice(0, 5).map((c) => {
+                  const tierColor =
                     c.tierCls === "status-pos"
                       ? "text-status-pos"
                       : c.tierCls === "status-warn"
                       ? "text-status-warn"
                       : "text-status-info";
-                  const initials =
-                    c.channel_name
-                      .split(/\s+/)
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((w) => w[0]?.toUpperCase())
-                      .join("") || "?";
                   return (
-                    <article
-                      key={c.video_id}
-                      className="bg-surface-dark border border-border-dark rounded-lg p-5 hover:border-[#3a342e] transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-11 h-11 rounded-full bg-border-dark flex items-center justify-center text-sm font-semibold text-text-dim flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-sm truncate">{c.channel_name}</div>
-                          <div className="font-mono text-xs text-text-dim">
-                            {c.subscriber_count > 0 ? `${fmtNum(c.subscriber_count)} subscribers` : "—"}
-                          </div>
-                        </div>
+                    <li key={c.video_id} className="text-sm">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium text-text-main truncate">{c.channel_name}</span>
+                        <span className={"font-mono text-xs " + tierColor}>{c.impact}</span>
                       </div>
-                      <p
-                        className="text-xs text-text-mid mb-3 leading-relaxed overflow-hidden"
-                        style={{
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                        title={c.title}
-                      >
-                        <strong className="text-text-main font-medium">"{c.title}"</strong>
-                      </p>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs text-text-dim font-semibold w-[50px] flex-shrink-0">
-                          Impact
-                        </span>
-                        <div
-                          className="flex-1 h-4 bg-white/[0.03] border border-border-dark rounded-sm overflow-hidden relative"
-                          role="progressbar"
-                          aria-valuenow={c.impact}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label={`Impact score ${c.impact}`}
-                        >
-                          <div
-                            className={"absolute left-0 top-0 bottom-0 " + fillClass}
-                            style={{ width: `${Math.max(2, c.impact)}%`, opacity: 0.85 }}
-                          />
-                        </div>
-                        <span
-                          className={"font-mono text-sm font-semibold w-9 text-right " + valueClass}
-                        >
-                          {c.impact}
-                        </span>
+                      <div className="text-xs text-text-dim truncate">{c.title}</div>
+                      <div className="font-mono text-[10px] text-text-dim mt-[2px]">
+                        D{c.day_index} · {fmtNum(c.view_count)} views
+                        {c.review_delta > 0 ? ` · +${c.review_delta} rev` : ""}
                       </div>
-                      <div className="font-mono text-[10px] text-text-dim mt-2">
-                        Day {c.day_index} · {fmtNum(c.view_count)} views
-                        {c.review_delta > 0 && (
-                          <span className="text-status-pos"> · +{c.review_delta} rev</span>
-                        )}
-                      </div>
-                    </article>
+                    </li>
                   );
                 })}
-              </div>
-            )}
-          </section>
-
-          {/* EVENTS */}
-          <section id="events" ref={setSectionRef("events")} className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4CB}"}</span>
-              Events Timeline
-            </h2>
-
-            {eventGroups.length === 0 ? (
-              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
-                <div className="text-text-dim text-sm">No events tracked yet</div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-5">
-                {eventGroups.map((g) => {
-                  const expanded = expandedGroups[g.key] ?? true;
-                  return (
-                    <div key={g.key}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedGroups((prev) => ({ ...prev, [g.key]: !expanded }))
-                        }
-                        aria-expanded={expanded}
-                        aria-label={`${g.label} events, ${g.items.length} item${g.items.length === 1 ? "" : "s"}`}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-surface-dark border border-border-dark rounded-lg hover:bg-[#222224] transition-colors mb-2"
-                      >
-                        <div className={"flex items-center gap-2 text-sm font-semibold " + g.accentClass}>
-                          <span aria-hidden="true" className="text-base">{g.icon}</span>
-                          <span className="text-text-main">{g.label}</span>
-                        </div>
-                        <span className="font-mono text-xs text-text-dim bg-white/[0.03] py-[2px] px-2 rounded-full">
-                          {g.items.length} event{g.items.length === 1 ? "" : "s"}
-                        </span>
-                        <span
-                          aria-hidden="true"
-                          className={
-                            "text-text-dim text-base transition-transform ml-2 " +
-                            (expanded ? "rotate-90" : "")
-                          }
-                        >
-                          ›
-                        </span>
-                      </button>
-
-                      {expanded && (
-                        <div className="flex flex-col gap-2 pl-4" role="list">
-                          {g.items.map((ev, i) => (
-                            <div
-                              key={`${g.key}-${i}`}
-                              role="listitem"
-                              className="flex items-start gap-3 px-4 py-3 bg-surface-dark border border-border-dark rounded-md text-sm"
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={"w-2 h-2 rounded-full mt-[6px] flex-shrink-0 " + g.dotClass}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-text-main mb-[2px]">{ev.title}</div>
-                                <div className="text-xs text-text-dim flex gap-3 flex-wrap">
-                                  {ev.channel_name && <span>{ev.channel_name}</span>}
-                                  {ev.subscriber_count != null && <span>{fmtNum(ev.subscriber_count)} subs</span>}
-                                  {ev.view_count != null && <span>{fmtNum(ev.view_count)} views</span>}
-                                  {ev.subreddit && <span>r/{ev.subreddit}</span>}
-                                  {ev.score != null && <span>{fmtNum(ev.score)} upvotes</span>}
-                                  {ev.num_comments != null && <span>{ev.num_comments} comments</span>}
-                                  {ev.detail && !ev.channel_name && !ev.subreddit && <span>{ev.detail}</span>}
-                                </div>
-                              </div>
-                              <span className="font-mono text-xs text-text-dim whitespace-nowrap flex-shrink-0">
-                                Day {ev.day_index}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* COMMUNITY */}
-          <section id="community" ref={setSectionRef("community")} className="mb-10 scroll-mt-20">
-            <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
-              <span className="text-secondary text-base" aria-hidden="true">{"\u{1F465}"}</span>
-              Community Signals
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F4AC}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Reddit Mentions
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">{redditCount}</div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {redditCount === 0
-                    ? "No Reddit posts tracked yet."
-                    : `Posts across r/HorrorGaming, r/IndieGaming.${redditTopUpvotes > 0 ? ` Highest: ${fmtNum(redditTopUpvotes)} upvotes.` : ""}`}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F4E2}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Steam Reviews
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {latestSnapshot?.review_score_pct != null
-                    ? `${Math.round(latestSnapshot.review_score_pct)}% positive — ${getSteamRating(latestSnapshot.review_score_pct)}.`
-                    : "Sentiment data not yet available."}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F3A5}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Twitch Streams
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {latestTwitchStreams != null ? latestTwitchStreams : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {peakTwitch > 0
-                    ? `Peak viewers: ${fmtNum(peakTwitch)}${latestTwitchViewers != null ? ` · now ${fmtNum(latestTwitchViewers)}` : ""}.`
-                    : "No Twitch activity tracked."}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u25B6"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    YouTube Reach
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {data.videos.length > 0
-                    ? fmtNum(data.videos.reduce((s, v) => s + (v.view_count ?? 0), 0))
-                    : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {data.videos.length > 0
-                    ? `Cumulative views across ${uniqueChannels} creator${uniqueChannels === 1 ? "" : "s"}.`
-                    : "No videos matched yet."}
-                </div>
-              </article>
+              </ul>
             </div>
-          </section>
-        </main>
+          )}
+
+          {/* Related Games — wired when an endpoint exists */}
+          {false && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Related Games
+              </div>
+              <div className="text-xs text-text-dim">Coming soon.</div>
+            </div>
+          )}
+        </aside>
+        )}
+        </div>
       </div>
     </>
   );
