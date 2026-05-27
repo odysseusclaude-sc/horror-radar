@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   Area,
@@ -372,16 +372,6 @@ function ChartTooltip({ active, payload }: any) {
    ============================================================ */
 
 type ZoomRange = "7d" | "30d" | "all";
-const SECTION_IDS = ["overview", "timeline", "creators", "events", "community"] as const;
-type SectionId = (typeof SECTION_IDS)[number];
-
-const SECTION_LABELS: Record<SectionId, { label: string; icon: string }> = {
-  overview: { label: "Overview", icon: "\u{1F3AE}" },
-  timeline: { label: "Timeline", icon: "\u{1F4C8}" },
-  creators: { label: "Creator Impact", icon: "\u25B6" },
-  events: { label: "Events", icon: "\u{1F4CB}" },
-  community: { label: "Community", icon: "\u{1F465}" },
-};
 
 export default function Autopsy() {
   const { appid } = useParams<{ appid: string }>();
@@ -389,7 +379,6 @@ export default function Autopsy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomRange>("30d");
-  const [activeSection, setActiveSection] = useState<SectionId>("overview");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     youtube: true,
     reddit: true,
@@ -632,32 +621,6 @@ export default function Autopsy() {
     return data.reddit_mentions.reduce((mx, r) => Math.max(mx, r.score ?? 0), 0);
   }, [data?.reddit_mentions]);
 
-  /* ── Scrollspy for section nav ── */
-  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
-
-  useEffect(() => {
-    if (loading || error) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id as SectionId);
-          }
-        }
-      },
-      { rootMargin: "-40% 0px -55% 0px", threshold: 0 },
-    );
-    for (const id of SECTION_IDS) {
-      const el = sectionRefs.current[id];
-      if (el) observer.observe(el);
-    }
-    return () => observer.disconnect();
-  }, [loading, error]);
-
-  const setSectionRef = useCallback((id: SectionId) => (el: HTMLElement | null) => {
-    sectionRefs.current[id] = el;
-  }, []);
-
   /* ── Loading / Error ── */
   if (loading) {
     return (
@@ -706,73 +669,11 @@ export default function Autopsy() {
         <span aria-current="page" className="text-text-mid truncate max-w-[60vw]">{game.title}</span>
       </nav>
 
-      {/* Mobile section nav pill bar */}
-      <nav
-        className="md:hidden sticky top-[57px] z-40 bg-surface-dark border-b border-border-dark px-4 py-2 overflow-x-auto"
-        aria-label="Page sections (mobile)"
-        style={{ scrollbarWidth: "none" }}
-      >
-        <ul className="flex gap-1 whitespace-nowrap list-none">
-          {SECTION_IDS.map((id) => {
-            const active = activeSection === id;
-            return (
-              <li key={id}>
-                <a
-                  href={`#${id}`}
-                  className={
-                    "inline-flex items-center gap-1 px-3 py-2 rounded-full border text-xs font-medium transition-colors " +
-                    (active
-                      ? "text-secondary border-[rgba(187,113,37,0.3)] bg-[rgba(187,113,37,0.08)]"
-                      : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.04]")
-                  }
-                >
-                  <span aria-hidden="true">{SECTION_LABELS[id].icon}</span>
-                  {SECTION_LABELS[id].label}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr] min-h-[calc(100vh-100px)]">
-        {/* Sidebar nav (desktop) */}
-        <nav
-          className="hidden md:block sticky top-[57px] h-[calc(100vh-57px)] border-r border-border-dark bg-surface-dark py-5 overflow-y-auto"
-          aria-label="Page sections"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-text-dim px-4 pb-3">
-            Sections
-          </div>
-          <ul className="list-none">
-            {SECTION_IDS.map((id) => {
-              const active = activeSection === id;
-              return (
-                <li key={id}>
-                  <a
-                    href={`#${id}`}
-                    className={
-                      "flex items-center gap-2 px-4 py-2 text-sm border-l-2 transition-colors " +
-                      (active
-                        ? "text-text-main border-secondary bg-[rgba(187,113,37,0.05)]"
-                        : "text-text-mid border-transparent hover:text-text-main hover:bg-white/[0.03]")
-                    }
-                  >
-                    <span aria-hidden="true" className="w-5 text-center">{SECTION_LABELS[id].icon}</span>
-                    {SECTION_LABELS[id].label}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {/* MAIN CONTENT */}
-        <main id="main-content" className="p-4 md:p-6 xl:p-8 max-w-[960px]">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-6 xl:px-10">
+        <main id="main-content" className="py-6 xl:py-8">
           {/* OVERVIEW */}
           <section
             id="overview"
-            ref={setSectionRef("overview")}
             className="mb-10 scroll-mt-20"
           >
             <div className="flex flex-col md:flex-row gap-5 mb-6 flex-wrap">
@@ -902,7 +803,7 @@ export default function Autopsy() {
           </section>
 
           {/* TIMELINE */}
-          <section id="timeline" ref={setSectionRef("timeline")} className="mb-10 scroll-mt-20">
+          <section id="timeline" className="mb-10 scroll-mt-20">
             <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
               <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4C8}"}</span>
               Timeline
@@ -1057,21 +958,14 @@ export default function Autopsy() {
           </section>
 
           {/* CREATOR IMPACT */}
-          <section id="creators" ref={setSectionRef("creators")} className="mb-10 scroll-mt-20">
+          {creatorCards.length > 0 && (
+          <section id="creators" className="mb-10 scroll-mt-20">
             <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
               <span className="text-secondary text-base" aria-hidden="true">{"\u25B6"}</span>
               Creator Impact
             </h2>
 
-            {creatorCards.length === 0 ? (
-              <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
-                <div className="text-text-dim text-sm">No YouTube coverage detected yet</div>
-                <div className="font-mono text-xs text-text-dim mt-2">
-                  Creator cards appear when matched uploads are found.
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {creatorCards.slice(0, 9).map((c) => {
                   const fillClass =
                     c.tierCls === "status-pos"
@@ -1151,12 +1045,12 @@ export default function Autopsy() {
                     </article>
                   );
                 })}
-              </div>
-            )}
+            </div>
           </section>
+          )}
 
           {/* EVENTS */}
-          <section id="events" ref={setSectionRef("events")} className="mb-10 scroll-mt-20">
+          <section id="events" className="mb-10 scroll-mt-20">
             <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
               <span className="text-secondary text-base" aria-hidden="true">{"\u{1F4CB}"}</span>
               Events Timeline
@@ -1238,7 +1132,7 @@ export default function Autopsy() {
           </section>
 
           {/* COMMUNITY */}
-          <section id="community" ref={setSectionRef("community")} className="mb-10 scroll-mt-20">
+          <section id="community" className="mb-10 scroll-mt-20">
             <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border-dark flex items-center gap-2">
               <span className="text-secondary text-base" aria-hidden="true">{"\u{1F465}"}</span>
               Community Signals
