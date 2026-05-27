@@ -444,12 +444,6 @@ export default function Autopsy() {
     return snapshots.reduce((mx, s) => Math.max(mx, s.peak_ccu ?? 0), 0);
   }, [snapshots]);
 
-  const reviewsPerDay = useMemo(() => {
-    if (!latestSnapshot?.review_count || !releaseDate) return null;
-    const days = Math.max(1, daysBetween(releaseDate, latestSnapshot.date));
-    return latestSnapshot.review_count / days;
-  }, [latestSnapshot, releaseDate]);
-
   const patchCount = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
       const v = snapshots[i].patch_count_30d;
@@ -535,12 +529,6 @@ export default function Autopsy() {
   const eventGroups = useMemo(() => groupEvents(events), [events]);
 
   /* ── Community stats ── */
-  const latestTwitchViewers = useMemo(() => {
-    for (let i = snapshots.length - 1; i >= 0; i--) {
-      if (snapshots[i].twitch_viewers != null) return snapshots[i].twitch_viewers;
-    }
-    return null;
-  }, [snapshots]);
 
   const latestTwitchStreams = useMemo(() => {
     for (let i = snapshots.length - 1; i >= 0; i--) {
@@ -584,6 +572,14 @@ export default function Autopsy() {
   const inCompare = isInCompare(game.appid);
   const canAddToCompare = canAddCompare || inCompare;
 
+  const hasRailContent =
+    redditCount > 0 ||
+    (latestSnapshot?.review_count ?? 0) > 0 ||
+    peakTwitch > 0 ||
+    (latestTwitchStreams ?? 0) > 0 ||
+    data.videos.length > 0 ||
+    creatorCards.length > 0;
+
   const coverInitials = game.title
     .split(/\s+/)
     .filter(Boolean)
@@ -608,7 +604,8 @@ export default function Autopsy() {
       </nav>
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-6 xl:px-10">
-        <main id="main-content" className="py-6 xl:py-8">
+        <div className={hasRailContent ? "grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8" : ""}>
+        <main id="main-content" className="min-w-0 py-6 xl:py-8">
           {/* OVERVIEW */}
           <section
             id="overview"
@@ -890,98 +887,6 @@ export default function Autopsy() {
               </>
             )}
           </section>
-
-          {/* CREATOR IMPACT */}
-          {creatorCards.length > 0 && (
-          <section id="creators" className="mb-10 scroll-mt-20">
-            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
-              Creator Coverage
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {creatorCards.slice(0, 9).map((c) => {
-                  const fillClass =
-                    c.tierCls === "status-pos"
-                      ? "bg-status-pos"
-                      : c.tierCls === "status-warn"
-                      ? "bg-status-warn"
-                      : "bg-status-info";
-                  const valueClass =
-                    c.tierCls === "status-pos"
-                      ? "text-status-pos"
-                      : c.tierCls === "status-warn"
-                      ? "text-status-warn"
-                      : "text-status-info";
-                  const initials =
-                    c.channel_name
-                      .split(/\s+/)
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((w) => w[0]?.toUpperCase())
-                      .join("") || "?";
-                  return (
-                    <article
-                      key={c.video_id}
-                      className="bg-surface-dark border border-border-dark rounded-lg p-5 hover:border-[#3a342e] transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-11 h-11 rounded-full bg-border-dark flex items-center justify-center text-sm font-semibold text-text-dim flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-sm truncate">{c.channel_name}</div>
-                          <div className="font-mono text-xs text-text-dim">
-                            {c.subscriber_count > 0 ? `${fmtNum(c.subscriber_count)} subscribers` : "—"}
-                          </div>
-                        </div>
-                      </div>
-                      <p
-                        className="text-xs text-text-mid mb-3 leading-relaxed overflow-hidden"
-                        style={{
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                        title={c.title}
-                      >
-                        <strong className="text-text-main font-medium">"{c.title}"</strong>
-                      </p>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs text-text-dim font-semibold w-[50px] flex-shrink-0">
-                          Impact
-                        </span>
-                        <div
-                          className="flex-1 h-4 bg-white/[0.03] border border-border-dark rounded-sm overflow-hidden relative"
-                          role="progressbar"
-                          aria-valuenow={c.impact}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label={`Impact score ${c.impact}`}
-                        >
-                          <div
-                            className={"absolute left-0 top-0 bottom-0 " + fillClass}
-                            style={{ width: `${Math.max(2, c.impact)}%`, opacity: 0.85 }}
-                          />
-                        </div>
-                        <span
-                          className={"font-mono text-sm font-semibold w-9 text-right " + valueClass}
-                        >
-                          {c.impact}
-                        </span>
-                      </div>
-                      <div className="font-mono text-[10px] text-text-dim mt-2">
-                        Day {c.day_index} · {fmtNum(c.view_count)} views
-                        {c.review_delta > 0 && (
-                          <span className="text-status-pos"> · +{c.review_delta} rev</span>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-            </div>
-          </section>
-          )}
-
           {/* EVENTS */}
           {eventGroups.length > 0 && (
           <section id="events" className="mb-10 scroll-mt-20">
@@ -1027,84 +932,107 @@ export default function Autopsy() {
             </div>
           </section>
           )}
-
-          {/* COMMUNITY */}
-          <section id="community" className="mb-10 scroll-mt-20">
-            <h2 className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-4">
-              Community
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F4AC}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Reddit Mentions
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">{redditCount}</div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {redditCount === 0
-                    ? "No Reddit posts tracked yet."
-                    : `Posts across r/HorrorGaming, r/IndieGaming.${redditTopUpvotes > 0 ? ` Highest: ${fmtNum(redditTopUpvotes)} upvotes.` : ""}`}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F4E2}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Steam Reviews
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {latestSnapshot?.review_count != null ? fmtNum(latestSnapshot.review_count) : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {latestSnapshot?.review_score_pct != null
-                    ? `${Math.round(latestSnapshot.review_score_pct)}% positive — ${getSteamRating(latestSnapshot.review_score_pct)}.`
-                    : "Sentiment data not yet available."}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u{1F3A5}"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    Twitch Streams
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {latestTwitchStreams != null ? latestTwitchStreams : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {peakTwitch > 0
-                    ? `Peak viewers: ${fmtNum(peakTwitch)}${latestTwitchViewers != null ? ` · now ${fmtNum(latestTwitchViewers)}` : ""}.`
-                    : "No Twitch activity tracked."}
-                </div>
-              </article>
-
-              <article className="bg-surface-dark border border-border-dark rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span aria-hidden="true" className="text-base">{"\u25B6"}</span>
-                  <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
-                    YouTube Reach
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-semibold text-text-main mb-1">
-                  {data.videos.length > 0
-                    ? fmtNum(data.videos.reduce((s, v) => s + (v.view_count ?? 0), 0))
-                    : "—"}
-                </div>
-                <div className="text-xs text-text-dim leading-snug">
-                  {data.videos.length > 0
-                    ? `Cumulative views across ${uniqueChannels} creator${uniqueChannels === 1 ? "" : "s"}.`
-                    : "No videos matched yet."}
-                </div>
-              </article>
-            </div>
-          </section>
         </main>
+
+        {/* RIGHT RAIL */}
+        {hasRailContent && (
+        <aside className="xl:py-8 flex flex-col gap-6 xl:sticky xl:top-6 xl:self-start">
+          {/* Community */}
+          {(redditCount > 0 ||
+            (latestSnapshot?.review_count ?? 0) > 0 ||
+            peakTwitch > 0 ||
+            (latestTwitchStreams ?? 0) > 0 ||
+            data.videos.length > 0) && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Community
+              </div>
+              <dl className="text-sm space-y-2">
+                {redditCount > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Reddit posts</dt>
+                    <dd className="font-mono text-text-main">
+                      {redditCount}
+                      {redditTopUpvotes > 0 ? ` · ${fmtNum(redditTopUpvotes)} top` : ""}
+                    </dd>
+                  </div>
+                )}
+                {latestSnapshot?.review_count != null && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Steam reviews</dt>
+                    <dd className="font-mono text-text-main">
+                      {fmtNum(latestSnapshot.review_count)}
+                      {latestSnapshot.review_score_pct != null
+                        ? ` · ${Math.round(latestSnapshot.review_score_pct)}%`
+                        : ""}
+                    </dd>
+                  </div>
+                )}
+                {(peakTwitch > 0 || (latestTwitchStreams ?? 0) > 0) && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">Twitch</dt>
+                    <dd className="font-mono text-text-main">
+                      {latestTwitchStreams ?? 0} streams
+                      {peakTwitch > 0 ? ` · ${fmtNum(peakTwitch)} peak` : ""}
+                    </dd>
+                  </div>
+                )}
+                {data.videos.length > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-mid">YouTube views</dt>
+                    <dd className="font-mono text-text-main">
+                      {fmtNum(data.videos.reduce((s, v) => s + (v.view_count ?? 0), 0))} · {uniqueChannels} ch
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Top Creators */}
+          {creatorCards.length > 0 && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Top Creators
+              </div>
+              <ul className="flex flex-col gap-3 list-none">
+                {creatorCards.slice(0, 5).map((c) => {
+                  const tierColor =
+                    c.tierCls === "status-pos"
+                      ? "text-status-pos"
+                      : c.tierCls === "status-warn"
+                      ? "text-status-warn"
+                      : "text-status-info";
+                  return (
+                    <li key={c.video_id} className="text-sm">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium text-text-main truncate">{c.channel_name}</span>
+                        <span className={"font-mono text-xs " + tierColor}>{c.impact}</span>
+                      </div>
+                      <div className="text-xs text-text-dim truncate">{c.title}</div>
+                      <div className="font-mono text-[10px] text-text-dim mt-[2px]">
+                        D{c.day_index} · {fmtNum(c.view_count)} views
+                        {c.review_delta > 0 ? ` · +${c.review_delta} rev` : ""}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Related Games — wired when an endpoint exists */}
+          {false && (
+            <div className="border border-border-dark rounded-md p-4">
+              <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-text-dim mb-3">
+                Related Games
+              </div>
+              <div className="text-xs text-text-dim">Coming soon.</div>
+            </div>
+          )}
+        </aside>
+        )}
+        </div>
       </div>
     </>
   );
