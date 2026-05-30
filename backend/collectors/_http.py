@@ -68,8 +68,11 @@ STEAM_API_HEADERS = {
 }
 
 # Pre-configured rate limiters
-# Store endpoints (appdetails, reviews, store page scraping) — slower, more detectable
-steam_store_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=800)
+# Store endpoints (appdetails, reviews, store page scraping) — slower, more detectable.
+# Cap sized for ~1k-game catalog: ~970 horror games × 1 reviews call/day + metadata
+# queue drain (~50-200/day) + retries. Pacing (2-3s/call) is what keeps Steam happy;
+# the daily cap is a safety ceiling, not a throttle.
+steam_store_limiter = BudgetedLimiter(min_interval=2.0, jitter=1.0, daily_cap=2000)
 
 # Web API endpoints (CCU, achievements, updates) — separate rate budget
 steam_api_limiter = BudgetedLimiter(min_interval=1.0, jitter=0.5, daily_cap=2000)
