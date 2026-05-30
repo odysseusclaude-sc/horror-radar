@@ -168,6 +168,37 @@ cd backend && python3 scripts/backfill_multiplayer_price.py
 
 ---
 
+## Incident — pending_metadata queue stalled (2026-05-01)
+
+**Trigger**: User asked for a pipeline health check. Discovery was running on schedule but no new games had been ingested for 25 days; total games stuck at 794 since 2026-04-06.
+
+**Root causes (both latent since pipeline-p1 / `1669ede` on 2026-04-07)**:
+
+1. **`pending_metadata` enqueues bypass DEFAULT clauses.** The migration in `database.py` runs `CREATE TABLE IF NOT EXISTS pending_metadata (… next_eligible_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP …)`, but `Base.metadata.create_all()` had already created the table during the same `init_db()` call without SQL defaults (SQLAlchemy `Column(default=…)` is Python-side only). `IF NOT EXISTS` then no-ops, so the live schema has no defaults. Discovery's `INSERT OR IGNORE INTO pending_metadata (appid, source, priority) VALUES (…)` left `next_eligible_at = NULL`, and the worker filter `next_eligible_at <= NOW()` excludes NULL forever via SQL three-valued logic. Result: 6,041 enqueued AppIDs invisible to the worker; every metadata run completed in <1ms with `items_processed=0` and `status=success` (a "heartbeat" pattern indistinguishable from healthy idle).
+2. **`UnboundLocalError: categories`** in `_fetch_and_classify`. `metadata.py:394` referenced `categories` 14 lines before its assignment at `:408`. Masked while the queue was empty; surfaced the moment cause #1 was fixed.
+
+**Resolution**:
+
+| Action | Where | Status |
+|---|---|---|
+| One-shot DB UPDATE: `next_eligible_at = CURRENT_TIMESTAMP` for the 6,041 NULL rows | VPS production SQLite | applied (backup at `/tmp/horrorindie.db.before-queue-fix.20260501T055155Z`) |
+| Bind `added_at` / `next_eligible_at` / `attempt_count` explicitly in discovery enqueues | `backend/collectors/discovery.py` | PR [#20](https://github.com/odysseusclaude-sc/horror-radar/pull/20) merged → `9f4517f` |
+| Hoist `categories = data.get("categories", [])` above its first use | `backend/collectors/metadata.py` | PR [#20](https://github.com/odysseusclaude-sc/horror-radar/pull/20) merged → `9f4517f` |
+| Append "Lessons Learned" entry covering both root causes | `CLAUDE.md` | same PR |
+| Restart `horror-radar` systemd unit on VPS | `~/.openclaw/workspace/obsidian-vault` | done |
+| One-time scheduled agent on 2026-05-04 to verify queue drained | claude.ai routine `trig_01X2setkKH6VrWfKpTfxtrJ8` | pending |
+
+**Verification at landing (2026-05-01T09:20Z)**:
+- 5 consecutive metadata cycles processed 50/50, 50/50, 49/50, 50/50, 50/50.
+- Total games climbed 794 → 1,009 in ~3.5h.
+- `dead_letters: 0`, no circuit-breaker trips.
+
+**Other findings (out of scope, follow-ups queued)**:
+- **Reviews collector daily budget exhaustion**: `BudgetedLimiter` cap of 800 calls/day causes ~70 review fetches to fail every day in `daily_snapshots_job`. Spawned as a separate task — fix should raise / split / decouple the budget.
+- **GitHub PAT exposed in VPS git remote URL**: `git remote -v` on the VPS leaked a `github_pat_…` token. Rotated and replaced with token-less HTTPS + credential helper. Recommended next step: switch to an SSH deploy key to fully eliminate the "credential in terminal output" failure mode (also hit on 2026-04-29 with rclone OAuth).
+
+---
+
 ## Remaining P3 Backlog
 
 From `CONSENSUS_PLAN.md`:
