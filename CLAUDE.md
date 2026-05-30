@@ -416,6 +416,11 @@ Append-only log of failed approaches and hard-won insights. Check here before at
 - **What happened**: Trying to install rclone via the official `.zip` download failed because `unzip` isn't installed on this Debian 13 VPS, and `sudo` is interactive-only.
 - **Do instead**: Use `python3 -m zipfile -e file.zip /tmp/` — Python 3 stdlib is always present and handles zip extraction. For anything that would need `sudo` on the VPS, prefer user-space alternatives: install binaries to `~/bin/`, use user-level systemd at `~/.config/systemd/user/` (linger is enabled, units survive reboot), avoid `/usr/local/`, `/opt/`, and `/etc/systemd/system/`.
 
+### 2026-04-30 — OPS v6 model/schema mismatch took prod down
+
+- **What happened**: Changed `OpsScore.formula_version` from `Integer` to `String("v6.0")` in 881eda7 without updating `OpsScoreOut.formula_version: int | None`. Once v6 wrote any string, every `model_validate(ops_score)` raised, breaking `/api/games` (list) and `/api/games/{appid}` (detail). Endpoints with custom OPS shapes (`/radar-pick`, `/timeline`, `/insights`) kept working, masking the outage during smoke tests. The first fix (`str`-only) flipped the failure direction because legacy rows still hold integer `formula_version` values.
+- **Do instead**: When changing a SQLAlchemy column type, grep for the field in `backend/schemas.py` AND `frontend/src/types/` in the same commit. Prefer a union type (`int | str | None`) when historical rows may carry the old type. Add a `/api/games?page_size=1` smoke test to the deploy flow (see `backend/scripts/post_deploy_smoke.sh`).
+
 ### 2026-05-01 — `pending_metadata` queue invisible: SQL DEFAULTs never made it into the live schema
 
 - **What happened**: After pipeline-p1 (1669ede, 2026-04-07) introduced the `pending_metadata` work queue, no new game was ingested for 25 days. Discovery kept finding 4–200 AppIDs every 6h but every metadata run completed in <1ms with `items_processed=0` and `status="success"`. Total games stuck at 794; queue ballooned to 6,041 invisible rows.
