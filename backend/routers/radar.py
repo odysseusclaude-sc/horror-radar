@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, text as sql_text
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -446,6 +446,13 @@ def get_radar_pick(db: Session = Depends(get_db)):
             sentiment_pct=other_snap.review_score_pct if other_snap else None,
         ))
 
+    # --- Latest editorial verdict (Agent 4 output, falls back to None if absent) ---
+    verdict_row = db.execute(sql_text(
+        "SELECT verdict_text FROM radar_verdicts WHERE appid = :appid "
+        "ORDER BY generated_at DESC LIMIT 1"
+    ), {"appid": game.appid}).fetchone()
+    verdict = verdict_row.verdict_text if verdict_row else None
+
     # --- Build response ---
     return RadarPickResponse(
         appid=game.appid,
@@ -470,4 +477,5 @@ def get_radar_pick(db: Session = Depends(get_db)):
         velocity_spark=velocity_spark,
         previous_picks=previous_picks,
         runners_up=runners_up,
+        verdict=verdict,
     )

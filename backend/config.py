@@ -215,6 +215,9 @@ class Settings(BaseSettings):
     # Discord webhook for pipeline alerts — leave empty to disable
     discord_webhook_url: str = ""
 
+    # Anthropic API key for the agentic layer — leave empty to disable LLM agents
+    anthropic_api_key: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

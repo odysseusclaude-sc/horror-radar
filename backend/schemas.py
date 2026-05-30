@@ -392,6 +392,10 @@ class RadarPickResponse(BaseModel):
     previous_picks: list[RadarPreviousPick] = []
     runners_up: list[RadarPickSummary] = []
 
+    # Agent 4 (editorial writer) output — None if no verdict has been generated yet,
+    # in which case the frontend falls back to its template-driven buildVerdict().
+    verdict: str | None = None
+
 
 # --- Developer schemas ---
 
